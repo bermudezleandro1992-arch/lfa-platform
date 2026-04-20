@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authExists() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function obtenerRol() {
+      return authExists() ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol : null;
+    }
+
+    function esAdmin() {
+      return authExists() && (request.auth.uid == "2bOrFxTAcPgFPoHKJHQfYxoQJpw1" || obtenerRol() == "admin");
+    }
+
+    function esCapitan() {
+      return authExists() && (esAdmin() || obtenerRol() == "capitan");
+    }
+
+    function isOwner(uid) {
+      return authExists() && request.auth.uid == uid;
+    }
+
+    match /usuarios/{userid} {
+      allow read: if isOwner(userid) || esAdmin();
+      allow create: if false;
+      allow update: if isOwner(userid) &&
+                    !request.resource.data.diff(resource.data).affectedKeys()
+                      .hasAny(['rol','baneado','fair_play','number','es_afiliado','ganancias_afiliado','referido_por','bono_referido_entregado','ip_registro_referido'])
+                    || esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    // ── Colección nueva Next.js ──────────────────────────
+    match /tournaments/{id} {
+      allow read: if true;
+      allow create: if esAdmin();
+      allow update: if esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    match /transactions/{id} {
+      allow read: if authExists() && (isOwner(resource.data.userId) || esAdmin());
+      allow create: if false;
+      allow update, delete: if false;
+    }
+
+    match /matches/{id} {
+      allow read: if authExists();
+      allow write: if false;
+    }
+
+    match /disputas/{id} {
+      allow read: if authExists();
+      allow write: if false;
+    }
+
+    match /torneos/{torneoId} {
+      allow create: if esAdmin();
+      allow delete: if esAdmin();
+      allow update: if esCapitan() &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['resultado_pendiente','estado_resultado','estado','disputa_activa','ganador_final'])
+                    || esAdmin();
+
+      match /mensajes/{mensajeId} {
+        allow read: if true;
+        allow create: if authExists();
+        allow delete: if esAdmin();
+      }
+    }
+
+    match /reportes_ia/{reporteId} {
+      allow read: if esAdmin();
+      allow create: if authExists();
+      allow update: if esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    match /pagos/{pagoId} {
+      allow read: if authExists() && (isOwner(resource.data.usuario_uid) || esAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /pagos_pendientes/{pagoId} {
+      allow read: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /pagos_procesados/{pagoId} {
+      allow read: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /retiros/{retiroId} {
+      allow read: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /torneo/{resultadoId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /clubes_pro/{clubId} {
+      allow read: if true;
+      allow create: if esAdmin();
+      allow update: if authExists() && (isOwner(resource.data.capitan_uid) || esAdmin());
+      allow delete: if esAdmin();
+    }
+
+    match /equipos_coop/{clubId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /sorteos/{sorteoId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /configuracion/{docId} {
+      allow read, write: if esAdmin();
+    }
+
+    match /chat_global/{msgId} {
+      allow read: if authExists();
+      allow create: if authExists();
+      allow update, delete: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+    }
+
+    match /equipos_efootball/{equipoId} {
+      allow read: if true;
+      allow create: if authExists();
+      allow update: if authExists() && (isOwner(resource.data.capitan_uid) || esAdmin());
+      allow delete: if esAdmin();
+    }
+
+    match /partidos_efootball/{partidoId} {
+      allow read: if true;
+      allow create: if authExists();
+      allow update: if authExists() && (
+        isOwner(resource.data.creado_por) || 
+        isOwner(resource.data.equipo_local) || 
+        isOwner(resource.data.equipo_visitante) || 
+        esAdmin()
+      );
+      allow delete: if esAdmin();
+    }
+
+    match /chat_partidos/{chatId} {
+      allow read: if authExists();
+      allow create: if authExists();
+      allow update, delete: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,43 @@
+runConfig:
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 10
+
+env:
+  # Firebase Client (públicas, van con value)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: somoslfa.com
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: lfaofficial
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: lfaofficial.firebasestorage.app
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "1073871074458"
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:1073871074458:web:d76a568ca85d0055cd5b23
+
+  - variable: IP_API_BASE_URL
+    value: https://ipapi.co
+
+  # Firebase Admin SDK (secretos, van con secret:)
+  - variable: FIREBASE_ADMIN_PROJECT_ID
+    value: lfaofficial
+
+  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
+    value: firebase-adminsdk-fbsvc@lfaofficial.iam.gserviceaccount.com
+
+  - variable: FIREBASE_ADMIN_PRIVATE_KEY
+    secret: FIREBASE_ADMIN_PRIVATE_KEY
+
+  # Google Vision API (secreto)
+  - variable: GOOGLE_VISION_API_KEY
+    secret: GOOGLE_VISION_API_KEY

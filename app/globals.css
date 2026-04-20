@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-orbitron: 'Orbitron', sans-serif;
+    --font-inter:    'Inter', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #0b0e14;
+    color: #c9d1d9;
+    font-family: var(--font-inter);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar personalizada — minimalista */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0e14;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00ff88;
+  }
+}
+
+@layer components {
+  /* Botón primario LFA */
+  .btn-lfa-primary {
+    @apply w-full py-3 px-6 rounded-xl font-bold text-black bg-lfa-neon
+           hover:bg-[#00cc6a] active:scale-[0.98]
+           transition-all duration-200
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100
+           shadow-neon hover:shadow-neon-lg;
+    font-family: var(--font-orbitron);
+    letter-spacing: 0.5px;
+  }
+
+  /* Input LFA */
+  .input-lfa {
+    @apply w-full px-4 py-3 rounded-xl
+           bg-lfa-bg border border-lfa-border
+           text-lfa-light placeholder:text-lfa-text
+           focus:outline-none focus:border-lfa-neon focus:ring-1 focus:ring-lfa-neon/30
+           transition-all duration-200;
+    font-size: 0.9375rem;
+  }
+
+  .input-lfa:autofill,
+  .input-lfa:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #0b0e14 inset !important;
+    -webkit-text-fill-color: #c9d1d9 !important;
+  }
+
+  /* Card LFA */
+  .card-lfa {
+    @apply bg-lfa-card border border-lfa-border rounded-2xl;
+  }
+
+  /* Label LFA */
+  .label-lfa {
+    @apply block text-xs font-semibold text-lfa-text uppercase tracking-widest mb-1.5;
+  }
+
+  /* Título con fuente Orbitron */
+  .title-orbitron {
+    font-family: var(--font-orbitron);
+  }
+}
+
+@layer utilities {
+  .text-gradient-neon {
+    background: linear-gradient(135deg, #00ff88, #00cc6a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-neon-glow {
+    border-color: #00ff88;
+    box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.2), inset 0 0 20px rgba(0, 255, 136, 0.03);
+  }
+
+  .bg-lfa-grid-pattern {
+    background-color: #0b0e14;
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg stroke='%2300ff88' stroke-width='0.3' stroke-opacity='0.07'%3E%3Cpath d='M40 0H0v40'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+}

@@ -1,0 +1,3142 @@
+<!DOCTYPE html>
+<html lang="es">
+<script src="/lfa-security.js" defer></script>
+<script src="/lfa-i18n.js" defer></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard LFA | GESTIÓN SM</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0b0e14">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+
+    <script type="text/javascript">
+        window.$crisp=[];
+        window.CRISP_WEBSITE_ID="3a49169b-7afb-4bbc-bb95-a0f8c8d9535a";
+        (function(){
+            d=document;
+            s=d.createElement("script");
+            s.src="https://client.crisp.chat/l.js";
+            s.async=1;
+            d.getElementsByTagName("head")[0].appendChild(s);
+        })();
+    </script>
+
+    <script>
+        !function(f,b,e,v,n,t,s){
+            if(f.fbq)return;
+            n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)
+        }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js'); 
+        fbq('init', '1475681804026660'); 
+        fbq('track', 'PageView');
+    </script>
+    <noscript> 
+        <img height="1" width="1" src="https://www.facebook.com/tr?id=1475681804026660&ev=PageView&noscript=1"/>
+    </noscript>
+
+    <style>
+        :root { 
+            --primary-neon: #00ff88; 
+            --bg-dark: #0b0e14; 
+            --card-bg: #161b22; 
+            --border: #30363d; 
+            --text-gray: #8b949e; 
+            --lfa-gold: #ffd700; 
+            --danger: #ff4757; 
+            --ceo-purple: #9146FF; 
+            --pro-neon: #9146FF; 
+            --mp-blue: #009ee3; 
+            --prex-purple: #7d3c98; 
+            --wsp-green: #25D366; 
+        }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Roboto', sans-serif; 
+            background: var(--bg-dark); 
+            color: white; 
+            overflow-x: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh; 
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+        }
+
+        input, select, textarea { 
+            -webkit-user-select: auto; 
+            -moz-user-select: auto; 
+            -ms-user-select: auto; 
+            user-select: auto; 
+        }
+
+        ::-webkit-scrollbar { 
+            display: none; 
+        } 
+
+        * { 
+            -ms-overflow-style: none; 
+            scrollbar-width: none; 
+        }
+
+        #loaderInicial { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: var(--bg-dark); 
+            z-index: 9999; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            transition: 0.5s; 
+        }
+
+        .joystick-icon { 
+            width: 100px; 
+            height: 100px; 
+            filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.6)); 
+            animation: rotateJoystick 4s infinite linear; 
+            margin-bottom: 20px; 
+        }
+
+        @keyframes rotateJoystick { 
+            from { transform: rotate(0deg); } 
+            to { transform: rotate(360deg); } 
+        }
+
+        header { 
+            background: rgba(7, 9, 13, 0.95); 
+            padding: 15px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--primary-neon); 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+        }
+        
+        .user-info { 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            padding: 10px; 
+            border-radius: 12px; 
+            background: rgba(0,255,136,0.02); 
+            border: 1px solid transparent;
+        }
+
+        .user-info:hover { 
+            background: rgba(0,255,136,0.05); 
+            border-color: rgba(0,255,136,0.2); 
+        }
+
+        .user-details { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: flex-start; 
+        }
+
+        .u-name { 
+            font-family: 'Orbitron'; 
+            font-size: 1.1rem; 
+            font-weight: 900; 
+            color: white; 
+            margin-bottom: 2px; 
+            text-transform: uppercase; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+        }
+
+        .u-rank { 
+            font-size: 0.75rem; 
+            color: var(--text-gray); 
+            font-weight: bold; 
+            letter-spacing: 1px; 
+            margin-bottom: 6px;
+        }
+
+        .u-progress-container { 
+            width: 150px; 
+            margin-bottom: 8px; 
+        }
+
+        .u-titles { 
+            font-size: 0.8rem; 
+            color: var(--lfa-gold); 
+            font-weight: bold; 
+        }
+        
+        .fut-shape { 
+            clip-path: polygon(10% 0, 90% 0, 100% 10%, 100% 75%, 50% 100%, 0 75%, 0 10%); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            color: white; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,1), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; 
+            box-sizing: border-box; 
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); 
+        }
+
+        .carta-dios-supremo { 
+            width: 170px; 
+            height: 260px; 
+            padding: 15px; 
+            margin: 0 auto; 
+            background: linear-gradient(135deg, #e6c875 0%, #b8860b 50%, #8b6508 100%); 
+            transition: background 0.3s; 
+        }
+
+        .lfa-card { 
+            width: 65px; 
+            height: 95px; 
+            padding: 6px 4px; 
+            background: linear-gradient(135deg, #111 0%, #333 100%); 
+            transition: 0.3s; 
+            cursor: pointer; 
+            border: 1px solid var(--lfa-gold);
+        }
+
+        .iconos-plataforma i { 
+            font-size: 16px; 
+            margin: 0 4px; 
+            color: #fff; 
+            filter: drop-shadow(2px 2px 2px black); 
+        }
+
+        .progress-bar-bg { 
+            background: var(--border); 
+            border-radius: 10px; 
+            height: 6px; 
+            width: 100%; 
+            overflow: hidden; 
+        }
+
+        .progress-bar-fill { 
+            background: var(--primary-neon); 
+            height: 100%; 
+            transition: 0.5s; 
+        }
+        
+        .card-text-container { 
+            width: 100%; 
+            box-sizing: border-box; 
+            padding: 0 2px; 
+            overflow: hidden; 
+            text-align: center; 
+        }
+
+        .card-name { 
+            font-family: 'Orbitron'; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: block; 
+            width: 100%; 
+        }
+
+        .card-id { 
+            font-family: 'Roboto'; 
+            color: #ddd; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: block; 
+            width: 100%; 
+        }
+
+        .header-actions { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            position: relative; 
+            z-index: 1002;
+        }
+
+        .balance-val { 
+            font-family: 'Orbitron'; 
+            color: var(--lfa-gold); 
+            font-size: 1.3rem; 
+            font-weight: 700; 
+            display: inline-block; 
+            margin-right: 15px;
+        }
+
+        .btn-wallet { 
+            background: transparent; 
+            border: 1px solid var(--lfa-gold); 
+            color: var(--lfa-gold); 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            cursor: pointer; 
+            font-size: 0.75rem; 
+            transition: 0.3s; 
+            font-weight: bold;
+        }
+
+        .btn-wallet:hover { 
+            background: var(--lfa-gold); 
+            color: black; 
+            box-shadow: 0 0 15px rgba(255,215,0,0.4);
+        }
+
+        .btn-logout { 
+            background-color: var(--danger); 
+            color: white; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 0.75rem; 
+            transition: 0.3s; 
+            margin-left: 10px;
+        }
+
+        .btn-logout:hover { 
+            background-color: #ff0000; 
+            transform: scale(1.05); 
+        }
+
+        .btn-admin { 
+            display: none; 
+            background: #ff9900; 
+            color: black; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family:'Orbitron'; 
+            font-weight:bold; 
+            text-decoration:none; 
+            font-size: 0.75rem;
+        }
+        
+        .btn-hub { 
+            background: transparent; 
+            border: 1px solid var(--text-gray); 
+            color: white; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 0.75rem; 
+            transition: 0.3s; 
+            margin-left: 10px; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 5px;
+        }
+
+        .btn-hub:hover { 
+            border-color: var(--primary-neon); 
+            color: var(--primary-neon); 
+        }
+        
+        .btn-main { 
+            padding: 12px; 
+            background: var(--primary-neon); 
+            color: black; 
+            border: none; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            font-weight: 800; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        .btn-main:hover { 
+            box-shadow: 0 0 15px rgba(0,255,136,0.4); 
+            background: white; 
+        }
+
+        .btn-secondary { 
+            background: transparent; 
+            border: 1px solid var(--text-gray); 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            width: 100%;
+        }
+
+        .btn-secondary:hover { 
+            background: rgba(255,255,255,0.1); 
+        }
+
+        .container { 
+            padding: 30px 5%; 
+            max-width: 1300px; 
+            margin: 0 auto; 
+            flex: 1; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+
+        h2 { 
+            font-family: 'Orbitron'; 
+            font-size: 1rem; 
+            color: var(--primary-neon); 
+            letter-spacing: 2px; 
+            margin: 40px 0 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 10px; 
+            flex-wrap: wrap;
+        }
+
+        .estadisticas-live { 
+            display: flex; 
+            gap: 20px; 
+            background: var(--card-bg); 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            margin-bottom: 30px; 
+            justify-content: space-around; 
+            text-align: center; 
+            flex-wrap: wrap;
+        }
+
+        .stat-val { 
+            font-size: 2rem; 
+            font-weight: 900; 
+            color: var(--primary-neon); 
+            font-family: 'Roboto', sans-serif; 
+            text-shadow: 0 0 15px rgba(0,255,136,0.3); 
+            margin-top: 5px; 
+        }
+        
+        .compact-list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); 
+            gap: 12px; 
+            margin-bottom: 30px; 
+        }
+
+        .compact-card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-left: 4px solid var(--card-theme, var(--primary-neon)); 
+            border-radius: 10px; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            transition: 0.3s; 
+            gap: 10px; 
+            position: relative; 
+            overflow: hidden;
+        }
+
+        .compact-card:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 8px 20px var(--card-glow, rgba(0,255,136,0.2)); 
+            border-color: var(--card-theme, var(--primary-neon)); 
+        }
+
+        .cc-info { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+        }
+
+        .cc-title { 
+            font-family: 'Orbitron'; 
+            font-size: 0.95rem; 
+            font-weight: bold; 
+        }
+
+        .cc-tags { 
+            display: flex; 
+            gap: 4px; 
+            font-size: 0.6rem; 
+            flex-wrap: wrap; 
+            margin-top: 2px;
+        }
+
+        .cc-tag { 
+            background: #22272e; 
+            border: 1px solid #444c56; 
+            padding: 2px 5px; 
+            border-radius: 4px; 
+            color: #c9d1d9; 
+        }
+
+        .cc-cost { 
+            color: var(--lfa-gold); 
+            font-weight: bold; 
+            background: rgba(255,215,0,0.1); 
+            border: 1px solid var(--lfa-gold); 
+            padding: 2px 5px; 
+            border-radius: 4px; 
+            font-size: 0.6rem; 
+            display:flex; 
+            align-items:center; 
+            gap:3px;
+        }
+
+        .cc-cost.gratis { 
+            color: var(--primary-neon); 
+            background: rgba(0,255,136,0.1); 
+            border-color: var(--primary-neon); 
+        }
+
+        .cc-users { 
+            color: white; 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            margin-top: 3px; 
+            font-family: 'Orbitron';
+        }
+        
+        .live-match-card { 
+            background: linear-gradient(145deg, #0b0e14 0%, #161b22 100%); 
+            border: 1px solid #30363d; 
+            border-left: 4px solid var(--card-theme, var(--primary-neon)); 
+            border-radius: 12px; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            transition: 0.3s; 
+            gap: 12px; 
+            position: relative; 
+            overflow: hidden; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+        }
+
+        .live-match-card:hover { 
+            border-color: var(--card-theme, var(--warning)); 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 20px var(--card-glow, rgba(255,215,0,0.15)); 
+        }
+
+        .lm-title { 
+            font-family: 'Orbitron'; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            text-shadow: 0 0 5px rgba(255,255,255,0.2); 
+        }
+
+        .lm-tags { 
+            display: flex; 
+            gap: 5px; 
+            font-size: 0.65rem; 
+            flex-wrap: wrap; 
+            margin-top: 5px; 
+            align-items: center;
+        }
+
+        .lm-tag { 
+            background: transparent; 
+            border: 1px solid #555; 
+            padding: 3px 6px; 
+            border-radius: 4px; 
+            color: #ccc; 
+        }
+
+        .lm-tag-live { 
+            font-weight: bold; 
+            padding: 3px 6px; 
+            border-radius: 4px; 
+            border: 1px solid;
+        }
+
+        .btn-live { 
+            padding: 10px 12px; 
+            background: rgba(0,0,0,0.5); 
+            color: #8b949e; 
+            border: 1px solid #30363d; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            font-weight: 900; 
+            font-size: 0.85rem; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            width: 100%;
+        }
+
+        .live-match-card:hover .btn-live { 
+            background: var(--card-glow, rgba(255, 215, 0, 0.1)); 
+            border-color: var(--card-theme, var(--lfa-gold)); 
+            color: var(--card-theme, var(--lfa-gold)) !important; 
+        }
+
+        .ranking-card { 
+            background: var(--card-bg); 
+            border-radius: 15px; 
+            border: 1px solid var(--border); 
+            overflow: hidden; 
+            overflow-x: auto; 
+        }
+        
+        .ranking-card table { 
+            width: 100% !important; 
+            table-layout: fixed; 
+            border-collapse: collapse; 
+            font-size: 0.9rem; 
+            min-width: 0; 
+        }
+        
+        .ranking-card table th { 
+            padding: 15px 10px; 
+            text-align: left; 
+            font-family: 'Orbitron'; 
+            color: var(--primary-neon); 
+            font-size: 0.7rem; 
+            background: rgba(0,255,136,0.05); 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+        
+        .ranking-card table td { 
+            padding: 10px 5px; 
+            border-bottom: 1px solid var(--border); 
+            font-weight: bold; 
+            vertical-align: middle; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+        
+        .ranking-card table tr:hover { 
+            background: rgba(255,255,255,0.05); 
+            cursor: pointer; 
+        }
+        
+        .ranking-card table th:nth-child(1), .ranking-card table td:nth-child(1) { width: 10%; text-align: center;}
+        .ranking-card table th:nth-child(2), .ranking-card table td:nth-child(2) { width: 50%; white-space: normal;}
+        .ranking-card table th:nth-child(3), .ranking-card table td:nth-child(3) { width: 25%; }
+        .ranking-card table th:nth-child(4), .ranking-card table td:nth-child(4) { width: 15%; text-align: right; padding-right: 15px;}
+        
+        .rank-1 { background: rgba(255, 215, 0, 0.08); border-left: 4px solid gold; box-shadow: inset 0 0 20px rgba(255,215,0,0.1); }
+        .rank-2 { background: rgba(192, 192, 192, 0.05); border-left: 4px solid silver; }
+        .rank-3 { background: rgba(205, 127, 50, 0.05); border-left: 4px solid #cd7f32; }
+        .rango-badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-family: 'Orbitron'; font-weight: 900; font-size: 0.7rem; letter-spacing: 1px; }
+
+        .tab-rank-btn { 
+            background: transparent; 
+            color: var(--text-gray); 
+            border: 1px solid var(--border); 
+            padding: 8px 15px; 
+            font-size: 0.75rem; 
+            border-radius: 20px; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            white-space: nowrap; 
+        }
+        
+        .tab-rank-btn:hover { 
+            border-color: var(--primary-neon); 
+            color: white; 
+        }
+        
+        .tab-rank-btn.active { 
+            background: rgba(0,255,136,0.1); 
+            border-color: var(--primary-neon); 
+            color: var(--primary-neon); 
+        }
+
+        .modal-overlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            z-index: 9500; 
+            align-items: center; 
+            justify-content: center; 
+            backdrop-filter: blur(8px); 
+            padding: 10px; 
+            box-sizing: border-box;
+        }
+        
+        .modal-box { 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 1px solid var(--primary-neon); 
+            width: 90%; 
+            max-width: 500px; 
+            text-align: center; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+            position: relative; 
+        }
+        
+        .input-form { 
+            width: 100%; 
+            padding: 12px; 
+            background: #0b0e14; 
+            border: 1px solid var(--border); 
+            color: white; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            font-family: 'Roboto'; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: 0.3s;
+        }
+        
+        .input-form:focus { 
+            border-color: var(--primary-neon); 
+        }
+        
+        .btn-cerrar-modal { 
+            position: absolute; 
+            top: 15px; 
+            right: 20px; 
+            background: none; 
+            border: none; 
+            color: var(--text-gray); 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            z-index: 20;
+        }
+        
+        .btn-cerrar-modal:hover { 
+            color: white; 
+            transform: scale(1.1); 
+        }
+
+        .lfa-modal-overlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.92); 
+            z-index: 100000; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            backdrop-filter: blur(5px); 
+        }
+        
+        .lfa-modal-box { 
+            background: #161b22; 
+            border: 1px solid var(--primary-neon); 
+            border-radius: 15px; 
+            padding: 25px; 
+            text-align: center; 
+            max-width: 380px; 
+            width: 100%; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+        }
+        
+        .lfa-modal-icon { font-size: 3rem; margin-bottom: 15px; }
+        .lfa-modal-title { font-family: 'Orbitron'; font-size: 1.2rem; margin-top: 0; margin-bottom: 10px; letter-spacing: 1px; color: white;}
+        .lfa-modal-text { font-family: 'Roboto'; font-size: 0.9rem; color: #ccc; line-height: 1.5; margin-bottom: 20px; }
+        .lfa-modal-buttons { display: flex; gap: 10px; justify-content: center;}
+
+        .profile-modal { 
+            max-width: 800px !important; 
+            padding: 0 !important; 
+            overflow-y: auto; 
+            overflow-x: hidden; 
+            text-align: left;
+        }
+        
+        .profile-header { 
+            background: rgba(0, 255, 136, 0.05); 
+            padding: 20px 25px; 
+            border-bottom: 1px solid var(--border); 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+            backdrop-filter: blur(5px); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        
+        .profile-body { 
+            padding: 25px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            align-items: flex-start;
+        }
+        
+        .profile-stat-box { 
+            background: #0b0e14; 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            padding: 15px; 
+            text-align: center; 
+        }
+        
+        .profile-stat-box .s-num { 
+            font-family: 'Orbitron'; 
+            font-size: 1.5rem; 
+            font-weight: bold; 
+            color: white; 
+            margin-top: 5px;
+        }
+        
+        .profile-stat-box .s-title { 
+            font-size: 0.7rem; 
+            color: var(--text-gray); 
+            text-transform: uppercase; 
+            font-weight: bold;
+        }
+        
+        .fp-container { 
+            background: #0b0e14; 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            text-align: center;
+        }
+        
+        .fp-title { 
+            font-family: 'Orbitron'; 
+            font-size: 0.9rem; 
+            color: white; 
+            margin-bottom: 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        
+        .fp-bar-bg { 
+            background: #222; 
+            width: 100%; 
+            height: 12px; 
+            border-radius: 10px; 
+            overflow: hidden; 
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        .fp-bar-fill { 
+            height: 100%; 
+            border-radius: 10px; 
+            transition: width 1s ease-in-out, background 0.3s; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .fp-status { 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            margin-top: 10px; 
+            letter-spacing: 1px; 
+            padding: 5px; 
+            border-radius: 5px;
+        }
+
+        .color-selector { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin: 10px 0 20px 0; 
+            flex-wrap: wrap;
+        }
+        
+        .color-btn { 
+            width: 40px; 
+            height: 50px; 
+            border-radius: 8px; 
+            border: 2px solid transparent; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            opacity: 0.7; 
+        }
+        
+        .color-btn.selected { 
+            border-color: var(--primary-neon); 
+            transform: translateY(-5px); 
+            box-shadow: 0 5px 15px rgba(0,255,136,0.5); 
+            opacity: 1; 
+        }
+        
+        /* BILLETERA OFICIAL LFA CSS */
+        .wallet-modal { 
+            max-width: 450px !important; 
+            padding: 35px 25px !important; 
+            border: 1px solid var(--lfa-gold) !important; 
+            border-radius: 20px !important; 
+            background: radial-gradient(circle at top right, #1a2331, #0b0e14) !important; 
+            box-shadow: 0 0 40px rgba(255,215,0,0.15) !important; 
+            overflow-y: auto !important; 
+            overflow-x: hidden !important; 
+        }
+        
+        .wallet-big-number { 
+            font-family: 'Orbitron'; 
+            font-size: 4rem; 
+            font-weight: 900; 
+            color: var(--lfa-gold); 
+            text-shadow: 0 0 20px rgba(255,215,0,0.5); 
+            line-height: 1; 
+            margin: 10px 0 0 0; 
+            position: relative; 
+            z-index: 2; 
+        }
+        
+        .pack-btn-new { 
+            position: relative; 
+            z-index: 10; 
+            background: #161b22; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 18px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            margin-bottom: 15px; 
+            text-align: left; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+        
+        .pack-btn-new:hover { 
+            background: #1c2128; 
+            border-color: #009ee3; 
+            box-shadow: 0 5px 15px rgba(0, 158, 227, 0.2); 
+            transform: translateY(-2px); 
+        }
+
+        /* ESTILOS MOBILE-FIRST */
+        .mobile-nav { 
+            display: none; 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            background: rgba(11, 14, 20, 0.98); 
+            border-top: 1px solid var(--primary-neon); 
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8); 
+            z-index: 8000; 
+            padding: 12px 0; 
+            justify-content: space-around; 
+            align-items: center; 
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
+        }
+        
+        .mobile-nav-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            color: var(--text-gray); 
+            font-size: 0.65rem; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            text-decoration: none; 
+            gap: 6px; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            flex: 1;
+        }
+        
+        .mobile-nav-item i { 
+            font-size: 1.3rem; 
+        }
+        
+        .mobile-nav-item:hover, .mobile-nav-item.active { 
+            color: var(--primary-neon); 
+        }
+        
+        .mobile-nav-item.active i { 
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.6); 
+            transform: scale(1.1); 
+        }
+        
+        @media (max-width: 768px) { 
+            header { flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 10px;} 
+            .user-info { flex-direction: row; text-align: left; gap: 15px; width: 100%; justify-content: flex-start;} 
+            .profile-body { grid-template-columns: 1fr; padding: 15px; gap: 15px;} 
+            .btn-wallet { display: none !important; } 
+            .btn-hub { display: flex !important; width: 38px; height: 38px; padding: 0; justify-content: center; align-items: center; border-radius: 50%; margin-left: 10px; } 
+            .logout-text { display: none; }
+            .wallet { display: flex; align-items: center; justify-content: flex-end; width: 100%; } 
+            .header-actions { width: 100%; justify-content: flex-end; padding: 0;}
+            .mobile-nav { display: flex; } 
+            body { padding-bottom: 70px; } 
+            footer { padding-bottom: 90px !important; }
+            
+            html[data-crisp-client] body div#crisp-chatbox { bottom: 80px !important; z-index: 7000 !important; }
+            #btnGlobalChat { bottom: 85px !important; width: 50px; height: 50px; font-size: 1.2rem;} 
+            #panelGlobalChat { bottom: 145px !important; width: calc(100% - 40px); left: 20px; right: 20px; height: 400px; }
+            
+            .ranking-card table { min-width: 100% !important; }
+            .ranking-card table th:nth-child(3), .ranking-card table td:nth-child(3) { display: none; } 
+            .ranking-card table th:nth-child(1), .ranking-card table td:nth-child(1) { width: 15%; padding: 5px; text-align: center; }
+            .ranking-card table th:nth-child(2), .ranking-card table td:nth-child(2) { width: 60%; font-size: 0.85rem;}
+            .ranking-card table th:nth-child(4), .ranking-card table td:nth-child(4) { width: 25%; font-size: 0.9rem !important; padding-right: 10px; text-align: right;}
+            .ranking-card .fut-shape.lfa-card { transform: scale(0.85); transform-origin: left center; margin-right: -10px; }
+            
+            .stat-val { font-size: 1.5rem; }
+            h2 { font-size: 0.9rem; }
+        }
+
+        /* 💬 LA CANTINA LFA V2 */
+        #btnGlobalChat { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 20px; 
+            background: var(--pro-neon); 
+            color: white; 
+            border: none; 
+            border-radius: 50px; 
+            width: 60px; 
+            height: 60px; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            box-shadow: 0 5px 20px rgba(145, 70, 255, 0.5); 
+            z-index: 9000; 
+            transition: 0.3s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        
+        #btnGlobalChat:hover { 
+            transform: scale(1.1); 
+        }
+        
+        #badgeChatActivo { 
+            position: absolute; 
+            top: -5px; 
+            right: -5px; 
+            background: var(--danger); 
+            color: white; 
+            font-size: 0.6rem; 
+            font-family: 'Orbitron'; 
+            padding: 3px 6px; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            border: 2px solid var(--bg-dark); 
+            display: none;
+        }
+
+        #panelGlobalChat { 
+            position: fixed; 
+            bottom: 90px; 
+            left: 20px; 
+            width: 350px; 
+            height: 450px; 
+            background: var(--card-bg); 
+            border: 1px solid var(--pro-neon); 
+            border-radius: 15px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+            z-index: 9000; 
+            display: none; 
+            flex-direction: column; 
+            overflow: hidden; 
+            transform-origin: bottom left; 
+            animation: popChat 0.3s ease-out; 
+        }
+        
+        @keyframes popChat { 
+            from { opacity: 0; transform: scale(0.8); } 
+            to { opacity: 1; transform: scale(1); } 
+        }
+        
+        .gc-header { 
+            background: linear-gradient(135deg, #1a1025, #0b0e14); 
+            padding: 15px; 
+            border-bottom: 1px solid var(--border); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        
+        .gc-title { 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            color: white; 
+            font-size: 1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+        }
+        
+        .gc-close { 
+            background: none; 
+            border: none; 
+            color: var(--text-gray); 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            transition: 0.3s; 
+        }
+        
+        .gc-close:hover { 
+            color: var(--danger); 
+        }
+
+        .gc-messages { 
+            flex: 1; 
+            padding: 15px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            background: #050508; 
+        }
+        
+        .gc-msg { 
+            max-width: 85%; 
+            padding: 8px 12px; 
+            border-radius: 10px; 
+            font-size: 0.85rem; 
+            line-height: 1.4; 
+            position: relative; 
+            word-wrap: break-word; 
+            transition: 0.2s; 
+        }
+        
+        .gc-msg-yo { 
+            background: var(--pro-neon); 
+            color: white; 
+            align-self: flex-end; 
+            border-bottom-right-radius: 2px; 
+        }
+        
+        .gc-msg-otro { 
+            background: #161b22; 
+            color: white; 
+            border: 1px solid var(--border); 
+            align-self: flex-start; 
+            border-bottom-left-radius: 2px; 
+        }
+        
+        .gc-autor { 
+            font-size: 0.65rem; 
+            font-weight: bold; 
+            margin-bottom: 4px; 
+            font-family: 'Orbitron'; 
+            opacity: 0.8; 
+        }
+        
+        .gc-msg-otro .gc-autor { 
+            color: var(--primary-neon); 
+        }
+        
+        .gc-msg-admin { 
+            background: rgba(255, 215, 0, 0.1); 
+            border: 1px solid var(--lfa-gold); 
+            color: white; 
+            align-self: center; 
+            text-align: center; 
+            width: 90%; 
+        }
+        
+        .gc-msg-admin .gc-autor { 
+            color: var(--lfa-gold); 
+        }
+
+        .msg-admin-view:hover { 
+            cursor: pointer; 
+            filter: brightness(1.3); 
+            border: 1px dashed var(--danger) !important; 
+        }
+        
+        .msg-admin-view:hover::after { 
+            content: '🗑️ BORRAR'; 
+            position: absolute; 
+            top: -15px; 
+            right: 0; 
+            font-size: 0.6rem; 
+            color: var(--danger); 
+            font-weight: bold; 
+        }
+
+        .gc-input-area { 
+            padding: 10px; 
+            background: #0b0e14; 
+            border-top: 1px solid var(--border); 
+            display: flex; 
+            gap: 10px; 
+        }
+        
+        .gc-input { 
+            flex: 1; 
+            padding: 10px; 
+            background: #161b22; 
+            border: 1px solid var(--border); 
+            color: white; 
+            border-radius: 8px; 
+            font-family: 'Roboto'; 
+            outline: none; 
+            font-size: 0.85rem; 
+        }
+        
+        .gc-input:focus { 
+            border-color: var(--pro-neon); 
+        }
+        
+        .gc-btn-send { 
+            background: var(--pro-neon); 
+            color: white; 
+            border: none; 
+            width: 45px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            transition: 0.3s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        
+        .gc-btn-send:hover { 
+            background: white; 
+            color: var(--pro-neon); 
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="loaderInicial">
+    <svg class="joystick-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 28C12 21.3726 17.3726 16 24 16H40C46.6274 16 52 21.3726 52 28V36C52 42.6274 46.6274 48 40 48H24C17.3726 48 12 42.6274 12 36V28Z" fill="#0b0e14" stroke="#00ff88" stroke-width="2"/>
+        <circle cx="21" cy="32" r="6" stroke="#00ff88" stroke-width="2"/>
+        <path d="M15 32H27M21 26V38" stroke="#00ff88" stroke-width="2"/>
+        <circle cx="43" cy="27" r="2.5" fill="#00ff88"/>
+        <circle cx="47" cy="32" r="2.5" fill="#00ff88"/>
+        <circle cx="43" cy="37" r="2.5" fill="#00ff88"/>
+        <circle cx="39" cy="32" r="2.5" fill="#00ff88"/>
+        <path d="M28 52V58M36 52V58M24 58H40" stroke="#00ff88" stroke-width="2"/>
+    </svg>
+    <div style="color: white; font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px;">Cargando perfil de leyenda...</div>
+</div>
+
+<header>
+    <div class="user-info" onclick="openProfile()" title="Editar Perfil">
+        <div id="uAvatarContainer">
+            <div class="fut-shape lfa-card" id="headerCardBg">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+                    <div style="text-align:center; line-height:1;">
+                        <div id="headerCardRating" style="font-size:14px; font-weight:900; font-family:'Orbitron';">0</div>
+                    </div>
+                    <div style="display:flex; gap:3px; align-items:center;">
+                        <span id="headerCardPlat" style="font-size:8px; color:white;"></span>
+                        <img id="headerCardFlag" src="" style="width:14px; border-radius:1px; display:none;">
+                    </div>
+                </div>
+                <i class="fas fa-user" style="font-size:2rem; margin-top:2px;"></i>
+                <div style="margin-top:auto; width:100%; text-align:center;">
+                    <div class="card-text-container">
+                        <span id="headerCardName" class="card-name" style="font-size:8px;">TEST</span>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.4); margin-top:3px; padding-top:2px;">
+                        <div class="card-text-container">
+                            <span id="headerCardId" class="card-id" style="font-size:6px;">SIN ID</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="user-details">
+            <div class="u-name" id="uName">CARGANDO...</div>
+            <div class="u-rank" id="uRangoTexto">RANGO: ---</div>
+            <div class="u-progress-container">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="uProgressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="u-titles"><i class="fas fa-trophy" style="color:var(--lfa-gold)"></i> <span id="uCopasVal">0</span> Títulos</div>
+        </div>
+    </div>
+    
+    <div class="header-actions">
+        <div class="wallet">
+            <div class="balance-val" id="uBalance">
+                <i class="fas fa-coins" style="color: var(--lfa-gold); text-shadow: 0 0 5px rgba(255,215,0,0.8);"></i> 0.00
+            </div>
+            <button class="btn-wallet" onclick="openWallet()">
+                <i class="fas fa-wallet"></i> MI BILLETERA
+            </button>
+            <button class="btn-hub" onclick="window.location.href='/hub'">
+                <i class="fas fa-arrow-left"></i> <span class="logout-text">AL HUB</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    
+    <div class="estadisticas-live">
+        <div class="stat-box">
+            <div style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 5px;">SALAS ACTIVAS (1VS1)</div>
+            <div class="stat-val" id="statSalas">0</div>
+        </div>
+        <div class="stat-box">
+            <div style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 5px;">JUGADORES COMPITIENDO (1VS1)</div>
+            <div class="stat-val" id="statJugadores">0</div>
+        </div>
+    </div>
+
+    <h2 class="seccion-titulo" style="color: white; border-color: var(--border);">
+        <i class="fas fa-gamepad"></i> PARTIDOS EN CURSO (1VS1)
+    </h2>
+    
+    <div id="misPartidos" class="compact-list" style="margin-bottom: 40px;">
+        <div style="background: #0b0e14; border: 1px dashed var(--border); padding: 20px; text-align: center; border-radius: 10px; color: var(--text-gray); font-family: 'Orbitron'; font-size: 0.8rem; grid-column: 1 / -1;">Cargando...</div>
+    </div>
+
+    <h2 class="seccion-titulo">
+        <i class="fas fa-door-open"></i> SALAS ABIERTAS (1VS1)
+    </h2>
+    
+    <div class="compact-list" id="listaTorneos" style="margin-bottom: 40px;"></div>
+
+    <h2 class="seccion-titulo" style="color: #9146FF; justify-content: space-between;">
+        <div><i class="fas fa-tv"></i> LFA TV: CANALES EN VIVO</div>
+        <button class="btn-main" id="btnGoLive" style="width:auto; padding: 8px 15px; font-size: 0.8rem; background: #9146FF; color: white;" onclick="toggleLive()">
+            <i class="fas fa-video"></i> PRENDER MI STREAM
+        </button>
+    </h2>
+    
+    <div style="margin-bottom: 20px; text-align: center; font-size: 0.85rem; color: var(--text-gray); line-height: 1.5;">
+        📺 ¡Apoyá a la comunidad! Recordá que para transmitir en LFA TV, debés configurar tu canal en tu Perfil y poner <b>SOMOSLFA</b> en el título de tu stream.
+    </div>
+    
+    <div id="lfaTvContainer" class="compact-list" style="margin-bottom: 40px;">
+        <div style="grid-column: 1/-1; text-align:center; color:gray; padding:20px; background: #0b0e14; border: 1px dashed var(--border); border-radius: 10px;">
+            📺 Nadie está transmitiendo en este momento. ¡Sé el primero!
+        </div>
+    </div>
+
+    <h2 class="seccion-titulo" style="color: #009ee3;">
+        <i class="fas fa-globe"></i> RANKING DE LEYENDAS
+    </h2>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; border-radius: 10px; background: var(--card-bg); padding: 15px; border: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--border); padding-right: 15px;">
+            <button class="tab-rank-btn active" onclick="cargarRankingGlobal(this)"><i class="fas fa-globe-americas"></i> GLOBAL CROSSPLAY</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--border); padding-right: 15px;">
+            <span style="font-size:0.65rem; font-family:Orbitron; color:var(--text-gray);">FC 26:</span>
+            <button class="tab-rank-btn" onclick="cargarRankingFiltrado('FC 26', 'Ultimate Team', this)">UT</button>
+            <button class="tab-rank-btn" onclick="cargarRankingFiltrado('FC 26', 'Clásicos', this)">CLÁSICOS</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--border); padding-right: 15px;">
+            <span style="font-size:0.65rem; font-family:Orbitron; color:var(--text-gray);">eFOOTBALL:</span>
+            <button class="tab-rank-btn" onclick="cargarRankingFiltrado('eFootball', 'Dream Team', this)">DREAM TEAM</button>
+            <button class="tab-rank-btn" onclick="cargarRankingFiltrado('eFootball', 'Genuinos', this)">GENUINOS</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size:0.65rem; font-family:Orbitron; color:var(--text-gray);">MOBILE:</span>
+            <button class="tab-rank-btn" onclick="cargarRankingFiltrado('Mobile', 'Dream Team Mobile', this)">DREAM TEAM</button>
+        </div>
+    </div>
+    
+    <div class="ranking-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>POS</th>
+                    <th>CARTA / JUGADOR</th>
+                    <th>RANGO</th>
+                    <th>COPAS</th>
+                </tr>
+            </thead>
+            <tbody id="rankingBody">
+                <tr>
+                    <td colspan="4" style="text-align:center; color:gray; padding:20px;">Cargando ranking...</td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-gray); background: rgba(0,0,0,0.5);">
+            * Tocá el nombre de un jugador para inspeccionar su perfil y Fair Play.
+        </div>
+    </div>
+</div>
+
+<footer style="background-color: #07090c; border-top: 1px solid var(--border); color: #fff; padding: 40px 20px; text-align: center; font-family: sans-serif;">
+    <div style="margin-bottom: 20px;">
+        <h3 style="color: #00ffcc; margin-bottom: 5px; font-family: 'Orbitron';">LFA - Liga de Fútbol Automatizada</h3>
+        <p style="font-size: 13px; color: #aaa; margin:0;">Gestión SM - La plataforma definitiva para torneos de eSports por dinero real.</p>
+    </div>
+    
+    <div style="margin-bottom: 20px; display:flex; justify-content:center; flex-wrap:wrap; gap:15px;">
+        <a href="reglamento.html" style="color: #fff; text-decoration: none; font-weight: bold; font-size: 13px;">Reglamento Oficial</a>
+        <span style="color: #555;">|</span>
+        <a href="terminos.html" style="color: #fff; text-decoration: none; font-weight: bold; font-size: 13px;">Términos y Condiciones</a>
+        <span style="color: #555;">|</span>
+        <a href="privacidad.html" style="color: #fff; text-decoration: none; font-weight: bold; font-size: 13px;">Políticas de Privacidad</a>
+        <span style="color: #555;">|</span>
+        <a href="reembolsos.html" style="color: #fff; text-decoration: none; font-weight: bold; font-size: 13px;">Política de Reembolsos</a>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <span style="color:var(--text-gray); font-family:'Orbitron'; font-size:0.85rem; font-weight: bold; margin-right: 15px;">NUESTRAS REDES:</span>
+        <a href="https://www.instagram.com/somoslfa" target="_blank" rel="noopener noreferrer" style="color: #E1306C; font-size: 1.5rem; margin: 0 10px; text-decoration: none;"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.tiktok.com/@lfagestionsm" target="_blank" rel="noopener noreferrer" style="color: #fff; font-size: 1.5rem; margin: 0 10px; text-decoration: none;"><i class="fab fa-tiktok"></i></a>
+        <a href="https://discord.gg/WpTe6srdKc" target="_blank" rel="noopener noreferrer" style="color: #7289da; font-size: 1.5rem; margin: 0 10px; text-decoration: none;"><i class="fab fa-discord"></i></a>
+    </div>
+
+    <div style="font-size: 12px; color: #666;">
+        &copy; 2026 LFA. Todos los derechos reservados. Jugá con responsabilidad.
+    </div>
+</footer>
+
+<div class="mobile-nav">
+    <div class="mobile-nav-item active" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); document.querySelectorAll('.mobile-nav-item').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        <i class="fas fa-home"></i>
+        <span>INICIO</span>
+    </div>
+    <div class="mobile-nav-item" onclick="openWallet(); document.querySelectorAll('.mobile-nav-item').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        <i class="fas fa-wallet"></i>
+        <span>BILLETERA</span>
+    </div>
+    <div class="mobile-nav-item" onclick="openProfile(); document.querySelectorAll('.mobile-nav-item').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        <i class="fas fa-user"></i>
+        <span>PERFIL</span>
+    </div>
+    <div class="mobile-nav-item" onclick="document.querySelector('.ranking-card').scrollIntoView({behavior: 'smooth', block: 'center'}); document.querySelectorAll('.mobile-nav-item').forEach(b=>b.classList.remove('active')); this.classList.add('active');">
+        <i class="fas fa-trophy"></i>
+        <span>RANKING</span>
+    </div>
+</div>
+
+<button id="btnGlobalChat" onclick="toggleGlobalChat()">
+    <i class="fas fa-comments"></i>
+    <span id="badgeChatActivo">NUEVO</span>
+</button>
+
+<div id="panelGlobalChat">
+    <div class="gc-header">
+        <div class="gc-title"><i class="fas fa-globe-americas" style="color:var(--pro-neon);"></i> CANTINA LFA</div>
+        <button class="gc-close" onclick="toggleGlobalChat()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="gc-messages" id="gcCajaMensajes">
+        <div style="text-align:center; color:var(--text-gray); font-size:0.8rem; margin-top:20px;">
+            <i class="fas fa-spinner fa-spin"></i> Conectando al servidor...
+        </div>
+    </div>
+    <div class="gc-input-area">
+        <input type="text" id="gcInput" class="gc-input" placeholder="Escribí un mensaje..." onkeypress="if(event.key === 'Enter') enviarMensajeGlobalDashboard()">
+        <button class="gc-btn-send" onclick="enviarMensajeGlobalDashboard()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<div id="modalPerfil" class="modal-overlay">
+    <div class="modal-box profile-modal">
+        <div class="profile-header">
+            <h3 style="font-family:Orbitron; color:var(--primary-neon); margin:0; font-size: 1.2rem; display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-user-cog"></i> MI EXPEDIENTE
+            </h3>
+            <button class="btn-cerrar-modal" onclick="closeProfile()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="profile-body">
+            <div>
+                <div style="display:flex; justify-content:center; align-items:center; margin-bottom:20px;">
+                    <div class="fut-shape carta-dios-supremo" id="previewCarta">
+                        <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+                            <div style="text-align:center; line-height:1;">
+                                <div id="carta-titulos" style="font-size:26px; font-weight:900; font-family:'Orbitron';">0</div>
+                                <div style="font-size:10px; font-weight:bold; color:#ccc;">TIT</div>
+                            </div>
+                            <img id="previewBandera" src="" style="width:24px; border-radius:2px; display:none;">
+                        </div>
+                        <i class="fas fa-user" style="font-size:4.5rem; margin-top:5px;"></i>
+                        <div style="margin-top:auto; width:100%; text-align:center;">
+                            <div class="card-text-container">
+                                <span id="previewNombre" class="card-name" style="font-size:16px;">JAVIER</span>
+                            </div>
+                            <div id="carta-plataformas" class="iconos-plataforma" style="margin:5px 0;"></div>
+                            <div style="border-top:1px solid rgba(255,255,255,0.4); margin-top:5px; padding-top:5px;">
+                                <div class="card-text-container">
+                                    <span id="previewId" class="card-id" style="font-size:10px;">SIN ID</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <div style="color: var(--text-gray); font-size: 0.75rem; margin-bottom: 5px;">Diseño de Carta:</div>
+                    <div class="color-selector">
+                        <div style="background: linear-gradient(135deg, #8b0000, #ff0000);" class="color-btn" id="c-red" onclick="seleccionarColor('red')"></div>
+                        <div style="background: linear-gradient(135deg, #00008b, #0088ff);" class="color-btn" id="c-blue" onclick="seleccionarColor('blue')"></div>
+                        <div style="background: linear-gradient(135deg, #111, #333);" class="color-btn" id="c-black" onclick="seleccionarColor('black')"></div>
+                        <div style="background: linear-gradient(135deg, #b8860b, #ffd700);" class="color-btn" id="c-gold" onclick="seleccionarColor('gold')"></div>
+                        <div style="background: linear-gradient(135deg, #004d00, #00ff88);" class="color-btn" id="c-green" onclick="seleccionarColor('green')"></div>
+                    </div>
+                </div>
+                
+                <input type="text" id="editPlataformaId" class="input-form" placeholder="ID Oficial de Juego" onkeyup="document.getElementById('previewNombre').innerText = this.value.toUpperCase(); document.getElementById('previewId').innerText = this.value.toUpperCase();">
+                
+                <select id="juegoPrincipal" class="input-form" onchange="actualizarSubCategorias()">
+                    <option value="FC 26">FC 26 (Consola/PC)</option>
+                    <option value="eFootball">eFootball (Consola/PC)</option>
+                    <option value="Mobile">eFootball Mobile</option>
+                </select>
+                
+                <select id="subCategoria" class="input-form"></select>
+
+                <div style="text-align: left; margin-bottom: 8px; color: var(--text-gray); font-size: 0.8rem; margin-top: 15px;">
+                    <i class="fas fa-video"></i> Tu Canal de Stream (LFA TV):
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <select id="streamPlataforma" class="input-form" style="width: 40%; margin-bottom:0;">
+                        <option value="none">Ninguna</option>
+                        <option value="twitch">Twitch</option>
+                        <option value="kick">Kick</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                    <input type="text" id="streamCanal" class="input-form" placeholder="Usuario (o ID Video YT)" style="width: 60%; margin-bottom:0;">
+                </div>
+            </div>
+
+            <div>
+                <div class="fp-container">
+                    <div class="fp-title">
+                        <span><i class="fas fa-balance-scale"></i> TRUST FACTOR (FAIR PLAY)</span> 
+                        <span id="myFpNum">100%</span>
+                    </div>
+                    <div class="fp-bar-bg">
+                        <div class="fp-bar-fill" id="myFpBar" style="width: 100%; background: #00ff88;"></div>
+                    </div>
+                    <div class="fp-status" id="myFpText" style="color: #00ff88; background: rgba(0,255,136,0.1); border: 1px solid #00ff88;">
+                        <i class="fas fa-star"></i> LEYENDA (Retiros Prioritarios)
+                    </div>
+                    <div style="font-size: 0.65rem; color: gray; margin-top: 10px; line-height: 1.4;">
+                        El sistema te evalúa automáticamente. Subir fotos ilegibles, insultar o no presentarte baja tu reputación. Perfiles en rojo tendrán la billetera congelada.
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <div class="profile-stat-box">
+                        <div class="s-title">PARTIDOS</div>
+                        <div class="s-num" id="myStatP">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">VICTORIAS</div>
+                        <div class="s-num" id="myStatW" style="color: var(--primary-neon);">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">DERROTAS</div>
+                        <div class="s-num" id="myStatL" style="color: var(--danger);">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">WIN RATE</div>
+                        <div class="s-num" id="myStatWR" style="color: var(--lfa-gold);">-</div>
+                    </div>
+                </div>
+                
+                <div class="info-box" style="margin-top: 20px; border-color: var(--lfa-gold); padding: 15px; border-radius: 10px; border: 1px solid var(--lfa-gold);">
+                    <div class="info-title" style="color: var(--lfa-gold); font-family: 'Orbitron'; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px;">
+                        <i class="fas fa-users"></i> PROGRAMA DE REFERIDOS
+                    </div>
+                    <div style="font-size: 0.75rem; color: #ccc; margin-bottom: 10px; line-height: 1.4;">
+                        Compartí tu Código <b>(Tu ID Oficial)</b>. Cuando un amigo ingrese tu código y juegue su primer torneo, <b>¡ganás 0.50 LFA Coins!</b> (Vos ganás por invitar, y él podrá invitar a otros). Apoyá a quien te invitó ingresando su código abajo:
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="codigoReferidoInput" class="input-form" placeholder="Ingresá el código de tu invitador" style="margin: 0;">
+                        <button class="btn-main" style="width: auto; padding: 10px 15px; margin: 0; background: var(--lfa-gold);" onclick="vincularAmigo()">
+                            <i class="fas fa-check"></i> VINCULAR
+                        </button>
+                    </div>
+                    <div id="referidoStatus" style="font-size: 0.75rem; font-weight: bold; color: var(--primary-neon); display: none;"></div>
+                </div>
+
+                <button class="btn-main" id="btnGuardarPerfil" style="width: 100%; margin-bottom: 20px; margin-top: 15px;" onclick="guardarPerfil()">
+                    <i class="fas fa-save"></i> GUARDAR CAMBIOS
+                </button>
+
+                <div style="background: #0b0e14; border: 1px solid var(--border); border-radius: 10px; padding: 15px; text-align: left;">
+                    <div style="font-family: 'Orbitron'; font-size: 0.9rem; color: white; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-receipt" style="color: var(--primary-neon);"></i> HISTORIAL BILLETERA
+                    </div>
+                    <div id="cajaHistorialBilletera" style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                        <div style="color:var(--text-gray); font-size:0.85rem; text-align:center;">Cargando movimientos...</div>
+                    </div>
+                </div>
+
+                <button class="btn-secondary" style="width: 100%; color: var(--danger); border-color: var(--danger); margin-top: 15px;" onclick="cerrarSesion()">
+                    <i class="fas fa-sign-out-alt"></i> CERRAR SESIÓN
+                </button>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalPerfilPublico" class="modal-overlay">
+    <div class="modal-box profile-modal" style="border-color: var(--lfa-blue);">
+        <div class="profile-header" style="background: rgba(0, 158, 227, 0.05); border-color: var(--lfa-blue);">
+            <h3 style="font-family:Orbitron; color:white; margin:0; font-size: 1.2rem;" id="pubHeaderName">JUGADOR</h3>
+            <button class="btn-cerrar-modal" onclick="document.getElementById('modalPerfilPublico').style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="profile-body">
+            <div style="display:flex; justify-content:center; align-items:center; margin-bottom:20px;">
+                <div class="fut-shape carta-dios-supremo" id="pubCartaBg">
+                    <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+                        <div style="text-align:center; line-height:1;">
+                            <div id="pubCartaRating" style="font-size:26px; font-weight:900; font-family:'Orbitron';">0</div>
+                            <div style="font-size:10px; font-weight:bold; color:#ccc;">TIT</div>
+                        </div>
+                        <img id="pubCartaBandera" src="" style="width:24px; border-radius:2px; display:none;">
+                    </div>
+                    <i class="fas fa-user" style="font-size:4.5rem; margin-top:5px;"></i>
+                    <div style="margin-top:auto; width:100%; text-align:center;">
+                        <div class="card-text-container">
+                            <span id="pubCartaNombre" class="card-name" style="font-size:16px;">-</span>
+                        </div>
+                        <div id="pubCartaPlat" class="iconos-plataforma" style="margin:5px 0;"></div>
+                        <div style="border-top:1px solid rgba(255,255,255,0.4); margin-top:5px; padding-top:5px;">
+                            <div class="card-text-container">
+                                <span id="pubCartaId" class="card-id" style="font-size:10px;">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="fp-container">
+                    <div class="fp-title">
+                        <span><i class="fas fa-balance-scale"></i> TRUST FACTOR</span> 
+                        <span id="pubFpNum">100%</span>
+                    </div>
+                    <div class="fp-bar-bg">
+                        <div class="fp-bar-fill" id="pubFpBar" style="width: 100%;"></div>
+                    </div>
+                    <div class="fp-status" id="pubFpText">-</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="profile-stat-box">
+                        <div class="s-title">PARTIDOS</div>
+                        <div class="s-num" id="pubStatP">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">VICTORIAS</div>
+                        <div class="s-num" id="pubStatW" style="color: var(--primary-neon);">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">DERROTAS</div>
+                        <div class="s-num" id="pubStatL" style="color: var(--danger);">-</div>
+                    </div>
+                    <div class="profile-stat-box">
+                        <div class="s-title">WIN RATE</div>
+                        <div class="s-num" id="pubStatWR" style="color: var(--lfa-gold);">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalWallet" class="modal-overlay">
+    <div class="modal-box wallet-modal">
+        <button class="btn-cerrar-modal" onclick="closeWallet()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div style="text-align: center; position: relative; z-index: 2;">
+            <div style="font-family: 'Orbitron'; font-weight: bold; font-size: 1rem; color: #8b949e; letter-spacing: 2px; margin-bottom: 10px;">BILLETERA OFICIAL LFA</div>
+            <div class="wallet-big-number" id="walletBigBalance">0.00</div>
+            <div style="font-family: 'Orbitron'; font-size: 1.5rem; font-weight: bold; color: white; letter-spacing: 2px; margin-bottom: 5px;">COINS</div>
+            <button class="btn-main" style="background: transparent; border: 1px solid #9146FF; color: #9146FF; width: 100%; margin-bottom: 15px; transition: 0.3s;" onmouseover="this.style.background='#9146FF'; this.style.color='white';" onmouseout="this.style.background='transparent'; this.style.color='#9146FF';" onclick="abrirModalRetiro()">
+                <i class="fas fa-download"></i> SOLICITAR RETIRO
+            </button>
+            <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 25px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: left; line-height: 1.5;">
+                <i class="fas fa-robot" style="color: var(--primary-neon); margin-right: 5px;"></i> <b style="color: white; font-family: 'Orbitron';">LFA BOT INFORMA:</b><br>
+                El valor de cada Coin equivale exactamente a <b>1 Dólar Cripto (USDT)</b>. El Bot calcula de forma automática el tipo de cambio a tu moneda local al momento del pago.
+            </div>
+        </div>
+
+        <button class="pack-btn-new" onclick="seleccionarPack(2, 2, 'INICIAL')">
+            <div>
+                <div style="font-family: 'Orbitron'; color: #009ee3; font-weight: bold; font-size: 1.1rem;"><i class="fas fa-seedling"></i> INICIAL</div>
+                <div style="color: var(--text-gray); font-size: 0.85rem; margin-top: 5px;"><i class="fas fa-coins"></i> 2 COINS</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: white; font-weight: bold; font-size: 1.1rem;">$2.00 USD</div>
+            </div>
+        </button>
+
+        <button class="pack-btn-new" onclick="seleccionarPack(5, 5, 'BÁSICO')">
+            <div>
+                <div style="font-family: 'Orbitron'; color: #00ff88; font-weight: bold; font-size: 1.1rem;"><i class="fas fa-shield-alt"></i> BÁSICO</div>
+                <div style="color: var(--text-gray); font-size: 0.85rem; margin-top: 5px;"><i class="fas fa-coins"></i> 5 COINS</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: white; font-weight: bold; font-size: 1.1rem;">$5.00 USD</div>
+            </div>
+        </button>
+
+        <button class="pack-btn-new" onclick="seleccionarPack(10, 10, 'PRO')">
+            <div>
+                <div style="font-family: 'Orbitron'; color: #9146FF; font-weight: bold; font-size: 1.1rem;"><i class="fas fa-star"></i> PRO</div>
+                <div style="color: var(--text-gray); font-size: 0.85rem; margin-top: 5px;"><i class="fas fa-coins"></i> 10 COINS</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: white; font-weight: bold; font-size: 1.1rem;">$10.00 USD</div>
+            </div>
+        </button>
+
+        <button class="pack-btn-new" onclick="seleccionarPack(22, 20, 'WHALE')" style="margin-bottom: 25px;">
+            <div>
+                <div style="font-family: 'Orbitron'; color: #ffd700; font-weight: bold; font-size: 1.1rem;"><i class="fas fa-gem"></i> WHALE</div>
+                <div style="color: var(--text-gray); font-size: 0.85rem; margin-top: 5px;"><i class="fas fa-coins"></i> 22 COINS <span style="color:var(--primary-neon); font-size:0.7rem; font-weight:bold; margin-left: 5px;">(+2 REGALO)</span></div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: white; font-weight: bold; font-size: 1.1rem;">$20.00 USD</div>
+            </div>
+        </button>
+
+        <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border);">
+            <div style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 10px; font-family: 'Orbitron';">
+                <i class="fas fa-lock" style="color: var(--primary-neon);"></i> PAGOS 100% ENCRIPTADOS Y PROTEGIDOS
+            </div>
+            <div style="display: flex; justify-content: center; gap: 15px; font-size: 1.8rem; color: #555;">
+                <i class="fab fa-cc-visa" title="Visa" style="transition: 0.3s;"></i>
+                <i class="fab fa-cc-mastercard" title="Mastercard" style="transition: 0.3s;"></i>
+                <i class="fab fa-bitcoin" title="Cripto" style="transition: 0.3s;"></i>
+                <i class="fas fa-shield-alt" title="SSL Seguro" style="transition: 0.3s; color: var(--primary-neon);"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalPagoOpciones" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px; border-color: var(--primary-neon);">
+        <button class="btn-cerrar-modal" onclick="document.getElementById('modalPagoOpciones').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 style="font-family:Orbitron; color:var(--primary-neon); margin-top:0;">
+            <i class="fas fa-shopping-cart"></i> CAJERO LFA
+        </h3>
+        <div id="pagoDetalleInfo" style="margin-bottom: 25px; font-size: 0.95rem; color: white; background: rgba(0, 255, 136, 0.1); padding: 15px; border-radius: 8px; border: 1px solid var(--primary-neon);"></div>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="color: var(--text-gray); font-size: 0.8rem; margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: left;">PAGO AUTOMÁTICO (ARGENTINA):</div>
+            
+            <button class="btn-main" id="btnMercadoPago" style="background:#009ee3; color:white; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px;" onclick="pagarMercadoPago()">
+                <img src="https://logospng.org/download/mercado-pago/logo-mercado-pago-icono-1024.png" width="20"> PAGAR CON MERCADO PAGO
+            </button>
+
+            <button class="btn-main" style="background:transparent; border: 1px solid #009ee3; color:#009ee3; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px;" onmouseover="this.style.background='#009ee3'; this.style.color='white';" onmouseout="this.style.background='transparent'; this.style.color='#009ee3';" onclick="abrirModalManual('mp')">
+                <i class="fas fa-handshake"></i> TRANSFERENCIA MANUAL (ALIAS)
+            </button>
+
+            <div style="color: var(--text-gray); font-size: 0.8rem; margin: 10px 0 5px 0; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: left;">PAGO MANUAL (INTERNACIONAL / LATAM):</div>
+            
+            <button class="btn-main" style="background:transparent; border: 1px solid #f3ba2f; color:#f3ba2f; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; transition:0.3s;" onmouseover="this.style.background='#f3ba2f'; this.style.color='#000';" onmouseout="this.style.background='transparent'; this.style.color='#f3ba2f';" onclick="abrirModalManual('binance')">
+                <i class="fab fa-btc" style="font-size: 1.2rem;"></i> BINANCE PAY (USDT)
+            </button>
+
+            <button class="btn-main" style="background:transparent; border: 1px solid var(--prex-purple); color:var(--prex-purple); width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; transition:0.3s; margin-top: 5px;" onmouseover="this.style.background='var(--prex-purple)'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='var(--prex-purple)';" onclick="abrirModalManual('prex')">
+                <i class="fas fa-exchange-alt"></i> PREX (AR / UY / PE)
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modalPagoManual" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px; background: #111; border: 2px solid white;" id="cajaPagoManual">
+        <button class="btn-cerrar-modal" onclick="document.getElementById('modalPagoManual').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <i id="pmIcon" class="fas" style="font-size: 2.5rem; margin-bottom: 10px;"></i>
+        <h3 id="pmTitulo" style="font-family:Orbitron; margin-top:0; font-size: 1.2rem;">PAGO MANUAL</h3>
+        
+        <div id="pmMontoCaja" style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+            <div style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 5px;">Monto exacto a transferir:</div>
+            <div id="pmMontoFinal" style="font-family: 'Orbitron'; font-size: 1.6rem; font-weight: bold; color: white;">0.00</div>
+        </div>
+
+        <div style="background: #161b22; padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: left; margin-bottom: 15px;">
+            <div style="color: var(--text-gray); font-size: 0.75rem; margin-bottom: 5px;">Enviá el dinero a esta cuenta:</div>
+            <div id="pmDatosCuenta" style="font-weight: bold; font-family: monospace; font-size: 1rem; margin-bottom: 2px;">CUENTA...</div>
+            <div style="color: white; font-size: 0.8rem; margin-top: 5px;">Titular: Cuenta LFA Oficial</div>
+        </div>
+        
+        <div style="border-top: 1px dashed #333; padding-top: 15px; text-align: left;">
+            <div style="font-size: 0.8rem; color: white; margin-bottom: 8px;"><i class="fas fa-file-upload"></i> Subí tu comprobante (Foto o PDF):</div>
+            
+            <input type="file" id="pmArchivo" accept="image/*,.pdf" class="input-form" style="padding: 10px; font-size: 0.8rem; margin-bottom: 10px;">
+            <input type="text" id="pmTxId" class="input-form" placeholder="Tu Nombre, Usuario o N° Operación" style="border-color: #444; padding: 10px; font-size: 0.8rem; margin-bottom: 10px;">
+            
+            <div style="font-size: 0.65rem; color: var(--danger); font-weight: bold; margin-bottom: 15px; line-height: 1.4; background: rgba(255,71,87,0.1); padding: 8px; border-radius: 5px; border: 1px solid var(--danger); text-align: center;">
+                ⚠️ Subir un comprobante falso o editado resultará en el BANEO INMEDIATO de tu cuenta.
+            </div>
+
+            <button class="btn-main" id="btnNotificarManual" style="width: 100%; color: white;" onclick="procesarPagoManual()">
+                <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> ENVIAR AL STAFF
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modalRetiro" class="modal-overlay">
+    <div class="modal-box" style="max-width: 450px; border-color: #9146FF; text-align: left;">
+        <button class="btn-cerrar-modal" onclick="document.getElementById('modalRetiro').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 style="font-family:Orbitron; color:#9146FF; margin-top:0; text-align: center;"><i class="fas fa-download"></i> SOLICITAR RETIRO</h3>
+        
+        <div style="color: var(--text-gray); font-size: 0.85rem; margin-bottom: 20px; text-align: center;">
+            Transferí tus fondos a tu cuenta de preferencia. Todo retiro requiere auditoría previa del Staff.
+            <div style="color: var(--primary-neon); font-weight: bold; margin-top: 10px; font-size: 1rem;" id="retiroMaximo">Disponible: <i class="fas fa-coins"></i> 0.00</div>
+        </div>
+
+        <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 5px;"><i class="fas fa-money-bill-wave"></i> Monto a retirar:</div>
+        <input type="number" id="retiroMonto" class="input-form" placeholder="Cantidad de LFA Coins (Mín. 15)" min="15" style="margin-bottom: 15px;">
+        
+        <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 5px;"><i class="fas fa-user-check"></i> Datos de Identidad Legal:</div>
+        <input type="text" id="retiroNombreFull" class="input-form" placeholder="Nombre y Apellido completo" style="margin-bottom: 10px;">
+        <input type="text" id="retiroDoc" class="input-form" placeholder="DNI / Cédula / Pasaporte" style="margin-bottom: 15px;">
+        
+        <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 5px;"><i class="fas fa-phone"></i> Contacto de Seguridad:</div>
+        <input type="text" id="retiroWhatsapp" class="input-form" placeholder="WhatsApp (Ej: +54 9 11...)" style="margin-bottom: 15px;">
+        
+        <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 5px;"><i class="fas fa-university"></i> Destino de los fondos:</div>
+        <select id="retiroMetodo" class="input-form" style="margin-bottom: 10px;" onchange="cambiarPlaceholderRetiro()">
+            <option value="banco">Transferencia Bancaria (CBU/CVU - ARS)</option>
+            <option value="prex">Transferencia Prex (AR / UY / PE)</option>
+            <option value="binance">Binance Pay (USDT - Internacional)</option>
+        </select>
+        <input type="text" id="retiroCuentas" class="input-form" placeholder="Ingresá tu CBU o CVU (22 dígitos)" style="margin-bottom: 5px;">
+        
+        <div style="font-size: 0.75rem; color: var(--warning); margin-top: 15px; margin-bottom: 15px; text-align: center; font-weight: bold; background: rgba(255,215,0,0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--warning);">
+            <i class="fas fa-clock"></i> Los retiros se procesan en un plazo de 24 a 48 hs hábiles.
+        </div>
+
+        <button class="btn-main" id="btnConfirmarRetiro" style="background:#9146FF; color:white; width: 100%; font-size: 1rem;" onclick="procesarRetiro()">
+            <i class="fas fa-paper-plane"></i> ENVIAR SOLICITUD
+        </button>
+    </div>
+</div>
+
+<div id="modalInscripcion" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <button class="btn-cerrar-modal" onclick="document.getElementById('modalInscripcion').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+        <i class="fas fa-ticket-alt" style="font-size: 3rem; color: var(--lfa-gold); margin-bottom: 10px;"></i>
+        <h3 style="font-family:Orbitron; color:white; margin-top:0;" id="insTitulo">TORNEO</h3>
+        
+        <div style="background: #0b0e14; border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <div style="color: var(--text-gray); font-size: 0.85rem; margin-bottom: 5px;">Costo de Inscripción:</div>
+            <div style="font-family: 'Orbitron'; font-size: 1.5rem; font-weight: bold; color: var(--lfa-gold);" id="insCosto"><i class="fas fa-coins"></i> 0</div>
+        </div>
+        
+        <button class="btn-main" id="btnConfirmarIns" style="width: 100%;" onclick="confirmarInscripcion()">
+            <i class="fas fa-check"></i> CONFIRMAR E INGRESAR
+        </button>
+    </div>
+</div>
+
+<div id="lfaModal" class="lfa-modal-overlay">
+    <div class="lfa-modal-box" id="lfaModalBox">
+        <i id="lfaModalIcon" class="lfa-modal-icon fas fa-exclamation-circle"></i>
+        <h3 id="lfaModalTitle" class="lfa-modal-title">Título</h3>
+        <div id="lfaModalText" class="lfa-modal-text">Mensaje</div>
+        <div class="lfa-modal-buttons">
+            <button id="lfaModalBtnCancel" class="btn-secondary" style="display:none; flex: 1;">CANCELAR</button>
+            <button id="lfaModalBtnOk" class="btn-main" style="flex: 1;">ACEPTAR</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalVerificacionDivision" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px; border-color: var(--primary-neon);">
+        <button class="btn-cerrar-modal" onclick="document.getElementById('modalVerificacionDivision').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 style="font-family:Orbitron; color:var(--primary-neon); margin-top:0;">
+            <i class="fas fa-shield-alt"></i> VERIFICAR DIVISIÓN
+        </h3>
+        <div style="margin-bottom: 15px; font-size: 0.85rem; color: #ccc; line-height: 1.5;">
+            Para jugar torneos de eFootball con restricción de nivel, necesitamos verificar tu División actual. Subí una captura de pantalla de tu perfil donde se vea claramente tu <b>División (1 al 10)</b>.
+        </div>
+        
+        <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+            <input type="file" id="imgDivision" accept="image/*" class="input-form" style="margin: 0; padding: 10px; font-size: 0.8rem;">
+        </div>
+        
+        <div id="estadoVerificacion" style="font-size: 0.8rem; font-weight: bold; margin-bottom: 15px; display: none;"></div>
+
+        <button class="btn-main" id="btnSubirDivision" style="width: 100%;" onclick="subirCapturaDivision()">
+            <i class="fas fa-upload"></i> SUBIR CAPTURA PARA VAR (IA)
+        </button>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // ⚙️ LÓGICA DE FIREBASE Y ALERTAS
+    // ==========================================
+    function escaparHTML(texto) { 
+        let div = document.createElement('div'); 
+        div.innerText = texto; 
+        return div.innerHTML; 
+    }
+
+    function mostrarAlerta(titulo, mensaje, tipo = 'info') {
+        document.getElementById('lfaModalTitle').innerText = titulo; 
+        document.getElementById('lfaModalText').innerHTML = mensaje;
+        document.getElementById('lfaModalBtnCancel').style.display = 'none'; 
+        document.getElementById('lfaModalBtnOk').innerText = 'ACEPTAR';
+        
+        const icon = document.getElementById('lfaModalIcon'); 
+        const box = document.getElementById('lfaModalBox');
+        
+        if (tipo === 'error') { 
+            icon.className = "lfa-modal-icon fas fa-times-circle"; 
+            icon.style.color = "var(--danger)"; 
+            box.style.borderColor = "var(--danger)"; 
+        } 
+        else if (tipo === 'exito') { 
+            icon.className = "lfa-modal-icon fas fa-check-circle"; 
+            icon.style.color = "var(--primary-neon)"; 
+            box.style.borderColor = "var(--primary-neon)"; 
+        } 
+        else { 
+            icon.className = "lfa-modal-icon fas fa-exclamation-circle"; 
+            icon.style.color = "var(--lfa-gold)"; 
+            box.style.borderColor = "var(--lfa-gold)"; 
+        }
+        
+        document.getElementById('lfaModal').style.display = 'flex';
+        
+        return new Promise((resolve) => { 
+            document.getElementById('lfaModalBtnOk').onclick = () => { 
+                document.getElementById('lfaModal').style.display = 'none'; 
+                resolve(true); 
+            }; 
+        });
+    }
+
+    function mostrarConfirm(titulo, mensaje) {
+        document.getElementById('lfaModalTitle').innerText = titulo; 
+        document.getElementById('lfaModalText').innerHTML = mensaje;
+        document.getElementById('lfaModalBtnCancel').style.display = 'inline-block'; 
+        document.getElementById('lfaModalBtnOk').innerText = 'CONFIRMAR';
+        
+        const icon = document.getElementById('lfaModalIcon'); 
+        const box = document.getElementById('lfaModalBox');
+        
+        icon.className = "lfa-modal-icon fas fa-question-circle"; 
+        icon.style.color = "var(--lfa-gold)"; 
+        box.style.borderColor = "var(--lfa-gold)";
+        
+        document.getElementById('lfaModal').style.display = 'flex';
+        
+        return new Promise((resolve) => {
+            document.getElementById('lfaModalBtnOk').onclick = () => { 
+                document.getElementById('lfaModal').style.display = 'none'; 
+                resolve(true); 
+            };
+            document.getElementById('lfaModalBtnCancel').onclick = () => { 
+                document.getElementById('lfaModal').style.display = 'none'; 
+                resolve(false); 
+            };
+        });
+    }
+
+    const firebaseConfig = { 
+        apiKey: "AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I", 
+        authDomain: "somoslfa.com", 
+        projectId: "lfaofficial", 
+        storageBucket: "lfaofficial.firebasestorage.app" 
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth(); 
+    const db = firebase.firestore(); 
+    const storage = firebase.storage();
+    
+    // Inicializar la escucha de auth
+    initAuth();
+    
+    const DUEÑO_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
+    let miDocData = {}; 
+    let miNombre = "Jugador"; 
+    let miUID = ""; 
+    let colorSeleccionado = "black";
+    let packActual = null; 
+    let torneoAInscribir = null; 
+    let rankingListener = null; 
+    let esAdminOSoporte = false;
+    let metodoSeleccionado = ""; 
+    const miNumeroWhatsApp = "5491144711477"; 
+    let listaTorneosCache = {};
+
+    function getCSSGradient(colorId) {
+        switch(colorId) { 
+            case 'red': return 'linear-gradient(135deg, #8b0000, #ff0000)'; 
+            case 'blue': return 'linear-gradient(135deg, #00008b, #0088ff)'; 
+            case 'gold': return 'linear-gradient(135deg, #b8860b, #ffd700)'; 
+            case 'green': return 'linear-gradient(135deg, #004d00, #00ff88)'; 
+            default: return 'linear-gradient(135deg, #111, #333)'; 
+        }
+    }
+
+    function obtenerRango(copas) {
+        if (copas < 15) return { n: "BRONCE", c: "#cd7f32", bg: "rgba(205, 127, 50, 0.15)", icon: '<i class="fas fa-shield-alt"></i>' };
+        if (copas < 50) return { n: "PLATA", c: "#c0c0c0", bg: "rgba(192, 192, 192, 0.15)", icon: '<i class="fas fa-star"></i>' };
+        return { n: "ORO", c: "#ffd700", bg: "rgba(255, 215, 0, 0.15)", icon: '<i class="fas fa-crown"></i>' };
+    }
+
+    // ==========================================
+    // 👤 GESTIÓN DEL PERFIL
+    // ==========================================
+    function openProfile() {
+        document.getElementById('modalPerfil').style.display = 'flex';
+        const idUnico = miDocData.plataforma_id || miDocData.nombre || '';
+        document.getElementById('editPlataformaId').value = idUnico; 
+        document.getElementById('previewNombre').innerText = (idUnico || "JUGADOR").toUpperCase(); 
+        document.getElementById('previewId').innerText = (idUnico || 'SIN ID').toUpperCase();
+        
+        if(miDocData.juego_preferido) document.getElementById('juegoPrincipal').value = miDocData.juego_preferido;
+        actualizarSubCategorias(); 
+        if(miDocData.sub_categoria) document.getElementById('subCategoria').value = miDocData.sub_categoria;
+        if(miDocData.stream_plataforma) document.getElementById('streamPlataforma').value = miDocData.stream_plataforma;
+        if(miDocData.stream_canal) document.getElementById('streamCanal').value = miDocData.stream_canal;
+        
+        seleccionarColor(miDocData.color_carta || 'black');
+        
+        let fp = miDocData.fair_play !== undefined ? miDocData.fair_play : 100;
+        document.getElementById('myFpNum').innerText = fp + "%"; 
+        configFairPlayUI(fp, document.getElementById('myFpBar'), document.getElementById('myFpText'));
+        
+        let jug = miDocData.partidos_jugados || 0; 
+        let gan = miDocData.partidos_ganados || 0; 
+        let per = miDocData.partidos_perdidos || 0; 
+        let wr = jug > 0 ? Math.round((gan/jug)*100) : 0;
+        
+        document.getElementById('myStatP').innerText = jug; 
+        document.getElementById('myStatW').innerText = gan; 
+        document.getElementById('myStatL').innerText = per; 
+        document.getElementById('myStatWR').innerText = wr + "%";
+        
+        cargarHistorialBilletera();
+    }
+
+    function closeProfile() { 
+        document.getElementById('modalPerfil').style.display='none'; 
+    }
+    
+    function seleccionarColor(c) { 
+        colorSeleccionado = c; 
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected')); 
+        if(document.getElementById('c-' + c)) {
+            document.getElementById('c-' + c).classList.add('selected'); 
+        }
+        document.getElementById('previewCarta').style.background = getCSSGradient(c); 
+    }
+
+    function actualizarSubCategorias() {
+        const juego = document.getElementById('juegoPrincipal').value; 
+        const subCat = document.getElementById('subCategoria'); 
+        let html = '';
+        
+        if (juego === 'FC 26') {
+            html = '<option value="Ultimate Team">Ultimate Team</option><option value="Clásicos">Clásicos</option>';
+        } else if (juego === 'eFootball') {
+            html = '<option value="Dream Team">Dream Team</option><option value="Genuinos">Equipos Genuinos</option>';
+        } else if (juego === 'Mobile') {
+            html = '<option value="Dream Team Mobile">Dream Team</option>';
+        }
+        
+        subCat.innerHTML = html;
+    }
+
+    async function guardarPerfil() {
+        const idUnicoRaw = document.getElementById('editPlataformaId').value.trim(); 
+        const idUnico = escaparHTML(idUnicoRaw).toUpperCase();
+        
+        if(!idUnico) return mostrarAlerta("DATOS FALTANTES", "Por favor, ingresá tu ID de juego.", "error");
+        if(!/^[a-zA-Z0-9_\-\s]+$/.test(idUnico)) return mostrarAlerta("ID INVÁLIDO", "El ID solo puede contener letras, números, guiones y espacios.", "error");
+        
+        const btn = document.getElementById('btnGuardarPerfil'); 
+        btn.innerHTML = "GUARDANDO..."; 
+        btn.disabled = true;
+        
+        try {
+            const duplicado = await db.collection("usuarios").where("nombre", "==", idUnico).get();
+            if (!duplicado.empty && duplicado.docs[0].id !== auth.currentUser.uid) { 
+                btn.innerHTML = "GUARDAR CAMBIOS"; 
+                btn.disabled = false; 
+                return mostrarAlerta("ID EN USO", "🚨 ERROR: Este ID ya está siendo usado por otro jugador.", "error"); 
+            }
+            
+            await db.collection('usuarios').doc(auth.currentUser.uid).update({ 
+                nombre: idUnico, 
+                plataforma_id: idUnico, 
+                color_carta: colorSeleccionado, 
+                juego_preferido: document.getElementById('juegoPrincipal').value, 
+                sub_categoria: document.getElementById('subCategoria').value, 
+                stream_plataforma: document.getElementById('streamPlataforma').value, 
+                stream_canal: escaparHTML(document.getElementById('streamCanal').value.trim()) 
+            });
+            
+            btn.innerHTML = "✅ ¡GUARDADO!"; 
+            btn.style.background = "#00e5ff"; 
+            btn.style.color = "black"; 
+            
+            setTimeout(() => { 
+                closeProfile(); 
+                btn.innerHTML = "GUARDAR CAMBIOS"; 
+                btn.style.background = "var(--primary-neon)"; 
+                btn.disabled = false; 
+            }, 800);
+        } catch(e) { 
+            btn.innerHTML = "GUARDAR CAMBIOS"; 
+            btn.disabled = false; 
+        }
+    }
+
+    function configFairPlayUI(fpValue, barEl, textEl) {
+        let color = ""; let text = ""; let icon = "";
+        
+        if(fpValue >= 95) { 
+            color = "#00ff88"; 
+            text = "LEYENDA (Confiable)"; 
+            icon = "fa-star"; 
+        } else if(fpValue >= 80) { 
+            color = "#009ee3"; 
+            text = "BUEN JUGADOR"; 
+            icon = "fa-check-circle"; 
+        } else if(fpValue >= 60) { 
+            color = "#ffd700"; 
+            text = "EN OBSERVACIÓN (Riesgo)"; 
+            icon = "fa-exclamation-triangle"; 
+        } else { 
+            color = "#ff4757"; 
+            text = "TÓXICO (Sancionado)"; 
+            icon = "fa-skull-crossbones"; 
+        }
+        
+        barEl.style.width = fpValue + "%"; 
+        barEl.style.background = color;
+        textEl.innerHTML = `<i class="fas ${icon}"></i> ${text}`; 
+        textEl.style.color = color; 
+        textEl.style.borderColor = color; 
+        textEl.style.background = color.replace(')', ', 0.1)').replace('rgb', 'rgba');
+        
+        if(textEl.style.background.includes('#')) {
+            textEl.style.background = 'rgba(255,255,255,0.05)';
+        }
+    }
+
+    async function cargarHistorialBilletera() {
+        const cajaHistorial = document.getElementById('cajaHistorialBilletera'); 
+        cajaHistorial.innerHTML = "<div style='text-align:center; color: var(--primary-neon);'><i class='fas fa-spinner fa-spin'></i> Sincronizando con el banco...</div>";
+        let html = "";
+        
+        try {
+            const depSnap = await db.collection("pagos_procesados").where("uid", "==", miUID).get(); 
+            const retSnap = await db.collection("retiros").where("uid", "==", miUID).get();
+            let movimientos = [];
+            
+            depSnap.forEach(doc => { 
+                let d = doc.data(); 
+                if(d.fecha) {
+                    movimientos.push({ tipo: "deposito", coins: d.coins_entregadas || 0, fecha: d.fecha.toDate(), estado: "COMPLETADO" }); 
+                }
+            });
+            
+            retSnap.forEach(doc => { 
+                let d = doc.data(); 
+                if(d.fecha) {
+                    movimientos.push({ tipo: "retiro", coins: d.montoCoins || 0, fecha: d.fecha.toDate(), estado: (d.estado || "PENDIENTE").toUpperCase() }); 
+                }
+            });
+            
+            movimientos.sort((a, b) => b.fecha - a.fecha); 
+            movimientos = movimientos.slice(0, 10);
+            
+            if(movimientos.length === 0) { 
+                html = "<div style='color:var(--text-gray); font-size:0.85rem; text-align:center; padding: 20px;'>No hay movimientos recientes.</div>"; 
+            } else {
+                movimientos.forEach(m => {
+                    const dateStr = m.fecha.toLocaleDateString() + " " + m.fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    if(m.tipo === "deposito") {
+                        html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid var(--primary-neon);">
+                            <div>
+                                <div style="font-weight:900; font-family:'Orbitron'; font-size:0.9rem; color: white;"><i class="fas fa-arrow-down" style="color:var(--primary-neon);"></i> INGRESO</div>
+                                <div style="font-size:0.7rem; color:var(--text-gray); margin-top:3px;">${dateStr}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="color:var(--lfa-gold); font-weight:900; font-size: 1.1rem; font-family:'Orbitron';">+${m.coins} LFA</div>
+                                <div style="font-size:0.7rem; color:var(--primary-neon); font-weight:bold;"><i class="fas fa-check-circle"></i> ACREDITADO</div>
+                            </div>
+                        </div>`;
+                    } else {
+                        let colorRet = m.estado === "PENDIENTE" ? "#ffd700" : (m.estado === "COMPLETADO" ? "var(--primary-neon)" : "var(--danger)");
+                        let iconRet = m.estado === "PENDIENTE" ? "fa-clock" : (m.estado === "COMPLETADO" ? "fa-check-circle" : "fa-times-circle");
+                        
+                        html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid var(--danger);">
+                            <div>
+                                <div style="font-weight:900; font-family:'Orbitron'; font-size:0.9rem; color: white;"><i class="fas fa-arrow-up" style="color:var(--danger);"></i> RETIRO</div>
+                                <div style="font-size:0.7rem; color:var(--text-gray); margin-top:3px;">${dateStr}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="color:var(--danger); font-weight:900; font-size: 1.1rem; font-family:'Orbitron';">-${m.coins} LFA</div>
+                                <div style="font-size:0.7rem; color:${colorRet}; font-weight:bold;"><i class="fas ${iconRet}"></i> ${m.estado}</div>
+                            </div>
+                        </div>`;
+                    }
+                });
+            }
+            cajaHistorial.innerHTML = html;
+        } catch(e) { 
+            cajaHistorial.innerHTML = "<div style='color:var(--danger); font-size:0.85rem; text-align:center;'>❌ Error de conexión al cargar historial.</div>"; 
+        }
+    }
+
+    // ==========================================
+    // 📺 LFA TV Y STREAMING
+    // ==========================================
+    async function toggleLive() {
+        if(!miDocData.stream_plataforma || miDocData.stream_plataforma === 'none' || !miDocData.stream_canal) { 
+            await mostrarAlerta("PERFIL INCOMPLETO", "Primero debés configurar tu canal de stream en tu Perfil (Arriba a la izquierda).", "error"); 
+            openProfile(); 
+            return;
+        }
+        
+        const estaEnVivo = miDocData.en_vivo === true;
+        
+        if(!estaEnVivo) { 
+            if(await mostrarConfirm("PRENDER STREAM", "⚠️ ATENCIÓN: Es OBLIGATORIO que incluyas <b>SOMOSLFA</b> en el título de tu stream.<br><br>¿Prender Stream?")) { 
+                await db.collection("usuarios").doc(miUID).update({ en_vivo: true }); 
+            } 
+        } else { 
+            await db.collection("usuarios").doc(miUID).update({ en_vivo: false }); 
+        }
+    }
+
+    function cargarLfaTv() {
+        db.collection("usuarios").where("en_vivo", "==", true).onSnapshot(snap => {
+            let html = ''; 
+            const dominioParent = window.location.hostname || 'somoslfa.com';
+            
+            snap.forEach(doc => {
+                const u = doc.data();
+                if(u.stream_plataforma && u.stream_canal && u.stream_plataforma !== 'none') {
+                    let iframeSrc = '';
+                    if(u.stream_plataforma === 'twitch') {
+                        iframeSrc = `https://player.twitch.tv/?channel=${u.stream_canal}&parent=${dominioParent}&muted=true`;
+                    } else if(u.stream_plataforma === 'kick') {
+                        iframeSrc = `https://player.kick.com/${u.stream_canal}?muted=true`;
+                    } else if(u.stream_plataforma === 'youtube') {
+                        iframeSrc = `https://www.youtube.com/embed/${u.stream_canal}?autoplay=1&mute=1&modestbranding=1`;
+                    }
+                    
+                    html += `
+                    <div class="compact-card" style="padding: 0; overflow: hidden; border-color: #9146FF; border-left: none; border-top: 4px solid #9146FF; min-height: 200px;">
+                        <div style="background: #9146FF; color: white; padding: 5px 10px; font-size: 0.7rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fas fa-circle" style="color:var(--danger); animation: pulseRed 1s infinite;"></i> EN VIVO</span>
+                            <span>${(u.nombre || 'Jugador').toUpperCase()}</span>
+                        </div>
+                        <iframe src="${iframeSrc}" frameborder="0" allowfullscreen style="width:100%; height:100%; min-height: 180px;"></iframe>
+                    </div>`;
+                }
+            });
+            
+            document.getElementById('lfaTvContainer').innerHTML = html || '<div style="grid-column: 1/-1; text-align:center; color:gray; padding:20px; background: #0b0e14; border: 1px dashed var(--border); border-radius: 10px;">📺 Nadie está transmitiendo en este momento. ¡Sé el primero!</div>';
+        });
+    }
+
+    // ==========================================
+    // 👤 PERFIL PÚBLICO (INSPECCIONAR RIVALES)
+    // ==========================================
+    async function verPerfilPublico(uid) {
+        document.getElementById('pubHeaderName').innerHTML = "<i class='fas fa-spinner fa-spin'></i> Buscando Expediente...";
+        document.getElementById('modalPerfilPublico').style.display = 'flex';
+        
+        try {
+            const doc = await db.collection("usuarios").doc(uid).get(); 
+            if(!doc.exists) throw new Error("No existe"); 
+            
+            const u = doc.data();
+            
+            document.getElementById('pubHeaderName').innerHTML = `<i class="fas fa-search"></i> EXPEDIENTE: ${(u.nombre || 'JUGADOR').toUpperCase()}`;
+            document.getElementById('pubCartaBg').style.background = getCSSGradient(u.color_carta || 'black'); 
+            document.getElementById('pubCartaRating').innerText = u.titulos || 0; 
+            document.getElementById('pubCartaNombre').innerText = (u.nombre || 'JUGADOR').toUpperCase(); 
+            document.getElementById('pubCartaId').innerText = (u.plataforma_id || 'SIN ID').toUpperCase();
+            
+            let pC = (u.pais_codigo || "XX").toLowerCase();
+            if(pC !== "xx") { 
+                document.getElementById("pubCartaBandera").src = `https://flagcdn.com/w20/${pC}.png`; 
+                document.getElementById("pubCartaBandera").style.display = "block"; 
+            } else { 
+                document.getElementById("pubCartaBandera").style.display = "none"; 
+            }
+            
+            let fp = u.fair_play !== undefined ? u.fair_play : 100; 
+            document.getElementById('pubFpNum').innerText = fp + "%"; 
+            configFairPlayUI(fp, document.getElementById('pubFpBar'), document.getElementById('pubFpText'));
+            
+            let jug = u.partidos_jugados || 0; 
+            let gan = u.partidos_ganados || 0; 
+            let per = u.partidos_perdidos || 0; 
+            let wr = jug > 0 ? Math.round((gan/jug)*100) : 0;
+            
+            document.getElementById('pubStatP').innerText = jug; 
+            document.getElementById('pubStatW').innerText = gan; 
+            document.getElementById('pubStatL').innerText = per; 
+            document.getElementById('pubStatWR').innerText = wr + "%";
+            
+        } catch(e) { 
+            document.getElementById('modalPerfilPublico').style.display = 'none'; 
+            mostrarAlerta("ERROR", "No se pudo cargar el perfil del jugador.", "error"); 
+        }
+    }
+
+    // ==========================================
+    // 🧠 INICIO DE SESIÓN
+    // ==========================================
+    function initAuth() {
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                miUID = user.uid;
+                
+                // Check for verify=true in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('verify') === 'true') {
+                    setTimeout(() => {
+                        if (typeof abrirModalVerificacionDivision === 'function') {
+                            abrirModalVerificacionDivision();
+                        }
+                    }, 1000);
+                }
+                
+                db.collection("usuarios").doc(user.uid).onSnapshot(async doc => {
+                miDocData = doc.data() || {}; 
+                miNombre = (miDocData.nombre || "JUGADOR").toUpperCase(); 
+                
+                const miId = (miDocData.plataforma_id || "SIN ID").toUpperCase(); 
+                const copas = miDocData.titulos || 0; 
+                const r = obtenerRango(copas);
+                
+                esAdminOSoporte = (miUID === DUEÑO_UID || miDocData.rol === "soporte");
+                
+                if (miUID === DUEÑO_UID) { 
+                    let btnAdm = document.getElementById('btnAdminSecreto');
+                    if (btnAdm) btnAdm.style.display = 'inline-block'; 
+                }
+                
+                const miPaisCod = (miDocData.pais_codigo || "XX").toLowerCase(); 
+                let htmlBandera = miPaisCod !== "xx" ? `<img src="https://flagcdn.com/w20/${miPaisCod}.png" width="18" style="border-radius:2px; margin-left:5px; vertical-align:text-bottom;">` : "";
+                
+                document.getElementById("uName").innerHTML = miNombre + htmlBandera;
+                document.getElementById("uBalance").innerHTML = `<i class="fas fa-coins" style="color: var(--lfa-gold); filter: drop-shadow(0 0 5px rgba(255,215,0,0.8));"></i> ` + (miDocData.number || 0).toFixed(2);
+                document.getElementById("walletBigBalance").innerText = (miDocData.number || 0).toFixed(2); 
+                document.getElementById("uCopasVal").innerText = copas; 
+                document.getElementById("uRangoTexto").innerHTML = `RANGO: <span style="color:${r.c}">${r.icon} ${r.n}</span>`; 
+                document.getElementById("uProgressBar").style.width = Math.min((copas/15)*100, 100) + "%";
+                
+                document.getElementById('headerCardBg').style.background = getCSSGradient(miDocData.color_carta || 'black'); 
+                document.getElementById('headerCardName').innerText = miNombre; 
+                document.getElementById('headerCardId').innerText = miId; 
+                document.getElementById('headerCardRating').innerText = copas;
+                
+                if(miPaisCod !== "xx") { 
+                    document.getElementById("headerCardFlag").src = `https://flagcdn.com/w20/${miPaisCod}.png`; 
+                    document.getElementById("headerCardFlag").style.display = "block"; 
+                    document.getElementById("previewBandera").src = `https://flagcdn.com/w20/${miPaisCod}.png`; 
+                    document.getElementById("previewBandera").style.display = "block"; 
+                } else { 
+                    document.getElementById("headerCardFlag").style.display = "none"; 
+                    document.getElementById("previewBandera").style.display = "none"; 
+                }
+                
+                const btnGoLive = document.getElementById('btnGoLive');
+                if(miDocData.en_vivo === true) { 
+                    btnGoLive.innerHTML = "<i class='fas fa-power-off'></i> APAGAR TRANSMISIÓN"; 
+                    btnGoLive.style.background = "transparent"; 
+                    btnGoLive.style.border = "1px solid #ff4757"; 
+                    btnGoLive.style.color = "#ff4757"; 
+                } else { 
+                    btnGoLive.innerHTML = "<i class='fas fa-video'></i> PRENDER MI STREAM"; 
+                    btnGoLive.style.background = "#9146FF"; 
+                    btnGoLive.style.border = "none"; 
+                    btnGoLive.style.color = "white"; 
+                }
+                
+                if(miDocData.juego_preferido === 'eFootball' && !miDocData.division_efootball) {
+                    setTimeout(() => {
+                        mostrarConfirm("VERIFICACIÓN DE DIVISIÓN", "Notamos que jugás eFootball pero no tenés tu División verificada. ¿Querés subir una captura ahora para poder entrar a torneos con restricción de nivel?").then(res => {
+                            if (res) abrirModalVerificacionDivision();
+                        });
+                    }, 1500);
+                }
+                
+                cargarDatosBasicos(user.uid);
+            });
+            
+            db.collection("configuracion").doc("lfa_pro").onSnapshot(doc => { 
+                if (doc.exists && doc.data().activo === true) { 
+                    document.getElementById('bannerLfaPro').style.display = 'block'; 
+                } else { 
+                    document.getElementById('bannerLfaPro').style.display = 'none'; 
+                } 
+            });
+            
+            cargarRankingGlobal(document.querySelector('.tab-rank-btn.active')); 
+            cargarLfaTv(); 
+            
+            setTimeout(() => { 
+                document.getElementById('loaderInicial').style.display = 'none'; 
+            }, 500);
+            
+        } else { 
+            window.location.replace("/"); 
+        }
+    });
+    }
+
+    // ========================================================
+    // 🚨 FIX DE RUTA DE SALA (EL BUG DEL CARGANDO)
+    // ========================================================
+    function cargarDatosBasicos(uid) {
+        db.collection("torneos").where("estado", "==", "abierto").onSnapshot(s => {
+            let h = ''; 
+            let totalSalas = 0; 
+            let totalJugadores = 0;
+            
+            listaTorneosCache = {}; // LIMPIAMOS CACHE PARA EVITAR ERRORES
+            
+            s.forEach(d => { 
+                const t = d.data(); 
+                
+                // 🚨 GUARDAMOS EN EL CACHE OBLIGATORIAMENTE PARA LA INSCRIPCIÓN
+                listaTorneosCache[d.id] = t;
+                
+                const f = (t.formato || "1vs1").toLowerCase(); 
+                const m = (t.modo || "").toLowerCase();
+                
+                if(f.includes("2vs2") || m.includes("2vs2") || f.includes("liga") || f.includes("clubes")) {
+                    return; // Este dashboard es solo para 1VS1
+                }
+                
+                totalSalas++; 
+                totalJugadores += (t.inscritos || 0);
+                
+                const isFree = t.costo_inscripcion === 0; 
+                const costoHtml = isFree ? `<span class="cc-cost gratis">🎁 GRATIS</span>` : `<span class="cc-cost"><i class="fas fa-coins"></i> ${t.costo_inscripcion} COINS</span>`;
+                
+                let cardColor = "var(--primary-neon)"; 
+                let bgShadow = "rgba(0,255,136,0.15)"; 
+                let iconLogo = '<i class="fas fa-gamepad"></i>';
+                
+                if (t.juego === "FC 26") { 
+                    cardColor = "var(--primary-neon)"; 
+                    bgShadow = "rgba(0,255,136,0.15)"; 
+                    iconLogo = '<i class="fab fa-playstation"></i> <i class="fab fa-xbox"></i> <i class="fas fa-desktop"></i>'; 
+                } else if (t.juego === "eFootball" || t.juego === "Mobile") { 
+                    if (t.plataforma === "Mobile" || t.juego === "Mobile") { 
+                        cardColor = "var(--danger)"; 
+                        bgShadow = "rgba(255,71,87,0.15)"; 
+                        iconLogo = '<i class="fas fa-mobile-alt"></i>'; 
+                    } else { 
+                        cardColor = "#009ee3"; 
+                        bgShadow = "rgba(0,158,227,0.15)"; 
+                        iconLogo = '<i class="fab fa-playstation"></i> <i class="fab fa-xbox"></i> <i class="fas fa-desktop"></i>'; 
+                    } 
+                }
+                
+                const pC = miDocData.pais_codigo || "XX"; 
+                const isSur = ['AR','CL','UY','PY','BR','PE','BO'].includes(pC); 
+                const isNorte = ['CO','EC','VE','MX','US','CA','CR','PA','SV','HN','GT','NI','DO','PR','CU'].includes(pC); 
+                
+                const soyParticipante = t.participantes && t.participantes.includes(uid);
+                
+                // 🚨 LECTURA DE RUTA SEGURA DESDE LA BASE DE DATOS
+                let linkSala = t.link_sala || "/sala";
+                
+                let btnHtml = '';
+                if (soyParticipante) { 
+                    btnHtml = `<button class="btn-main" style="background:var(--lfa-gold); color:black; padding: 10px; font-size: 0.85rem;" onclick="window.location.href='${linkSala}?id=${d.id}'">YA ESTÁS DENTRO ➔</button>`; 
+                } else if (t.inscritos >= t.cupos_totales) { 
+                    if (esAdminOSoporte) { 
+                        btnHtml = `<button class="btn-main" style="background:#9146FF; color:white; padding: 10px; font-size: 0.85rem;" onclick="window.location.href='${linkSala}?id=${d.id}'"><i class="fas fa-eye"></i> ESPECTAR (ADMIN)</button>`; 
+                    } else { 
+                        btnHtml = `<button class="btn-main" style="background:#30363d; color:gray; cursor:not-allowed;" disabled><i class="fas fa-door-closed"></i> SALA LLENA</button>`; 
+                    } 
+                } else if (t.region === 'LATAM_SUR' && !isSur && pC !== "XX" && !esAdminOSoporte) { 
+                    btnHtml = `<button class="btn-main" style="background:#30363d; color:gray; cursor:not-allowed;" disabled><i class="fas fa-lock"></i> BLOQUEO DE REGIÓN</button>`; 
+                } else if (t.region === 'LATAM_NORTE' && !isNorte && pC !== "XX" && !esAdminOSoporte) { 
+                    btnHtml = `<button class="btn-main" style="background:#30363d; color:gray; cursor:not-allowed;" disabled><i class="fas fa-lock"></i> BLOQUEO DE REGIÓN</button>`; 
+                } else { 
+                    btnHtml = `<button class="btn-main" style="background:${cardColor}; color:${t.juego === 'FC 26' ? 'black' : 'white'}; padding: 10px; font-size: 0.85rem;" onclick="abrirModalInscripcion('${d.id}', '${t.titulo}', ${t.costo_inscripcion})">INSCRIBIRSE ➔</button>`; 
+                }
+                
+                const modoFinal = t.modo ? t.modo.toUpperCase() : (t.juego === 'eFootball' ? 'DREAM TEAM' : 'ULTIMATE TEAM');
+                let divisionHtml = '';
+                if (t.juego === 'eFootball' && t.divisionMinima) {
+                    divisionHtml = `<span class="cc-tag" style="color:white; background:var(--danger); border-color:var(--danger); font-weight:bold;"><i class="fas fa-shield-alt"></i> DIV ${t.divisionMinima}+</span>`;
+                }
+                
+                h += `
+                <div class="compact-card" style="--card-theme: ${cardColor}; --card-glow: ${bgShadow};">
+                    <div class="cc-info">
+                        <span class="cc-title">🏆 ${t.titulo}</span>
+                        <div class="cc-tags">
+                            <span class="cc-tag" style="border: 1px solid #444c56; color: #c9d1d9;"><i class="fas fa-globe-americas"></i> ${t.region || 'GLOBAL'}</span>
+                            <span class="cc-tag" style="color:white; background:rgba(255,255,255,0.1);"><i class="fas fa-futbol"></i> ${t.juego}</span>
+                            <span class="cc-tag">${iconLogo} ${t.plataforma}</span>
+                            <span class="cc-tag" style="color:white; border-color:var(--card-theme); background: var(--card-glow); font-weight:bold; letter-spacing:1px; box-shadow: 0 0 5px var(--card-glow);">MODO: ${modoFinal}</span>
+                            ${divisionHtml}
+                            ${costoHtml}
+                        </div>
+                        <span class="cc-users"><i class="fas fa-users"></i> ${t.inscritos||0} / ${t.cupos_totales} JUGADORES</span>
+                    </div>
+                    ${btnHtml}
+                </div>`;  
+            });
+            
+            if (totalSalas === 0) { 
+                h = `<div style="background: #0b0e14; border: 1px dashed var(--border); padding: 20px; text-align: center; border-radius: 10px; color: var(--text-gray); font-family: 'Orbitron'; font-size: 0.8rem; grid-column: 1 / -1;">NO HAY SALAS ABIERTAS EN ESTE MOMENTO.</div>`; 
+            }
+            
+            document.getElementById('listaTorneos').innerHTML = h; 
+            document.getElementById('statSalas').innerText = totalSalas; 
+            document.getElementById('statJugadores').innerText = totalJugadores;
+        });
+
+        db.collection("torneos").where("estado", "in", ["en_disputa", "fraude_detectado", "en_juego"]).onSnapshot(s => {
+            let acts=0; 
+            let h='';
+            
+            s.forEach(d => { 
+                const t = d.data(); 
+                const f = (t.formato || "1vs1").toLowerCase(); 
+                const m = (t.modo || "").toLowerCase();
+                
+                if(f.includes("2vs2") || m.includes("2vs2") || f.includes("liga") || f.includes("clubes")) {
+                    return;
+                }
+                
+                acts++; 
+                
+                let cardColor = "var(--primary-neon)"; 
+                let bgShadow = "rgba(0,255,136,0.15)";
+                
+                if (t.juego === "FC 26") { 
+                    cardColor = "var(--primary-neon)"; 
+                    bgShadow = "rgba(0,255,136,0.15)"; 
+                } else if (t.juego === "eFootball" || t.juego === "Mobile") { 
+                    if (t.plataforma === "Mobile" || t.juego === "Mobile") { 
+                        cardColor = "var(--danger)"; 
+                        bgShadow = "rgba(255,71,87,0.15)"; 
+                    } else { 
+                        cardColor = "#009ee3"; 
+                        bgShadow = "rgba(0,158,227,0.15)"; 
+                    } 
+                }
+                
+                const soyParticipante = t.participantes && t.participantes.includes(uid); 
+                
+                // 🚨 LECTURA DE RUTA SEGURA DESDE LA DB
+                let linkSala = t.link_sala || "/sala";
+                
+                let btnAccion = '';
+                
+                if (soyParticipante) { 
+                    btnAccion = `<button class="btn-live" style="border-color: var(--card-theme); color: white;" onclick="window.location.href='${linkSala}?id=${d.id}'">IR A LA CANCHA ➔</button>`; 
+                } else if (esAdminOSoporte) { 
+                    btnAccion = `<button class="btn-live" style="border-color: #9146FF; color: white; background: #9146FF;" onclick="window.location.href='${linkSala}?id=${d.id}'"><i class="fas fa-eye"></i> ESPECTAR (ADMIN)</button>`; 
+                } else { 
+                    btnAccion = `<button class="btn-live" style="border-color: #333; color: #666; background: #111; cursor: not-allowed;" disabled><i class="fas fa-lock"></i> SALA PRIVADA</button>`; 
+                }
+                
+                h += `
+                <div class="live-match-card" style="--card-theme: ${cardColor}; --card-glow: ${bgShadow};">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <div class="lm-title" style="color: var(--card-theme);"><i class="fas fa-bolt"></i> ${t.titulo}</div>
+                            <div class="lm-tags">
+                                <span class="lm-tag">${t.juego}</span>
+                                <span class="lm-tag">${t.plataforma}</span>
+                                <span class="lm-tag-live" style="color: var(--card-theme); border-color: var(--card-theme); background: var(--card-glow);"><i class="fas fa-circle" style="font-size:8px;"></i> EN CURSO</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${btnAccion}
+                </div>`; 
+            });
+            
+            document.getElementById('misPartidos').innerHTML = acts > 0 ? h : `<div style="background: #0b0e14; border: 1px dashed var(--border); padding: 20px; text-align: center; border-radius: 10px; color: var(--text-gray); font-family: 'Orbitron'; font-size: 0.8rem; grid-column: 1 / -1;">NO HAY PARTIDOS EN JUEGO AHORA MISMO.</div>`;
+        });
+    }
+
+    function cargarRankingGlobal(btnElement) { 
+        document.querySelectorAll('.tab-rank-btn').forEach(b => b.classList.remove('active')); 
+        btnElement.classList.add('active'); 
+        
+        if(rankingListener) rankingListener(); 
+        
+        rankingListener = db.collection("usuarios").orderBy("titulos", "desc").limit(10).onSnapshot(renderRankingRows); 
+    }
+    
+    function cargarRankingFiltrado(juego, subCat, btnElement) { 
+        document.querySelectorAll('.tab-rank-btn').forEach(b => b.classList.remove('active')); 
+        btnElement.classList.add('active'); 
+        
+        if(rankingListener) rankingListener(); 
+        
+        rankingListener = db.collection("usuarios").where("sub_categoria", "==", subCat).orderBy("titulos", "desc").limit(10).onSnapshot(renderRankingRows); 
+    }
+
+    function renderRankingRows(s) {
+        let h='', p=1; 
+        
+        if(s.empty) { 
+            document.getElementById('rankingBody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:gray; padding:20px;">Aún no hay campeones en esta categoría.</td></tr>'; 
+            return; 
+        }
+        
+        s.forEach(d => { 
+            const u = d.data(); 
+            const copasCategoria = u.titulos || 0; 
+            
+            if(copasCategoria === 0) return; 
+            
+            const r = obtenerRango(copasCategoria); 
+            let rClass = p===1 ? 'rank-1' : (p===2 ? 'rank-2' : (p===3 ? 'rank-3' : '')); 
+            let cardColorBg = getCSSGradient(u.color_carta || 'black'); 
+            let uNom = (u.nombre||'Jugador').toUpperCase(); 
+            let uId = (u.plataforma_id||'SIN ID').toUpperCase();
+            
+            let htmlCartaRank = `
+            <div class="fut-shape lfa-card" style="background:${cardColorBg};">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+                    <div style="text-align:center; line-height:1;">
+                        <div style="font-size:12px; font-weight:900; font-family:'Orbitron';">${copasCategoria}</div>
+                    </div>
+                </div>
+                <i class="fas fa-user" style="font-size:1.8rem; margin-top:2px;"></i>
+                <div style="margin-top:auto; width:100%; text-align:center;">
+                    <div class="card-text-container">
+                        <span class="card-name" style="font-size:8px;">${uNom}</span>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.4); margin-top:3px; padding-top:2px;">
+                        <div class="card-text-container">
+                            <span class="card-id" style="font-size:6px;">${uId}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            
+            let htmlRango = `<span class="rango-badge" style="background:${r.bg}; border: 1px solid ${r.c}; color:${r.c}; text-shadow: 0 0 5px ${r.c};">${r.icon} ${r.n}</span>`;
+            
+            h += `
+            <tr class="${rClass}" onclick="verPerfilPublico('${d.id}')">
+                <td data-label="POS">#${p++}</td>
+                <td data-label="CARTA / JUGADOR" style="display:flex; align-items:center; gap:15px; font-weight:bold; color:white; cursor:pointer;">
+                    ${htmlCartaRank} 
+                    <span style="font-size:1rem;"><i class="fas fa-search" style="color:var(--text-gray); font-size:0.7rem; margin-right:5px;"></i> ${u.nombre||'Jugador'}</span>
+                </td>
+                <td data-label="RANGO">${htmlRango}</td>
+                <td data-label="COPAS" style="color:var(--lfa-gold); font-weight:bold; font-size: 1.1rem;">🏆 ${copasCategoria}</td>
+            </tr>`; 
+        }); 
+        
+        document.getElementById('rankingBody').innerHTML = h;
+    }
+
+    function abrirModalInscripcion(id, titulo, costo) { 
+        torneoAInscribir = id; 
+        document.getElementById("insTitulo").innerText = titulo; 
+        document.getElementById("insCosto").innerHTML = costo === 0 ? "🎁 GRATIS" : `<i class="fas fa-coins"></i> ${costo} LFA COINS`; 
+        document.getElementById("modalInscripcion").style.display = "flex"; 
+    }
+    
+    // 🚨 INSCRIPCIÓN Y REDIRECCIÓN SEGURA 🚨
+    async function confirmarInscripcion() {
+        const btn = document.getElementById("btnConfirmarIns"); 
+        btn.innerHTML = "AUTORIZANDO PAGO..."; 
+        btn.disabled = true;
+        
+        try {
+            // Lógica de validación de división de eFootball
+            let tCache = listaTorneosCache[torneoAInscribir];
+            if (tCache && tCache.juego === 'eFootball') {
+                const divisionUsuario = miDocData.division_efootball;
+                const divisionRequerida = tCache.divisionMinima;
+                
+                if (divisionRequerida) {
+                    if (!divisionUsuario) {
+                        await mostrarAlerta("DIVISIÓN NO VERIFICADA", "No tenés una división de eFootball verificada. Por favor, subí una captura de pantalla de tu perfil en la sección de verificación para poder entrar a esta sala.", "error");
+                        btn.innerHTML = "CONFIRMAR E INGRESAR"; 
+                        btn.disabled = false; 
+                        document.getElementById("modalInscripcion").style.display = "none";
+                        abrirModalVerificacionDivision();
+                        return;
+                    }
+                    
+                    if (divisionUsuario > divisionRequerida) {
+                        await mostrarAlerta("NIVEL INSUFICIENTE", `No podés entrar. Tu división es ${divisionUsuario} y la sala requiere División ${divisionRequerida} o superior. (División 1 es la mejor)`, "error");
+                        btn.innerHTML = "CONFIRMAR E INGRESAR"; 
+                        btn.disabled = false; 
+                        document.getElementById("modalInscripcion").style.display = "none";
+                        return;
+                    }
+                }
+            }
+
+            const token = await auth.currentUser.getIdToken();
+            const res = await fetch("https://us-central1-lfaofficial.cloudfunctions.net/inscribirTorneo", { 
+                method: "POST", 
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "Authorization": `Bearer ${token}` 
+                }, 
+                body: JSON.stringify({ 
+                    torneoId: torneoAInscribir 
+                }) 
+            });
+            
+            const data = await res.json();
+            
+            if(data.success) { 
+                // Buscamos en el cache la ruta de destino original
+                let tCache = listaTorneosCache[torneoAInscribir];
+                let linkDestino = tCache ? (tCache.link_sala || "/sala") : "/sala";
+                
+                window.location.href = linkDestino + "?id=" + torneoAInscribir; 
+            } else { 
+                await mostrarAlerta("ERROR", data.error, "error"); 
+                btn.innerHTML = "CONFIRMAR E INGRESAR"; 
+                btn.disabled = false; 
+            }
+        } catch(e) { 
+            await mostrarAlerta("ERROR", "Error de conexión con el servidor.", "error"); 
+            btn.innerHTML = "CONFIRMAR E INGRESAR"; 
+            btn.disabled = false; 
+        }
+    }
+    
+    // ==========================================
+    // 💳 SISTEMA CEREBRO: COTIZACIÓN Y PAGOS MANUALES
+    // ==========================================
+    async function seleccionarPack(c,u,n) { 
+        packActual={coins:c,usd:u,nombre:n}; 
+        
+        document.getElementById('pagoDetalleInfo').innerHTML=`
+            <div style="font-family:'Orbitron'; margin-bottom:10px;">Comprando Pack ${n}</div>
+            <span style="color:var(--primary-neon); font-weight:bold; font-size:1.5rem;"><i class="fas fa-coins"></i> ${c} COINS</span><br><br>
+            Valor Base: <b>$${u.toFixed(2)} USD</b>
+            <div id="mpMontoCalculado" style="font-family:'Orbitron'; font-size:1.1rem; color:#009ee3; font-weight:bold; margin-top:5px;"><i class='fas fa-spinner fa-spin'></i> Calculando ARS...</div>
+            <div style="font-size:0.75rem; color:var(--text-gray); margin-top:15px; line-height:1.5; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #333; text-align: left;">
+                <div style="margin-bottom: 8px;"><i class="fas fa-info-circle" style="color:#009ee3;"></i> <b>Mercado Pago:</b> Conversión a Pesos ARS según cotización Dólar Cripto en vivo (+10% comisiones MP).</div>
+                <div><i class="fas fa-info-circle" style="color:var(--prex-purple);"></i> <b>Prex:</b> Valor exacto sin comisiones extra entre países.</div>
+                <div style="margin-top: 8px;"><i class="fab fa-btc" style="color:#f3ba2f;"></i> <b>Binance Pay:</b> Precio FIJO exacto en USDT.</div>
+            </div>
+        `; 
+        
+        document.getElementById('modalWallet').style.display='none'; 
+        document.getElementById('modalPagoOpciones').style.display='flex'; 
+        
+        try {
+            const res = await fetch('https://dolarapi.com/v1/dolares/cripto'); 
+            const data = await res.json(); 
+            const precioVentaCripto = data.venta; 
+            const costoBaseARS = u * precioVentaCripto; 
+            const costoConComision = costoBaseARS * 1.10;
+            const mpMontoCalc = Math.round(costoConComision).toLocaleString('es-AR');
+            
+            document.getElementById('mpMontoCalculado').innerText = `≈ $${mpMontoCalc} ARS`;
+            document.getElementById('pmMontoFinal').innerText = `$${mpMontoCalc} ARS`;
+        } catch (e) {
+            const fallbackARS = Math.round((u * 1466) * 1.10).toLocaleString('es-AR');
+            document.getElementById('mpMontoCalculado').innerText = `≈ $${fallbackARS} ARS`; 
+            document.getElementById('pmMontoFinal').innerText = `$${fallbackARS} ARS`;
+        }
+    }
+
+    async function pagarMercadoPago() {
+        const btn = document.getElementById("btnMercadoPago"); 
+        const textoOriginal = btn.innerHTML; 
+        btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> CREANDO LINK..."; 
+        btn.disabled = true;
+        
+        try {
+            if (!auth.currentUser) {
+                await mostrarAlerta("ERROR", "No hay sesión iniciada. Recargá la página e ingresá nuevamente.", "error");
+                btn.innerHTML = textoOriginal; 
+                btn.disabled = false;
+                return;
+            }
+
+            const token = await auth.currentUser.getIdToken();
+            if (!token) {
+                await mostrarAlerta("ERROR", "No se pudo obtener el token de autenticación.", "error");
+                btn.innerHTML = textoOriginal; 
+                btn.disabled = false;
+                return;
+            }
+
+            const r = await fetch('https://us-central1-lfaofficial.cloudfunctions.net/crearPagoMP', { 
+                method: 'POST', 
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                }, 
+                body: JSON.stringify({ pack_name: packActual.nombre }) 
+            });
+
+            const d = await r.json();
+            
+            if (r.ok && d.init_point) {
+                window.open(d.init_point, '_blank'); 
+                document.getElementById('modalPagoOpciones').style.display = 'none'; 
+                btn.innerHTML = textoOriginal; 
+                btn.disabled = false; 
+            } else {
+                const errorMsg = d.error || `HTTP ${r.status}: Error al conectar con Mercado Pago`;
+                console.error("Error en crearPagoMP:", d);
+                await mostrarAlerta("ERROR", `No se pudo crear el pago: ${errorMsg}`, "error"); 
+                btn.innerHTML = textoOriginal; 
+                btn.disabled = false; 
+            }
+        } catch(e) {
+            console.error("Error en pagarMercadoPago:", e.message); 
+            await mostrarAlerta("ERROR", `Error de red: ${e.message}`, "error"); 
+            btn.innerHTML = textoOriginal; 
+            btn.disabled = false; 
+        }
+    }
+
+    function abrirModalManual(metodo) {
+        document.getElementById('modalPagoOpciones').style.display = 'none';
+        metodoSeleccionado = metodo;
+        const icon = document.getElementById('pmIcon');
+        const tit = document.getElementById('pmTitulo');
+        const monto = document.getElementById('pmMontoFinal');
+        const cuenta = document.getElementById('pmDatosCuenta');
+        const cajaMonto = document.getElementById('pmMontoCaja');
+        const cajon = document.getElementById('cajaPagoManual');
+
+        if(metodo === 'mp') {
+            cajon.style.borderColor = '#009ee3'; 
+            icon.className = "fas fa-handshake"; 
+            icon.style.color = "#009ee3"; 
+            tit.style.color = "#009ee3"; 
+            tit.innerText = "TRANSFERENCIA ARGENTINA";
+            cajaMonto.style.background = "rgba(0, 158, 227, 0.1)"; 
+            cajaMonto.style.borderColor = "#009ee3"; 
+            cajaMonto.style.border = "1px solid #009ee3";
+            cuenta.innerText = "ALIAS: lfa.esports.mp"; 
+            cuenta.style.color = "#009ee3";
+        } 
+        else if(metodo === 'prex') {
+            cajon.style.borderColor = 'var(--prex-purple)'; 
+            icon.className = "fas fa-exchange-alt"; 
+            icon.style.color = "var(--prex-purple)"; 
+            tit.style.color = "var(--prex-purple)"; 
+            tit.innerText = "PAGO CON PREX";
+            cajaMonto.style.background = "rgba(125, 60, 152, 0.1)"; 
+            cajaMonto.style.borderColor = "var(--prex-purple)"; 
+            cajaMonto.style.border = "1px solid var(--prex-purple)";
+            monto.innerText = `${packActual.usd.toFixed(2)} USD`;
+            cuenta.innerHTML = `CUENTA: 25782517<br><span style="font-size:0.8rem; color:var(--text-gray);">(O ALIAS: 36826094.PREX)</span>`; 
+            cuenta.style.color = "var(--prex-purple)";
+        } 
+        else if(metodo === 'binance') {
+            cajon.style.borderColor = '#f3ba2f'; 
+            icon.className = "fab fa-btc"; 
+            icon.style.color = "#f3ba2f"; 
+            tit.style.color = "#f3ba2f"; 
+            tit.innerText = "PAGO CRIPTO (USDT)";
+            cajaMonto.style.background = "rgba(243, 186, 47, 0.1)"; 
+            cajaMonto.style.borderColor = "#f3ba2f"; 
+            cajaMonto.style.border = "1px solid #f3ba2f";
+            monto.innerText = `${packActual.usd.toFixed(2)} USDT`;
+            cuenta.innerHTML = `Binance Pay ID: j4vier-User-81ccb<br><br><img src="qr_binance.png" style="width: 150px; border-radius:10px;">`; 
+            cuenta.style.color = "#f3ba2f";
+        }
+
+        document.getElementById('pmArchivo').value = ""; 
+        document.getElementById('pmTxId').value = "";
+        document.getElementById('modalPagoManual').style.display = 'flex';
+    }
+
+    async function procesarPagoManual() {
+        const txid = document.getElementById("pmTxId").value.trim();
+        const fileInput = document.getElementById("pmArchivo");
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            return mostrarAlerta("FALTAN DATOS", "Es obligatorio adjuntar el comprobante (Foto o PDF) para auditar el pago.", "error");
+        }
+
+        const btn = document.getElementById("btnNotificarManual"); 
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> PROCESANDO..."; 
+        btn.disabled = true;
+
+        try {
+            let urlComprobante = "";
+            if (file.type.startsWith("image/")) {
+                const options = { maxSizeMB: 0.4, maxWidthOrHeight: 1200, useWebWorker: true };
+                const compressedFile = await imageCompression(file, options);
+                const storageRef = storage.ref(`comprobantes/${miUID}_${Date.now()}.jpg`);
+                await storageRef.put(compressedFile);
+                urlComprobante = await storageRef.getDownloadURL();
+            } else if (file.type === "application/pdf") {
+                const storageRef = storage.ref(`comprobantes/${miUID}_${Date.now()}.pdf`);
+                await storageRef.put(file);
+                urlComprobante = await storageRef.getDownloadURL();
+            } else { 
+                throw new Error("Usá JPG, PNG o PDF."); 
+            }
+
+            let metNombreStr = metodoSeleccionado === "mp" ? "Mercado Pago Manual" : (metodoSeleccionado === "prex" ? "Prex" : "Binance Pay");
+
+            await db.collection("pagos_pendientes").add({
+                uid: miUID, 
+                jugador_nombre: miNombre, 
+                pack_name: packActual.nombre, 
+                usd: packActual.usd, 
+                coins: packActual.coins, 
+                metodo: metNombreStr, 
+                txid_o_nombre: txid || "Ver comprobante", 
+                comprobante_url: urlComprobante, 
+                estado: "pendiente", 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            document.getElementById('modalPagoManual').style.display = 'none';
+
+            // ABRE WHATSAPP AUTOMÁTICAMENTE
+            const msjWsp = `Hola Staff de LFA 🦅! Acabo de transferir por ${metNombreStr} para el Pack ${packActual.nombre} (${packActual.coins} Coins).\n\nMi Nick LFA: ${miNombre}\nID / Operación: ${txid}\nYa subí mi comprobante legal al sistema de la web.`;
+            window.open(`https://wa.me/${miNumeroWhatsApp}?text=${encodeURIComponent(msjWsp)}`, '_blank');
+            
+            await mostrarAlerta("COMPROBANTE ENVIADO", "✅ ¡Comprobante recibido por el sistema!<br><br>Se te abrió WhatsApp para notificar al Staff de forma directa.", "exito");
+        } catch (e) { 
+            await mostrarAlerta("ERROR", "No se pudo subir el comprobante: " + e.message, "error"); 
+        }
+        
+        btn.innerHTML = textoOriginal; 
+        btn.disabled = false;
+    }
+    
+    function openWallet() { 
+        document.getElementById('modalWallet').style.display='flex'; 
+    } 
+    
+    function closeWallet() { 
+        document.getElementById('modalWallet').style.display='none'; 
+    }
+    
+    function cerrarSesion() { 
+        auth.signOut().then(() => { 
+            window.location.href = "/"; 
+        }); 
+    }
+
+    function abrirModalVerificacionDivision() {
+        document.getElementById('modalVerificacionDivision').style.display = 'flex';
+        document.getElementById('estadoVerificacion').style.display = 'none';
+        document.getElementById('imgDivision').value = '';
+    }
+
+    async function subirCapturaDivision() {
+        const fileInput = document.getElementById('imgDivision');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            return mostrarAlerta("FALTAN DATOS", "Por favor, seleccioná una imagen.", "error");
+        }
+
+        const btn = document.getElementById("btnSubirDivision"); 
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> SUBIENDO..."; 
+        btn.disabled = true;
+
+        try {
+            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1200, useWebWorker: true };
+            const compressedFile = await imageCompression(file, options);
+            const storageRef = storage.ref(`verificaciones/${miUID}_${Date.now()}.jpg`);
+            await storageRef.put(compressedFile);
+            const urlComprobante = await storageRef.getDownloadURL();
+
+            await db.collection("verificaciones_division").add({
+                jugador_uid: miUID,
+                jugador_nombre: miNombre,
+                imagen_url: urlComprobante,
+                estado: "procesando",
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            document.getElementById('estadoVerificacion').style.display = 'block';
+            document.getElementById('estadoVerificacion').style.color = 'var(--lfa-gold)';
+            document.getElementById('estadoVerificacion').innerHTML = "<i class='fas fa-robot'></i> El VAR (IA) está analizando tu imagen. Esto puede tardar unos segundos...";
+            
+            // Escuchar cambios en la verificación
+            const unsubscribe = db.collection("verificaciones_division").where("jugador_uid", "==", miUID).orderBy("timestamp", "desc").limit(1).onSnapshot(snap => {
+                if (!snap.empty) {
+                    const data = snap.docs[0].data();
+                    if (data.estado === "aprobado") {
+                        document.getElementById('estadoVerificacion').style.color = 'var(--primary-neon)';
+                        document.getElementById('estadoVerificacion').innerHTML = `<i class='fas fa-check-circle'></i> ¡División ${data.division_detectada} verificada!`;
+                        btn.innerHTML = "✅ VERIFICADO";
+                        setTimeout(() => {
+                            document.getElementById('modalVerificacionDivision').style.display = 'none';
+                            unsubscribe();
+                        }, 2000);
+                    } else if (data.estado === "rechazado" || data.estado === "error") {
+                        document.getElementById('estadoVerificacion').style.color = 'var(--danger)';
+                        document.getElementById('estadoVerificacion').innerHTML = `<i class='fas fa-times-circle'></i> ${data.mensaje}`;
+                        btn.innerHTML = textoOriginal;
+                        btn.disabled = false;
+                        unsubscribe();
+                    }
+                }
+            });
+
+        } catch (e) { 
+            await mostrarAlerta("ERROR", "No se pudo subir la imagen: " + e.message, "error"); 
+            btn.innerHTML = textoOriginal; 
+            btn.disabled = false;
+        }
+    }
+
+    let chatGlobalAbierto = false; 
+    let primeraCargaChat = true;
+    
+    function toggleGlobalChat() {
+        chatGlobalAbierto = !chatGlobalAbierto; 
+        document.getElementById('panelGlobalChat').style.display = chatGlobalAbierto ? 'flex' : 'none';
+        
+        if (chatGlobalAbierto) {
+            document.getElementById('badgeChatActivo').style.display = 'none'; 
+            const caja = document.getElementById('gcCajaMensajes');
+            
+            if(primeraCargaChat) { 
+                arrancarChatGlobal(); 
+                primeraCargaChat = false; 
+            } 
+            setTimeout(() => { 
+                caja.scrollTop = caja.scrollHeight; 
+            }, 300);
+        }
+    }
+
+    async function enviarMensajeGlobalDashboard() {
+        const input = document.getElementById('gcInput'); 
+        const txt = escaparHTML(input.value.trim());
+        
+        if(!txt || !miUID) return; 
+        
+        input.value = "";
+        
+        try { 
+            await db.collection("chat_global").add({ 
+                texto: txt, 
+                autorId: miUID, 
+                autorNombre: miNombre, 
+                es_admin: esAdminOSoporte, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            }); 
+        } catch(e) { 
+            console.error(e); 
+        }
+    }
+
+    async function borrarMensajeCantina(msgId) {
+        if(!esAdminOSoporte) return;
+        if(await mostrarConfirm("MODERACIÓN LFA", "🚨 ¿Seguro que querés borrar este mensaje?")) { 
+            await db.collection("chat_global").doc(msgId).delete(); 
+        }
+    }
+
+    function arrancarChatGlobal() {
+        const caja = document.getElementById('gcCajaMensajes');
+        
+        db.collection("chat_global").orderBy("timestamp", "desc").limit(50).onSnapshot(snap => {
+            let html = `<div style="text-align:center; font-size:0.7rem; color:gray; margin-bottom:10px;">Chat moderado. Respeta las reglas.</div>`;
+            let docsMod = []; 
+            
+            snap.forEach(doc => { 
+                docsMod.push({id: doc.id, ...doc.data()}); 
+            }); 
+            
+            docsMod.reverse();
+            
+            docsMod.forEach(m => {
+                const adminClass = esAdminOSoporte ? 'msg-admin-view' : ''; 
+                const clickAction = esAdminOSoporte ? `onclick="borrarMensajeCantina('${m.id}')"` : '';
+                
+                if (m.es_admin) { 
+                    html += `<div class="gc-msg gc-msg-admin ${adminClass}" ${clickAction}><div class="gc-autor"><i class="fas fa-shield-alt"></i> STAFF LFA</div>${m.texto}</div>`; 
+                } else if (m.autorId === miUID) { 
+                    html += `<div class="gc-msg gc-msg-yo ${adminClass}" ${clickAction}><div class="gc-autor">TÚ</div>${m.texto}</div>`; 
+                } else { 
+                    html += `<div class="gc-msg gc-msg-otro ${adminClass}" ${clickAction}><div class="gc-autor">${(m.autorNombre || 'Jugador').toUpperCase()}</div>${m.texto}</div>`; 
+                }
+            });
+            
+            caja.innerHTML = html; 
+            
+            if(!chatGlobalAbierto) {
+                document.getElementById('badgeChatActivo').style.display = 'block'; 
+            } else {
+                caja.scrollTop = caja.scrollHeight;
+            }
+        });
+    }
+
+</script>
+</body>
+</html>

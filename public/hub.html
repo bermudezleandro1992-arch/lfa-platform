@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<script src="/lfa-security.js" defer></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LFA HUB | Central de eSports</title>
+    
+    <meta name="theme-color" content="#0b0e14">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <style>
+        :root { --primary-neon: #00ff88; --bg-dark: #0b0e14; --card-bg: #161b22; --border: #30363d; --text-gray: #8b949e; --lfa-gold: #ffd700; --danger: #ff4757; --lfa-blue: #009ee3; }
+        
+        body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg-dark); color: white; overflow-x: hidden; background-image: radial-gradient(circle at 50% 0%, #1a2331 0%, #0b0e14 70%); }
+        ::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; }
+
+        header { background: rgba(7, 9, 13, 0.8); padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 1000; }
+        .logo-text { font-family: 'Orbitron'; font-size: 1.5rem; font-weight: 900; color: white; letter-spacing: 2px; display: flex; align-items: center; gap: 10px;}
+        .logo-text i { color: var(--primary-neon); font-size: 1.8rem; text-shadow: 0 0 15px var(--primary-neon); }
+        
+        .user-mini { display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
+        .user-mini span { font-family: 'Orbitron'; font-weight: bold; font-size: 0.9rem; }
+        .user-mini .coins { color: var(--lfa-gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        .btn-logout { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
+        .btn-logout:hover { transform: scale(1.1); text-shadow: 0 0 10px var(--danger); }
+
+        .hub-container { display: grid; grid-template-columns: 200px 1fr 200px; gap: 30px; max-width: 1400px; margin: 40px auto; padding: 0 20px; }
+        
+        /* BANNERS SPONSORS */
+        .sponsor-banner { background: #050508; border: 1px dashed var(--border); border-radius: 15px; height: 600px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-gray); font-family: 'Orbitron'; font-size: 0.8rem; text-align: center; position: sticky; top: 100px; overflow: hidden; transition: 0.3s;}
+        .sponsor-banner:hover { border-color: var(--text-gray); }
+        .sponsor-banner img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; transition: 0.5s; }
+        .sponsor-banner:hover img { opacity: 1; transform: scale(1.05); }
+
+        /* CENTRO: LFA TV + MODOS */
+        .center-stage { display: flex; flex-direction: column; gap: 40px; }
+        
+        .tv-container { background: #000; border: 2px solid var(--border); border-radius: 20px; overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; padding-top: 56.25%; }
+        .tv-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+        .tv-tag { position: absolute; top: 15px; left: 15px; background: var(--danger); color: white; padding: 5px 15px; border-radius: 5px; font-family: 'Orbitron'; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; z-index: 10; box-shadow: 0 0 15px rgba(255,71,87,0.6); animation: pulseRed 2s infinite; }
+        @keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        .modes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        
+        .mode-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 15px; padding: 25px; text-align: center; cursor: pointer; transition: 0.4s; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 180px; }
+        .mode-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, var(--theme-color) 0%, transparent 60%); opacity: 0; transition: 0.5s; z-index: 0; pointer-events: none; }
+        .mode-card:hover { transform: translateY(-10px); border-color: var(--theme-color); box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
+        .mode-card:hover::before { opacity: 0.15; }
+        
+        .mc-icon { font-size: 3.5rem; color: var(--theme-color); margin-bottom: 15px; z-index: 1; transition: 0.3s; }
+        .mode-card:hover .mc-icon { transform: scale(1.1); text-shadow: 0 0 20px var(--theme-color); }
+        .mc-title { font-family: 'Orbitron'; font-size: 1.2rem; font-weight: 900; color: white; margin-bottom: 10px; z-index: 1; }
+        .mc-desc { font-size: 0.85rem; color: var(--text-gray); z-index: 1; line-height: 1.4; }
+
+        .coming-soon { position: absolute; top: 25px; right: -35px; background: var(--lfa-gold); color: black; font-family: 'Orbitron'; font-size: 0.7rem; font-weight: bold; padding: 5px 40px; transform: rotate(45deg); box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 10;}
+
+        /* 🛡️ MODAL DE ALERTAS ESTÁNDAR (ALTA GAMA) */
+        .lfa-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
+        .lfa-modal-box { background: #161b22; border: 1px solid var(--primary-neon); border-radius: 15px; padding: 25px; text-align: center; max-width: 380px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .lfa-modal-icon { font-size: 3rem; margin-bottom: 15px; }
+        .lfa-modal-title { font-family: 'Orbitron'; font-size: 1.2rem; margin-top: 0; margin-bottom: 10px; letter-spacing: 1px; color: white;}
+        .lfa-modal-text { font-family: 'Roboto'; font-size: 0.9rem; color: #ccc; line-height: 1.5; margin-bottom: 20px; }
+        .lfa-modal-buttons { display: flex; gap: 10px; justify-content: center;}
+        .btn-modal { padding: 12px; background: var(--primary-neon); color: black; border: none; border-radius: 8px; font-family: 'Orbitron'; font-weight: 800; cursor: pointer; transition: 0.3s; width: 100%;}
+        .btn-modal:hover { background: white; }
+
+        @media (max-width: 1024px) {
+            .hub-container { grid-template-columns: 1fr; }
+            .sponsor-banner { display: none; }
+        }
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; }
+            .modes-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-text"><i class="fas fa-crown"></i> LFA HUB</div>
+        <div class="user-mini">
+            <span id="hubNombre">CARGANDO...</span>
+            <span class="coins" id="hubCoins">🪙 0.00</span>
+            <button class="btn-logout" onclick="auth.signOut().then(() => window.location.href='/')" title="Cerrar Sesión"><i class="fas fa-power-off"></i></button>
+        </div>
+    </header>
+
+    <div class="hub-container">
+        
+        <div class="sponsor-banner">
+            <div style="padding: 20px; border: 1px solid #333; border-radius: 10px; margin: 20px;">ESPACIO PUBLICITARIO<br><br>160x600 px</div>
+        </div>
+
+        <div class="center-stage">
+            
+            <div>
+                <h2 style="font-family: 'Orbitron'; color: white; margin-top: 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-tv" style="color: var(--danger);"></i> LFA TV OFFICIAL</span>
+                </h2>
+                <div class="tv-container">
+                    <div class="tv-tag">EN VIVO</div>
+                    <iframe src="https://player.kick.com/somoslfa?muted=true&autoplay=true" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div class="modes-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                
+                <div onclick="intentarAcceso('/dashboard', 'ARENA 1VS1')" class="mode-card" style="--theme-color: var(--primary-neon);">
+                    <i class="fas fa-crosshairs mc-icon"></i>
+                    <div class="mc-title">ARENA 1VS1</div>
+                    <div class="mc-desc">Torneos relámpago individuales.</div>
+                </div>
+
+                <div onclick="intentarAcceso('/coop', 'ARENA CO-OP 2VS2')" class="mode-card" style="--theme-color: #ff6b00;">
+                    <i class="fas fa-user-friends mc-icon"></i>
+                    <div class="mc-title">CO-OP 2VS2</div>
+                    <div class="mc-desc">Torneos en parejas. El Capitán registra al equipo y sube los resultados.</div>
+                </div>
+
+                <div onclick="intentarAcceso('/pro', 'LIGAS 1VS1')" class="mode-card" style="--theme-color: var(--lfa-blue);">
+                    <div class="coming-soon">STAFF LFA</div>
+                    <i class="fas fa-calendar-alt mc-icon"></i>
+                    <div class="mc-title">LIGAS 1VS1</div>
+                    <div class="mc-desc">Ligas largas oficiales de temporada.</div>
+                </div>
+
+                <div onclick="intentarAcceso('/efootball', 'LIGA EFOOTBALL')" class="mode-card" style="--theme-color: #ff1493;">
+                    <i class="fas fa-futbol mc-icon"></i>
+                    <div class="mc-title">EFOOTBALL</div>
+                    <div class="mc-desc">Liga gratuita crossplay y mobile. ¡Regístrate y juega!</div>
+                </div>
+
+                <div onclick="intentarAcceso('/clubes', 'LIGA CLUBES')" class="mode-card" style="--theme-color: #ffd700;">
+                    <i class="fas fa-shield-alt mc-icon"></i>
+                    <div class="mc-title">LIGA CLUBES</div>
+                    <div class="mc-desc">Inscripciones abiertas para clubes oficiales. Compite en la Primera División.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="sponsor-banner">
+            <div style="padding: 20px; border: 1px solid #333; border-radius: 10px; margin: 20px;">ESPACIO PUBLICITARIO<br><br>160x600 px</div>
+        </div>
+
+    </div>
+
+    <div id="lfaModal" class="lfa-modal-overlay">
+        <div class="lfa-modal-box" id="lfaModalBox">
+            <i id="lfaModalIcon" class="lfa-modal-icon fas fa-lock"></i>
+            <h3 id="lfaModalTitle" class="lfa-modal-title">Título</h3>
+            <div id="lfaModalText" class="lfa-modal-text">Mensaje</div>
+            <div class="lfa-modal-buttons">
+                <button id="lfaModalBtnOk" class="btn-modal">ACEPTAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I", authDomain: "somoslfa.com", projectId: "lfaofficial" };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth(); const db = firebase.firestore();
+
+        // 🔐 SISTEMA DE PERMISOS
+        const DUEÑO_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
+        let esAdminOSoporte = false;
+
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                const doc = await db.collection("usuarios").doc(user.uid).get();
+                if(doc.exists) {
+                    const d = doc.data();
+                    
+                    // Verificamos si es CEO o Soporte
+                    esAdminOSoporte = (user.uid === DUEÑO_UID || d.rol === "soporte");
+                    
+                    document.getElementById('hubNombre').innerText = (d.nombre || "LEYENDA").toUpperCase();
+                    document.getElementById('hubCoins').innerText = `🪙 ${(d.number || 0).toFixed(2)}`;
+                }
+            } else {
+                window.location.href = "/";
+            }
+        });
+
+        // 🚦 FUNCIÓN DE ACCESO CON PEAJE
+        async function intentarAcceso(ruta, nombreModo) {
+            // El Dashboard, Coop, eFootball y Clubes son libres para todos desde el HUB.
+            if(ruta === '/dashboard' || ruta === '/coop' || ruta === '/efootball' || ruta === '/clubes') {
+                window.location.href = ruta;
+                return;
+            }
+            
+            // Si es Ligas o Clubes no disponibles, pedimos pase VIP
+            if(esAdminOSoporte) {
+                window.location.href = ruta;
+            } else {
+                await mostrarAlerta("ÁREA RESTRINGIDA", `La sección <b>${nombreModo}</b> se encuentra en fase de pruebas (Pre-Temporada).<br><br>Actualmente el acceso es exclusivo para el equipo de desarrollo de LFA.<br><br>¡Pronto abriremos las inscripciones para toda la comunidad!`, "candado");
+            }
+        }
+
+        // 🎨 MODAL PERSONALIZADO
+        function mostrarAlerta(titulo, mensaje, tipo = 'info') {
+            document.getElementById('lfaModalTitle').innerText = titulo;
+            document.getElementById('lfaModalText').innerHTML = mensaje;
+            
+            const icon = document.getElementById('lfaModalIcon');
+            const box = document.getElementById('lfaModalBox');
+            const btn = document.getElementById('lfaModalBtnOk');
+            
+            if (tipo === 'candado') {
+                icon.className = "lfa-modal-icon fas fa-lock";
+                icon.style.color = "var(--lfa-gold)";
+                box.style.borderColor = "var(--lfa-gold)";
+                btn.style.background = "var(--lfa-gold)";
+                btn.style.color = "black";
+            }
+
+            document.getElementById('lfaModal').style.display = 'flex';
+            
+            return new Promise((resolve) => {
+                btn.onclick = () => {
+                    document.getElementById('lfaModal').style.display = 'none';
+                    resolve(true);
+                };
+            });
+        }
+    </script>
+</body>
+</html>

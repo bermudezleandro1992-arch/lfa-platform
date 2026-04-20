@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<script src="/lfa-security.js" defer></script>
+<script src="/lfa-i18n.js" defer></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Políticas de Privacidad - LFA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-neon: #00ff88; --bg-dark: #0b0e14; --border: #30363d; --lfa-gold: #ffd700; }
+        body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg-dark); color: white; padding: 40px 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #161b22; padding: 40px; border-radius: 15px; border: 1px solid #009ee3; box-shadow: 0 0 20px rgba(0,158,227,0.1); }
+        h1 { font-family: 'Orbitron'; color: #009ee3; text-align: center; font-size: 2.5rem; margin-top: 0; }
+        h2 { font-family: 'Orbitron'; color: white; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 40px; }
+        p, li { color: #c9d1d9; font-size: 1.05rem; margin-bottom: 10px; }
+        ul { padding-left: 20px; }
+        .btn-volver { display: inline-block; background: transparent; border: 1px solid #009ee3; color: #009ee3; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-family: 'Orbitron'; font-weight: bold; margin-bottom: 30px; transition: 0.3s; }
+        .btn-volver:hover { background: #009ee3; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn-volver"><i class="fas fa-arrow-left"></i> VOLVER AL INICIO</a>
+        <h1>POLÍTICAS DE PRIVACIDAD</h1>
+        <p><strong>Última actualización:</strong> Marzo 2026</p>
+
+        <h2>1. INFORMACIÓN QUE RECOPILAMOS</h2>
+        <p>Para garantizar la seguridad de la plataforma y el correcto funcionamiento de las billeteras, LFA recopila los siguientes datos:</p>
+        <ul>
+            <li><strong>Datos de cuenta:</strong> Correo electrónico, nombre de usuario y proveedor de identidad.</li>
+            <li><strong>Datos de juego:</strong> Identificadores de consola (ID de PlayStation Network, Gamertag de Xbox, Steam ID, Konami ID).</li>
+            <li><strong>Evidencia Visual:</strong> Las capturas de pantalla subidas a las salas de partido como comprobante de resultados.</li>
+            <li><strong>Datos de auditoría técnica (Satélite LFA):</strong> Dirección IP, código de país, tipo de dispositivo y navegador, con el único fin de evitar el uso de VPNs y garantizar el emparejamiento regional correcto.</li>
+        </ul>
+
+        <h2>2. USO DE LOS DATOS Y PROCESAMIENTO IA</h2>
+        <p>Tus datos son almacenados de forma segura utilizando la infraestructura de Google Firebase. LFA no vende ni comercializa tu información personal. Utilizamos tus datos exclusivamente para:</p>
+        <ul>
+            <li>Procesar los ingresos y retiros de LFA Coins.</li>
+            <li>Mantener el historial de títulos, copas y estadísticas de tu perfil.</li>
+            <li><strong>Análisis por Inteligencia Artificial:</strong> Las imágenes subidas como resultado son procesadas automáticamente mediante servicios de visión por computadora (Google Cloud Vision API) para extraer el marcador y validar a los ganadores de forma imparcial.</li>
+            <li>Auditar partidas y prevenir el fraude dentro del ecosistema del juego.</li>
+            <li>Contactarte en caso de disputas vía chat de soporte (Crisp).</li>
+        </ul>
+
+        <h2>3. TUS DERECHOS Y ELIMINACIÓN DE DATOS</h2>
+        <p>En cumplimiento con las normativas internacionales de protección de datos, todo usuario tiene derecho a solicitar la eliminación permanente de su cuenta y sus datos asociados. Para hacerlo, el usuario debe vaciar su billetera de LFA Coins y comunicarse con el Soporte Oficial para gestionar la baja en la base de datos.</p>
+
+        <h2>4. SEGURIDAD Y COOKIES</h2>
+        <p>LFA utiliza cookies de sesión y almacenamiento local (`localStorage` / `sessionStorage`) estrictamente necesarios para mantener tu sesión activa y generar tu "Huella Digital de Dispositivo" para evitar cuentas múltiples o malintencionadas.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control | LFA Pentágono</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <style>
+        body { 
+            margin: 0; 
+            background: #0b0e14; 
+            color: white; 
+            overflow-x: hidden; 
+            user-select: none; 
+            -webkit-user-select: none; 
+        }
+        
+        #antiScreenshot { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #000; 
+            z-index: 999999; 
+            color: #ff4757; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            font-family: 'Orbitron'; 
+            font-size: 2rem; 
+            font-weight: 900; 
+            text-align: center; 
+        }
+        
+        #lfa-secure-vault { 
+            width: 100%; 
+            height: 100%; 
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;"> 
+
+<div id="antiScreenshot">
+    <i class="fas fa-eye-slash" style="font-size: 4rem; margin-bottom: 15px;"></i>
+    MODO SEGURO ACTIVO<br>
+    <span style="font-size: 1rem; color: gray; margin-top: 10px;">LFA Ciberseguridad</span>
+</div>
+
+<div id="lfa-secure-vault"></div>
+
+<script>
+// ==========================================
+// 🛡️ BLOQUEO DE TECLAS HACKER Y PANTALLA
+// ==========================================
+document.onkeydown = function(e) {
+    if(e.keyCode == 123) {
+        return false;
+    }
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) {
+        return false;
+    }
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) {
+        return false;
+    }
+    if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) {
+        return false;
+    }
+    if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) {
+        return false;
+    }
+}
+
+window.addEventListener("blur", () => { 
+    document.getElementById("antiScreenshot").style.display = "flex"; 
+    document.getElementById("lfa-secure-vault").style.display = "none"; 
+});
+
+window.addEventListener("focus", () => { 
+    document.getElementById("antiScreenshot").style.display = "none"; 
+    document.getElementById("lfa-secure-vault").style.display = "block"; 
+});
+
+// ==========================================
+// 📦 EL CÓDIGO HTML Y CSS PROTEGIDO AL 100%
+// ==========================================
+const secureAdminHTML = `
+    <style>
+        /* VARIABLES DE COLOR */
+        :root { 
+            --primary-neon: #00ff88; 
+            --bg-dark: #0b0e14; 
+            --card-bg: #161b22; 
+            --border: #30363d; 
+            --text-gray: #8b949e; 
+            --danger: #ff4757; 
+            --warning: #ffd700; 
+            --lfa-blue: #009ee3; 
+            --binance: #f3ba2f; 
+            --pro-neon: #9146FF; 
+            --prex-purple: #7d3c98; 
+            --draft-color: #ff00cc; 
+        }
+        
+        body { 
+            font-family: 'Roboto', sans-serif; 
+        }
+        
+        /* HEADER LFA */
+        header { 
+            background: rgba(7, 9, 13, 0.95); 
+            padding: 15px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--warning); 
+            flex-wrap: wrap; 
+            gap: 15px; 
+        }
+        
+        .logo-text { 
+            font-family: 'Orbitron'; 
+            font-size: 1.5rem; 
+            font-weight: 700; 
+            letter-spacing: 2px; 
+            color: white; 
+        }
+        
+        .logo-text span { 
+            color: var(--warning); 
+        }
+        
+        .btn-volver { 
+            background: transparent; 
+            border: 1px solid var(--text-gray); 
+            color: white; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            cursor: pointer; 
+            text-decoration: none; 
+            transition: 0.3s; 
+        }
+        
+        .btn-volver:hover { 
+            border-color: white; 
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* CONTENEDORES Y GRILLAS */
+        .container { 
+            padding: 30px 5%; 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 30px; 
+        }
+        
+        .admin-stats { 
+            display: flex; 
+            gap: 15px; 
+            flex-wrap: wrap; 
+            margin-bottom: 10px; 
+        }
+        
+        .adm-stat-box { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-left: 4px solid var(--primary-neon); 
+            padding: 20px; 
+            border-radius: 10px; 
+            flex: 1; 
+            min-width: 200px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+        }
+        
+        .adm-stat-num { 
+            font-family: 'Orbitron'; 
+            font-size: 2rem; 
+            font-weight: 900; 
+            color: white; 
+            margin-top: 8px; 
+        }
+        
+        .admin-panel { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
+        }
+        
+        .panel-title { 
+            font-family: 'Orbitron'; 
+            font-size: 1.2rem; 
+            margin-top: 0; 
+            margin-bottom: 20px; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 15px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            color: var(--primary-neon); 
+        }
+        
+        /* INPUTS Y FORMULARIOS */
+        .input-form { 
+            width: 100%; 
+            padding: 12px; 
+            background: #0b0e14; 
+            border: 1px solid var(--border); 
+            color: white; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            font-family: 'Roboto'; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: 0.3s; 
+        }
+        
+        .input-form:focus { 
+            border-color: var(--primary-neon); 
+            box-shadow: 0 0 10px rgba(0,255,136,0.1); 
+        }
+        
+        .two-cols { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+        }
+        
+        .input-icon-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        
+        .input-icon-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 15px;
+            color: var(--warning);
+            font-size: 1rem;
+        }
+        
+        .input-icon-wrapper .input-form {
+            padding-left: 45px;
+        }
+        
+        /* BOTONES GLOBALES */
+        .btn-main { 
+            background: var(--warning); 
+            color: black; 
+            border: none; 
+            padding: 12px 20px; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            transition: 0.3s; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+        }
+        
+        .btn-main:hover:not(:disabled) { 
+            background: white; 
+            box-shadow: 0 0 15px rgba(255,215,0,0.5); 
+        }
+        
+        .btn-main:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+            border: 1px solid #333;
+        }
+        
+        .btn-action { 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-family: 'Orbitron'; 
+            font-size: 0.8rem; 
+            transition: 0.3s; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 5px; 
+        }
+        
+        .btn-action:hover { 
+            transform: scale(1.05); 
+        }
+        
+        .btn-ban { 
+            background: rgba(255, 71, 87, 0.1); 
+            border: 1px solid var(--danger); 
+            color: var(--danger); 
+        }
+        
+        .btn-ban:hover { 
+            background: var(--danger); 
+            color: white; 
+        }
+        
+        .btn-unban { 
+            background: rgba(0, 255, 136, 0.1); 
+            border: 1px solid var(--primary-neon); 
+            color: var(--primary-neon); 
+        }
+        
+        .btn-unban:hover { 
+            background: var(--primary-neon); 
+            color: black; 
+        }
+        
+        .btn-coins { 
+            background: rgba(255, 215, 0, 0.1); 
+            border: 1px solid var(--warning); 
+            color: var(--warning); 
+        }
+        
+        .btn-coins:hover { 
+            background: var(--warning); 
+            color: black; 
+        }
+        
+        .btn-globe { 
+            background: rgba(0, 158, 227, 0.1); 
+            border: 1px solid var(--lfa-blue); 
+            color: var(--lfa-blue); 
+        }
+        
+        .btn-globe:hover { 
+            background: var(--lfa-blue); 
+            color: white; 
+        }
+        
+        .btn-pdf { 
+            background: rgba(255,255,255,0.1); 
+            border: 1px solid white; 
+            color: white; 
+        }
+        
+        .btn-pdf:hover { 
+            background: white; 
+            color: black; 
+        }
+        
+        .btn-repartir { 
+            background: var(--warning); 
+            color: black; 
+        }
+        
+        .btn-repartir:hover { 
+            background: white; 
+        }
+
+        .btn-draft { 
+            background: linear-gradient(45deg, #ff00cc, #3333ff); 
+            color: white; 
+            border: none; 
+            font-family: 'Orbitron'; 
+            font-weight: 900; 
+            animation: pulse 1.5s infinite; 
+        }
+
+        /* TABLAS DE DATOS */
+        .data-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+            font-size: 0.9rem; 
+        }
+        
+        .data-table th, .data-table td { 
+            padding: 15px 12px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--border); 
+            vertical-align: middle; 
+        }
+        
+        .data-table th { 
+            font-family: 'Orbitron'; 
+            color: var(--text-gray); 
+            font-size: 0.8rem; 
+            background: rgba(0,0,0,0.2); 
+        }
+        
+        .data-table tr:hover { 
+            background: rgba(255,255,255,0.03); 
+        }
+        
+        .table-container { 
+            max-height: 500px; 
+            overflow-y: auto; 
+            display: block; 
+            border-bottom: 1px solid var(--border); 
+            overflow-x: auto; 
+        }
+        
+        .table-container thead th { 
+            position: sticky; 
+            top: 0; 
+            background: var(--card-bg); 
+            z-index: 10; 
+            border-bottom: 2px solid var(--border); 
+        }
+
+        /* MODALES DEL SISTEMA */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.9); 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 5000; 
+            backdrop-filter: blur(5px); 
+        }
+        
+        .modal-content { 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 15px; 
+            border: 2px solid var(--warning); 
+            width: 90%; 
+            max-width: 450px; 
+            text-align: center; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+            max-height: 90vh; 
+            overflow-y: auto; 
+        }
+        
+        .modal-detective { 
+            max-width: 600px; 
+            border-color: var(--lfa-blue); 
+            text-align: left; 
+        }
+        
+        .det-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 15px; 
+            margin-bottom: 15px; 
+        }
+        
+        .det-icon { 
+            font-size: 3rem; 
+            color: var(--lfa-blue); 
+        }
+        
+        .det-info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        
+        .det-box { 
+            background: #0b0e14; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border); 
+        }
+        
+        .det-box-title { 
+            font-size: 0.7rem; 
+            color: var(--text-gray); 
+            font-family: 'Orbitron'; 
+            margin-bottom: 5px; 
+        }
+        
+        .det-box-val { 
+            font-size: 0.9rem; 
+            color: white; 
+            font-weight: bold; 
+            word-break: break-all;
+        }
+        
+        .clon-list { 
+            background: rgba(255, 71, 87, 0.05); 
+            border: 1px solid var(--danger); 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 15px; 
+        }
+        
+        .select-win { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            background: #0b0e14; 
+            color: white; 
+            border: 1px solid #30363d; 
+            border-radius: 8px; 
+            font-family: 'Roboto'; 
+            outline: none; 
+        }
+        
+        .select-win:focus { 
+            border-color: var(--primary-neon); 
+        }
+
+        /* VAR GRID (IMÁGENES) */
+        .var-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+            gap: 20px; 
+            margin-top: 20px; 
+        }
+        
+        .var-card { 
+            background: #0b0e14; 
+            border: 1px solid var(--border); 
+            border-top: 3px solid var(--primary-neon); 
+            border-radius: 10px; 
+            padding: 15px; 
+            text-align: center; 
+            transition: 0.3s; 
+        }
+        
+        .var-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
+        }
+        
+        .var-img { 
+            width: 100%; 
+            height: 150px; 
+            object-fit: cover; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            border: 1px solid var(--border); 
+            cursor: pointer; 
+            transition: 0.3s; 
+        }
+        
+        .var-img:hover { 
+            border-color: var(--primary-neon); 
+        }
+
+        /* BOTÓN SWITCH ANIMADO */
+        .switch { 
+            position: relative; 
+            display: inline-block; 
+            width: 50px; 
+            height: 24px; 
+        }
+        
+        .switch input { 
+            opacity: 0; 
+            width: 0; 
+            height: 0; 
+        }
+        
+        .slider { 
+            position: absolute; 
+            cursor: pointer; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background-color: #30363d; 
+            transition: .4s; 
+            border-radius: 34px; 
+        }
+        
+        .slider:before { 
+            position: absolute; 
+            content: ""; 
+            height: 16px; 
+            width: 16px; 
+            left: 4px; 
+            bottom: 4px; 
+            background-color: white; 
+            transition: .4s; 
+            border-radius: 50%; 
+        }
+        
+        input:checked + .slider { 
+            background-color: var(--primary-neon); 
+            box-shadow: 0 0 10px rgba(0,255,136,0.5); 
+        }
+        
+        input:checked + .slider:before { 
+            transform: translateX(26px); 
+        }
+        
+        @keyframes pulse { 
+            0% { box-shadow: 0 0 0 0 rgba(255,0,204,0.4); } 
+            70% { box-shadow: 0 0 0 10px rgba(255,0,204,0); } 
+            100% { box-shadow: 0 0 0 0 rgba(255,0,204,0); } 
+        }
+
+        /* MODAL DE ALERTAS LFA BLINDADA */
+        .lfa-modal-overlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.92); 
+            z-index: 100000; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            backdrop-filter: blur(5px); 
+        }
+        
+        .lfa-modal-box { 
+            background: #161b22; 
+            border: 1px solid var(--primary-neon); 
+            border-radius: 15px; 
+            padding: 25px; 
+            text-align: center; 
+            max-width: 380px; 
+            width: 100%; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+        }
+        
+        .lfa-modal-icon { 
+            font-size: 3rem; 
+            margin-bottom: 15px; 
+        }
+        
+        .lfa-modal-title { 
+            font-family: 'Orbitron'; 
+            font-size: 1.2rem; 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            letter-spacing: 1px; 
+            color: white;
+        }
+        
+        .lfa-modal-text { 
+            font-family: 'Roboto'; 
+            font-size: 0.9rem; 
+            color: #ccc; 
+            line-height: 1.5; 
+            margin-bottom: 20px; 
+        }
+
+        @media (max-width: 800px) { 
+            .two-cols { 
+                grid-template-columns: 1fr; 
+            } 
+            header { 
+                justify-content: center; 
+            } 
+            .btn-volver { 
+                width: 100%; 
+                text-align: center; 
+            } 
+        }
+    </style>
+
+    <div id="contenidoPanelAdmin">
+        <header>
+            <div class="logo-text">LFA <span>PENTÁGONO</span></div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <a href="/hub" class="btn-volver">
+                    <i class="fas fa-sign-out-alt"></i> SALIR AL HUB
+                </a>
+            </div>
+        </header>
+
+        <div class="container">
+            
+            <div class="admin-stats">
+                <div class="adm-stat-box" style="border-left-color: var(--warning);">
+                    <div style="color:var(--text-gray); font-size:0.75rem; font-family:'Orbitron';">
+                        <i class="fas fa-chart-line"></i> GANANCIAS LFA (15%)
+                    </div>
+                    <div class="adm-stat-num" id="admGananciasLFA" style="color:var(--warning);">🪙 0.00</div>
+                </div>
+                
+                <div class="adm-stat-box" style="border-left-color: var(--lfa-blue);">
+                    <div style="color:var(--text-gray); font-size:0.75rem; font-family:'Orbitron';">
+                        <i class="fas fa-coins"></i> COINS EN BILLETERAS
+                    </div>
+                    <div class="adm-stat-num" id="admCoinsCirculantes" style="color:var(--lfa-blue);">🪙 0.00</div>
+                </div>
+                
+                <div class="adm-stat-box" style="border-left-color: var(--primary-neon);">
+                    <div style="color:var(--text-gray); font-size:0.75rem; font-family:'Orbitron';">
+                        <i class="fas fa-users"></i> USUARIOS
+                    </div>
+                    <div class="adm-stat-num" id="admRegistrados">0</div>
+                </div>
+                
+                <div class="adm-stat-box" style="border-left-color: #9146FF;">
+                    <div style="color:var(--text-gray); font-size:0.75rem; font-family:'Orbitron';">
+                        <i class="fas fa-eye"></i> VISITAS WEB
+                    </div>
+                    <div class="adm-stat-num" id="admVisitas">0</div>
+                </div>
+            </div>
+
+            <div class="admin-panel" style="border-top: 4px solid #ff00cc; background: radial-gradient(circle at top, rgba(255,0,204,0.1), transparent); margin-bottom: 30px;">
+                <h2 class="panel-title" style="color: #ff00cc; border-bottom: 1px solid rgba(255,0,204,0.3);">
+                    <i class="fas fa-satellite-dish"></i> CENTRAL DE INTELIGENCIA (BOTS LFA)
+                </h2>
+                <p style="font-size:0.85rem; color:var(--text-gray);">Panel de control avanzado para la inyección de tráfico simulado y auto-generación de salas clonadas.</p>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#0b0e14; padding:15px; border-radius:8px; border:1px solid var(--border);">
+                    <span style="font-family:'Orbitron'; font-weight:bold; color:white;">
+                        <i class="fas fa-clone"></i> ACTIVAR AUTO-CLONACIÓN DE SALAS
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleSpawner" onchange="guardarSpawner()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="two-cols">
+                <div class="admin-panel" style="border-color: var(--primary-neon);">
+                    <h2 class="panel-title" style="color: var(--primary-neon);">
+                        <i class="fas fa-balance-scale"></i> FAIR PLAY (TRUST FACTOR)
+                    </h2>
+                    <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px;">Ajustá la reputación de los jugadores.</p>
+                    <input type="text" id="fpJugadorUid" class="input-form" placeholder="Pegá acá el UID del Jugador">
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-main" onclick="cambiarFairPlay(100)" style="background: var(--primary-neon); color: black;">
+                            <i class="fas fa-check-circle"></i> PERDONAR
+                        </button>
+                        <button class="btn-main" onclick="cambiarFairPlay(40)" style="background: var(--danger); color: white;">
+                            <i class="fas fa-ban"></i> SANCIONAR
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-panel" style="border-color: #9146FF;">
+                    <h2 class="panel-title" style="color: #9146FF;">
+                        <i class="fas fa-rocket"></i> MODO LFA PRO
+                    </h2>
+                    <p style="font-size:0.85rem; color:var(--text-gray); margin-top:-10px;">Habilita el acceso al Hub Competitivo (Ligas y 2vs2).</p>
+                    
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <button class="btn-main" style="background: #9146FF; color: white;" onclick="toggleProBanner(true)">
+                            <i class="fas fa-eye"></i> MOSTRAR BANNER
+                        </button>
+                        <button class="btn-action btn-ban" style="width: 100%; border-color:var(--border); color:gray; background:#0b0e14;" onclick="toggleProBanner(false)">
+                            <i class="fas fa-eye-slash"></i> OCULTAR
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-cols" style="margin-top: 30px;">
+                <div class="admin-panel" style="border-color: var(--lfa-blue); background: linear-gradient(145deg, #161b22 0%, #0b1a2e 100%);">
+                    <h2 class="panel-title" style="color: var(--lfa-blue);">
+                        <i class="fas fa-university"></i> BÓVEDA TRANSFERENCIAS Y PREX
+                    </h2>
+                    <div class="table-container" style="max-height: 350px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>JUGADOR</th>
+                                    <th>INFO PAGO</th>
+                                    <th>COMPROBANTE</th>
+                                    <th>ACCIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaTransfAR">
+                                <tr>
+                                    <td colspan="4" style="text-align:center; color:gray; padding: 30px;">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="admin-panel" style="border-color: var(--binance); box-shadow: 0 0 20px rgba(243,186,47,0.1);">
+                    <h2 class="panel-title" style="color: var(--binance);">
+                        <i class="fab fa-btc"></i> BÓVEDA BINANCE PAY (USDT)
+                    </h2>
+                    <div class="table-container" style="max-height: 350px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>JUGADOR</th>
+                                    <th>INFO PAGO</th>
+                                    <th>COMPROBANTE</th>
+                                    <th>ACCIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaBinance">
+                                <tr>
+                                    <td colspan="4" style="text-align:center; color:gray; padding: 30px;">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-panel" style="border-top: 4px solid var(--danger);">
+                <h2 class="panel-title" style="color: var(--danger);">
+                    <i class="fas fa-money-bill-wave"></i> SOLICITUDES DE RETIRO PENDIENTES
+                </h2>
+                <div class="table-container" style="max-height: 300px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>JUGADOR</th>
+                                <th>MONTO COINS</th>
+                                <th>CBU / ALIAS / DATOS</th>
+                                <th>FECHA</th>
+                                <th>ACCIÓN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaRetirosAdmin">
+                            <tr>
+                                <td colspan="5" style="text-align:center; color:gray; padding: 30px;">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px; display:block;"></i>
+                                    Buscando solicitudes de retiro...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2 style="font-family: 'Orbitron'; color: white; margin-top: 40px; margin-bottom: 20px; border-left: 5px solid var(--warning); padding-left: 15px;">
+                CENTRAL DE CREACIÓN DE COMPETICIONES
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                
+                <div class="admin-panel" style="border-color: var(--primary-neon); padding: 25px;">
+                    <h2 class="panel-title" style="color: var(--primary-neon); margin-bottom: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-crosshairs"></i> ARENA 1VS1
+                    </h2>
+                    
+                    <input type="text" id="tTitulo1v1" class="input-form" placeholder="Título (Ej: Copa 1vs1 LFA)">
+                    <input type="text" id="tDetalles1v1" class="input-form" placeholder="📝 Detalles / Premios">
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tJuego1v1" class="input-form" style="margin-bottom:10px;">
+                            <option value="FC 26">FC 26</option>
+                            <option value="eFootball">eFootball</option>
+                        </select>
+                        <select id="tPlat1v1" class="input-form" style="margin-bottom:10px;">
+                            <option value="Crossplay (PS/Xbox/PC)">Crossplay</option>
+                            <option value="PlayStation">PlayStation</option>
+                            <option value="Xbox">Xbox</option>
+                            <option value="PC">PC</option>
+                            <option value="Mobile">Mobile</option>
+                        </select>
+                    </div>
+                    
+                    <select id="tModo1v1" class="input-form" style="border-color: var(--primary-neon);">
+                        <optgroup label="Modos FC 26">
+                            <option value="Ultimate Team">Ultimate Team</option>
+                            <option value="GRL 95">GRL 95 (Amistosos)</option>
+                            <option value="Clásicos">Clásicos</option>
+                        </optgroup>
+                        <optgroup label="Modos eFootball">
+                            <option value="Dream Team">Dream Team</option>
+                            <option value="Equipos Genuinos">Equipos Genuinos</option>
+                        </optgroup>
+                    </select>
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tCupos1v1" class="input-form" style="border-color: var(--primary-neon);">
+                            <option value="4">4 Jugadores</option>
+                            <option value="8">8 Jugadores</option>
+                            <option value="16">16 Jugadores</option>
+                            <option value="32">32 Jugadores</option>
+                            <option value="64">64 Jugadores</option>
+                            <option value="128">128 Jugadores</option>
+                        </select>
+                        
+                        <div class="input-icon-wrapper">
+                            <i class="fas fa-coins"></i>
+                            <input type="number" id="tCosto1v1" class="input-form" placeholder="Costo Coins" value="0">
+                        </div>
+                    </div>
+                    
+                    <button class="btn-main" style="background: var(--primary-neon); color: black;" onclick="crearTorneoEspecifico('1vs1')">
+                        <i class="fas fa-rocket"></i> LANZAR 1VS1
+                    </button>
+                </div>
+
+                <div class="admin-panel" style="border-color: var(--draft-color); padding: 25px; background: radial-gradient(circle at top right, rgba(255,0,204,0.05), transparent);">
+                    <h2 class="panel-title" style="color: var(--draft-color); margin-bottom: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-user-friends"></i> CO-OP 2VS2 & DRAFT
+                    </h2>
+                    
+                    <input type="text" id="tTituloCoop" class="input-form" placeholder="Título (Ej: Copa Draft)">
+                    <input type="text" id="tDetallesCoop" class="input-form" placeholder="📝 Detalles / Premios">
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tJuegoCoop" class="input-form" style="margin-bottom:10px;">
+                            <option value="FC 26">FC 26</option>
+                            <option value="eFootball">eFootball</option>
+                        </select>
+                        <select id="tFormatoCoop" class="input-form" style="margin-bottom:10px; border-color: var(--draft-color);">
+                            <option value="2vs2_draft">🎲 DRAFT (Sorteo)</option>
+                            <option value="2vs2">🤝 EQUIPOS (Normal)</option>
+                        </select>
+                    </div>
+                    
+                    <select id="tModoCoop" class="input-form" style="border-color: var(--draft-color);">
+                        <optgroup label="Modos FC 26">
+                            <option value="Ultimate Team">Ultimate Team</option>
+                            <option value="GRL 95">GRL 95 (Amistosos)</option>
+                            <option value="Clásicos">Clásicos</option>
+                        </optgroup>
+                        <optgroup label="Modos eFootball">
+                            <option value="Dream Team">Dream Team</option>
+                            <option value="Equipos Genuinos">Equipos Genuinos</option>
+                        </optgroup>
+                    </select>
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tCuposCoop" class="input-form" style="border-color: var(--draft-color);">
+                            <option value="4">4 jugadores = 2 equipos</option>
+                            <option value="8">8 jugadores = 4 equipos</option>
+                            <option value="12">12 jugadores = 6 equipos</option>
+                            <option value="16">16 jugadores = 8 equipos</option>
+                            <option value="24">24 jugadores = 12 equipos</option>
+                            <option value="32" selected>32 jugadores = 16 equipos</option>
+                            <option value="48">48 jugadores = 24 equipos</option>
+                            <option value="64">64 jugadores = 32 equipos</option>
+                        </select>
+                        
+                        <div class="input-icon-wrapper">
+                            <i class="fas fa-coins"></i>
+                            <input type="number" id="tCostoCoop" class="input-form" placeholder="Costo Coins" value="0">
+                        </div>
+                    </div>
+                    
+                    <button class="btn-main" style="background: linear-gradient(45deg, #ff00cc, #3333ff); color: white;" onclick="crearTorneoEspecifico('coop')">
+                        <i class="fas fa-rocket"></i> LANZAR CO-OP
+                    </button>
+                </div>
+
+                <div class="admin-panel" style="border-color: var(--lfa-blue); padding: 25px;">
+                    <h2 class="panel-title" style="color: var(--lfa-blue); margin-bottom: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-calendar-alt"></i> LIGAS 1VS1
+                    </h2>
+                    
+                    <input type="text" id="tTituloLiga" class="input-form" placeholder="Título (Ej: Superliga LFA)">
+                    <input type="text" id="tDetallesLiga" class="input-form" placeholder="📝 Detalles / Premios">
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tJuegoLiga" class="input-form" style="margin-bottom:10px;">
+                            <option value="FC 26">FC 26</option>
+                            <option value="eFootball">eFootball</option>
+                        </select>
+                        <select id="tPlatLiga" class="input-form" style="margin-bottom:10px;">
+                            <option value="Crossplay (PS/Xbox/PC)">Crossplay</option>
+                            <option value="PlayStation">PlayStation</option>
+                            <option value="Xbox">Xbox</option>
+                            <option value="PC">PC</option>
+                            <option value="Mobile">Mobile</option>
+                        </select>
+                    </div>
+                    
+                    <select id="tModoLiga" class="input-form" style="border-color: var(--lfa-blue);">
+                        <optgroup label="Modos FC 26">
+                            <option value="Ultimate Team">Ultimate Team</option>
+                            <option value="GRL 95">GRL 95 (Amistosos)</option>
+                            <option value="Clásicos">Clásicos</option>
+                        </optgroup>
+                        <optgroup label="Modos eFootball">
+                            <option value="Dream Team">Dream Team</option>
+                            <option value="Equipos Genuinos">Equipos Genuinos</option>
+                        </optgroup>
+                    </select>
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tCuposLiga" class="input-form" style="border-color: var(--lfa-blue);">
+                            <option value="10">10 Jugadores (Fechas)</option>
+                            <option value="12">12 Jugadores (Fechas)</option>
+                            <option value="16">16 Jugadores (Fechas)</option>
+                            <option value="20">20 Jugadores (Fechas)</option>
+                        </select>
+                        
+                        <div class="input-icon-wrapper">
+                            <i class="fas fa-coins"></i>
+                            <input type="number" id="tCostoLiga" class="input-form" placeholder="Costo Coins" value="0">
+                        </div>
+                    </div>
+                    
+                    <button class="btn-main" style="background: var(--lfa-blue); color: white;" onclick="crearTorneoEspecifico('liga')">
+                        <i class="fas fa-rocket"></i> LANZAR LIGA
+                    </button>
+                </div>
+
+                <div class="admin-panel" style="border-color: var(--lfa-gold); padding: 25px;">
+                    <h2 class="panel-title" style="color: var(--lfa-gold); margin-bottom: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-shield-alt"></i> CLUBES PRO 11VS11
+                    </h2>
+                    
+                    <input type="text" id="tTituloClubes" class="input-form" placeholder="Título (Ej: Copa Libertadores)">
+                    <input type="text" id="tDetallesClubes" class="input-form" placeholder="📝 Detalles / Premios">
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tJuegoClubes" class="input-form" style="margin-bottom:10px;" disabled>
+                            <option value="FC 26">FC 26</option>
+                        </select>
+                        <select id="tPlatClubes" class="input-form" style="margin-bottom:10px;">
+                            <option value="Crossplay (PS/Xbox/PC)">Crossplay</option>
+                            <option value="PlayStation">PlayStation</option>
+                            <option value="Xbox">Xbox</option>
+                            <option value="PC">PC</option>
+                        </select>
+                    </div>
+                    
+                    <select id="tModoClubes" class="input-form" style="border-color: var(--lfa-gold);">
+                        <option value="Clubes Pro 11vs11">Clubes Pro 11vs11</option>
+                        <option value="Clubes Pro Min. 5vs5">Clubes Pro Mínimo 5vs5</option>
+                    </select>
+                    
+                    <div class="two-cols" style="gap:10px;">
+                        <select id="tCuposClubes" class="input-form" style="border-color: var(--lfa-gold);">
+                            <option value="8">8 Equipos</option>
+                            <option value="16">16 Equipos</option>
+                            <option value="32">32 Equipos</option>
+                        </select>
+                        
+                        <div class="input-icon-wrapper">
+                            <i class="fas fa-coins"></i>
+                            <input type="number" id="tCostoClubes" class="input-form" placeholder="Costo por Equipo" value="0">
+                        </div>
+                    </div>
+                    
+                    <button class="btn-main" style="background: var(--lfa-gold); color: black;" onclick="crearTorneoEspecifico('clubes')">
+                        <i class="fas fa-rocket"></i> LANZAR CLUBES
+                    </button>
+                </div>
+            </div>
+
+            <div class="admin-panel" style="border-color: var(--lfa-blue); margin-top: 30px;">
+                <h2 class="panel-title" style="color: var(--lfa-blue);">
+                    <i class="fas fa-gamepad"></i> CONTROL DE TORNEOS EN VIVO
+                </h2>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>TORNEO</th>
+                                <th>ESTADO</th>
+                                <th>JUGADORES / POZO</th>
+                                <th>ACCIONES ADMIN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaTorneosAdmin">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 20px;">
+                                    Cargando torneos...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="admin-panel" style="border-top: 4px solid var(--primary-neon);">
+                <h2 class="panel-title" style="color: var(--primary-neon);">
+                    <span><i class="fas fa-shield-alt"></i> RADAR ANTI-SMURF & SEGURIDAD</span>
+                </h2>
+                <p style="font-size:0.85rem; color:var(--text-gray); margin-top:-10px;">
+                    Detecta IP y Canvas Hash (Hardware) para evitar multicuentas. Toca un UID para copiarlo.
+                </p>
+                <input type="text" id="busquedaJugador" class="input-form" placeholder="🔍 Buscar por Nick, Email, IP o Hash..." onkeyup="filtrarJugadores()">
+                
+                <div class="table-container" style="max-height: 600px;">
+                    <table class="data-table" id="tablaJugadores">
+                        <thead>
+                            <tr>
+                                <th>JUGADOR</th>
+                                <th>EMAIL / IP</th>
+                                <th>GEO & HARDWARE</th>
+                                <th>SALDO</th>
+                                <th>ESTADO</th>
+                                <th>ACCIONES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaJugadores">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">
+                                    <i class="fas fa-spinner fa-spin"></i><br>Iniciando barrido de seguridad...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="admin-panel" style="border-color: var(--warning);">
+                <h2 class="panel-title" style="color: var(--warning);">
+                    <span><i class="fas fa-video"></i> EL VAR: EVIDENCIAS IA</span> 
+                    <button id="btnVaciarVar" class="btn-action btn-ban" onclick="vaciarVAR()">
+                        <i class="fas fa-trash-alt"></i> VACIAR VAR
+                    </button>
+                </h2>
+                <div class="var-grid" id="gridEvidencias">
+                    <div style="color: gray; text-align: center; width: 100%; padding: 20px;">
+                        Cargando cámaras...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div> 
+    
+    <div id="modalPremios" class="modal">
+        <div class="modal-content">
+            <h2 style="color:var(--warning);"><i class="fas fa-gift"></i> REPARTIR POZO</h2>
+            <p id="infoPozo"></p>
+            <select id="selectG1" class="select-win"></select>
+            <button class="btn-main" onclick="ejecutarReparto()">CONFIRMAR Y PAGAR</button>
+            <button style="background:none; border:none; color:gray; margin-top:20px; cursor:pointer;" onclick="cerrarModalPremios()">CANCELAR</button>
+        </div>
+    </div>
+    
+    <div id="modalCoins" class="modal">
+        <div class="modal-content" style="border-color: var(--warning);">
+            <h2 style="color:var(--warning);"><i class="fas fa-coins"></i> BÓVEDA LFA</h2>
+            <h3 id="mCoinsNombre" style="color: white;"></h3>
+            <div id="mCoinsActual" style="color: var(--warning); font-size: 2rem; font-weight: bold; margin-bottom: 20px;">🪙 0.00</div>
+            <input type="number" id="mCoinsNuevo" class="input-form" style="font-size: 1.5rem; text-align: center; color: var(--warning);" step="0.01" min="0">
+            <button class="btn-main" onclick="guardarEdicionCoins()">GUARDAR NUEVO SALDO</button>
+            <button style="background:none; border:none; color:gray; margin-top:20px; cursor:pointer;" onclick="cerrarModalCoins()">CANCELAR</button>
+        </div>
+    </div>
+    
+    <div id="modalBan" class="modal">
+        <div class="modal-content" style="border-color: var(--danger);">
+            <h2 style="color:var(--danger);"><i class="fas fa-gavel"></i> TRIBUNAL LFA</h2>
+            <h3 id="mBanNombre" style="color: white;"></h3>
+            <select id="mBanTiempo" class="select-win" style="border-color: var(--danger); text-align: center;">
+                <option value="1">24 Horas</option>
+                <option value="2">48 Horas</option>
+                <option value="3">72 Horas</option>
+                <option value="0">BAN PERMANENTE</option>
+            </select>
+            <button class="btn-main" style="background: var(--danger); color: white; margin-top:20px;" onclick="ejecutarBan()">APLICAR SANCIÓN</button>
+            <button style="background:none; border:none; color:gray; margin-top:20px; cursor:pointer;" onclick="cerrarModalBan()">CANCELAR</button>
+        </div>
+    </div>
+
+    <div id="modalDetective" class="modal">
+        <div class="modal-content modal-detective">
+            <div class="det-header">
+                <i class="fas fa-user-secret det-icon"></i>
+                <div>
+                    <h2 style="margin: 0; color: var(--lfa-blue); font-family: 'Orbitron';">EXPEDIENTE POLICIAL</h2>
+                    <div id="detNombre" style="color: white; font-weight: bold; font-size: 1.2rem;">Cargando...</div>
+                    <div id="detEmail" style="color: var(--text-gray); font-size: 0.8rem;">-</div>
+                </div>
+            </div>
+            <div class="det-info-grid">
+                <div class="det-box">
+                    <div class="det-box-title">ID PLATAFORMA</div>
+                    <div class="det-box-val" id="detPlataforma">-</div>
+                </div>
+                <div class="det-box">
+                    <div class="det-box-title">IP CONEXIÓN</div>
+                    <div class="det-box-val" id="detIP">-</div>
+                </div>
+                <div class="det-box">
+                    <div class="det-box-title">CANVAS HASH</div>
+                    <div class="det-box-val" id="detHash" style="color: var(--warning);">-</div>
+                </div>
+                <div class="det-box">
+                    <div class="det-box-title">SISTEMA</div>
+                    <div class="det-box-val" id="detSistema" style="font-size: 0.75rem; font-weight: normal;">-</div>
+                </div>
+            </div>
+            <h3 style="color: var(--danger); font-family: 'Orbitron'; font-size: 1rem; margin-bottom: 5px; border-bottom: 1px solid var(--danger); padding-bottom: 5px;">
+                <i class="fas fa-project-diagram"></i> CRUCE DE DATOS
+            </h3>
+            <div id="detClones" class="clon-list"></div>
+            <button class="btn-main" style="background: #333; color: white; margin-top: 25px;" onclick="cerrarModalDetective()">CERRAR EXPEDIENTE</button>
+        </div>
+    </div>
+
+    <div id="lfaModal" class="lfa-modal-overlay">
+        <div class="lfa-modal-box" id="lfaModalBox">
+            <i id="lfaModalIcon" class="lfa-modal-icon fas fa-exclamation-circle"></i>
+            <h3 id="lfaModalTitle" class="lfa-modal-title">Título</h3>
+            <div id="lfaModalText" class="lfa-modal-text">Mensaje</div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button id="lfaModalBtnCancel" class="btn-main btn-danger" style="display:none; flex: 1; margin-top: 0; background: transparent; border: 1px solid gray; color: white;">CANCELAR</button>
+                <button id="lfaModalBtnOk" class="btn-main" style="flex: 1; margin-top: 0;">ACEPTAR</button>
+            </div>
+        </div>
+    </div>
+`;
+
+// Inyectamos el HTML en el baúl seguro
+document.getElementById('lfa-secure-vault').innerHTML = secureAdminHTML;
+
+// ==========================================
+// ⚙️ EL MOTOR JAVASCRIPT COMPLETAMENTE EXPANDIDO
+// ==========================================
+
+function mostrarAlerta(titulo, mensaje, tipo = 'info') {
+    document.getElementById('lfaModalTitle').innerText = titulo;
+    document.getElementById('lfaModalText').innerHTML = mensaje;
+    document.getElementById('lfaModalBtnCancel').style.display = 'none';
+    document.getElementById('lfaModalBtnOk').innerText = 'ACEPTAR';
+    
+    const icon = document.getElementById('lfaModalIcon'); 
+    const box = document.getElementById('lfaModalBox'); 
+    const btnOk = document.getElementById('lfaModalBtnOk');
+    
+    if (tipo === 'error') { 
+        icon.className = "lfa-modal-icon fas fa-times-circle"; 
+        icon.style.color = "var(--danger)"; 
+        box.style.borderColor = "var(--danger)"; 
+        btnOk.style.background = "var(--danger)";
+        btnOk.style.color = "white";
+    } else if (tipo === 'exito') { 
+        icon.className = "lfa-modal-icon fas fa-check-circle"; 
+        icon.style.color = "var(--primary-neon)"; 
+        box.style.borderColor = "var(--primary-neon)"; 
+        btnOk.style.background = "var(--primary-neon)";
+        btnOk.style.color = "black";
+    } else { 
+        icon.className = "lfa-modal-icon fas fa-exclamation-circle"; 
+        icon.style.color = "var(--warning)"; 
+        box.style.borderColor = "var(--warning)"; 
+        btnOk.style.background = "var(--warning)";
+        btnOk.style.color = "black";
+    }
+    
+    document.getElementById('lfaModal').style.display = 'flex';
+    
+    return new Promise((resolve) => { 
+        document.getElementById('lfaModalBtnOk').onclick = () => { 
+            document.getElementById('lfaModal').style.display = 'none'; 
+            resolve(true); 
+        }; 
+    });
+}
+
+function mostrarConfirm(titulo, mensaje) {
+    document.getElementById('lfaModalTitle').innerText = titulo;
+    document.getElementById('lfaModalText').innerHTML = mensaje;
+    document.getElementById('lfaModalBtnCancel').style.display = 'inline-block';
+    document.getElementById('lfaModalBtnOk').innerText = 'CONFIRMAR';
+    
+    const icon = document.getElementById('lfaModalIcon'); 
+    const box = document.getElementById('lfaModalBox'); 
+    const btnOk = document.getElementById('lfaModalBtnOk');
+    
+    icon.className = "lfa-modal-icon fas fa-question-circle"; 
+    icon.style.color = "var(--warning)"; 
+    box.style.borderColor = "var(--warning)";
+    btnOk.style.background = "var(--warning)";
+    btnOk.style.color = "black";
+    
+    document.getElementById('lfaModal').style.display = 'flex';
+    
+    return new Promise((resolve) => {
+        document.getElementById('lfaModalBtnOk').onclick = () => { 
+            document.getElementById('lfaModal').style.display = 'none'; 
+            resolve(true); 
+        };
+        document.getElementById('lfaModalBtnCancel').onclick = () => { 
+            document.getElementById('lfaModal').style.display = 'none'; 
+            resolve(false); 
+        };
+    });
+}
+
+async function copiarUID(uid) { 
+    navigator.clipboard.writeText(uid); 
+    await mostrarAlerta(
+        "COPIADO", 
+        "UID copiado en el portapapeles: " + uid, 
+        "exito"
+    ); 
+}
+
+const firebaseConfig = { 
+    apiKey: "AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I", 
+    authDomain: "somoslfa.com", 
+    projectId: "lfaofficial" 
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth(); 
+const db = firebase.firestore();
+
+// EL UID DEL ADMINISTRADOR MAESTRO
+const DUEÑO_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
+
+let torneoPremiosId = null; 
+let uidEdicionActual = null; 
+let dbJugadoresEnMemoria = []; 
+
+// VERIFICACIÓN DE SESIÓN ESTRICTA
+auth.onAuthStateChanged(user => { 
+    if (!user) {
+        document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>ACCESO DENEGADO (SIN SESIÓN)</h1>"; 
+        return;
+    }
+    
+    if (user.uid !== DUEÑO_UID) { 
+        document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>ACCESO DENEGADO (NO SOS EL CEO)</h1>"; 
+        return;
+    } 
+    
+    init(); 
+});
+
+function init() {
+    cargarStatsFinancieras(); 
+    cargarSpawnerConfig(); 
+    cargarTorneosAdmin(); 
+    cargarRetiros(); 
+    cargarJugadores(); 
+    cargarEvidenciasVAR(); 
+    cargarPagosManuales(); 
+}
+
+function cargarStatsFinancieras() { 
+    db.collection("usuarios").onSnapshot(snap => { 
+        document.getElementById('admRegistrados').innerText = snap.size; 
+        
+        let totalCoins = 0; 
+        
+        snap.forEach(doc => { 
+            let valor = doc.data().number;
+            if (valor) {
+                totalCoins += valor; 
+            }
+        }); 
+        
+        document.getElementById('admCoinsCirculantes').innerText = `🪙 ${totalCoins.toFixed(2)}`; 
+    }); 
+    
+    db.collection("torneos").where("estado", "in", ["finalizado_premios", "finalizado"]).onSnapshot(snap => {
+        let totalGanancias = 0; 
+        
+        snap.forEach(doc => { 
+            const t = doc.data(); 
+            let costo = t.costo_inscripcion || 0;
+            let cupos = t.cupos_totales || 4;
+            
+            // LFA SE QUEDA EL 15% DE CADA POZO
+            totalGanancias += (costo * cupos * 0.15); 
+        }); 
+        
+        document.getElementById('admGananciasLFA').innerText = `🪙 ${totalGanancias.toFixed(2)}`; 
+    });
+    
+    db.collection("estadisticas").doc("globales").onSnapshot(doc => { 
+        if(doc.exists) { 
+            document.getElementById('admVisitas').innerText = doc.data().visitas_totales || 0; 
+        } 
+    });
+}
+
+function cargarPagosManuales() {
+    db.collection("pagos_pendientes").where("estado", "==", "pendiente").onSnapshot(snap => {
+        let htmlTransf = ''; 
+        let htmlBinance = '';
+        
+        if(snap.empty) { 
+            htmlTransf = '<tr><td colspan="4" style="text-align:center; color:gray; padding: 20px;">No hay transferencias pendientes.</td></tr>'; 
+            htmlBinance = '<tr><td colspan="4" style="text-align:center; color:gray; padding: 20px;">No hay pagos Binance pendientes.</td></tr>'; 
+        } else {
+            snap.forEach(doc => {
+                const p = doc.data(); 
+                
+                let metodo = p.metodo || "";
+                const esBinance = metodo.toLowerCase().includes("binance");
+                
+                let btnPDF = "";
+                
+                if (p.comprobante_url) {
+                    btnPDF = `<button class="btn-action btn-pdf" style="margin-bottom:5px;" onclick="window.open('${p.comprobante_url}', '_blank')"><i class="fas fa-file-pdf"></i> VER PDF</button><br>`;
+                } else {
+                    btnPDF = `<span style="color:var(--danger); font-size:0.7rem;">Sin Comprobante</span><br>`;
+                }
+                
+                let nombreJug = p.jugador_nombre || '';
+                let uidRecortado = p.uid ? p.uid.substring(0,8) : '';
+                
+                let filaHtml = `
+                <tr>
+                    <td>
+                        <b style="color:white; font-size:1rem;">${nombreJug.toUpperCase()}</b><br>
+                        <span style="color:var(--text-gray); font-size:0.75rem;">UID: ${uidRecortado}</span>
+                    </td>
+                    <td>
+                        <div style="color:var(--warning); font-weight:bold; font-size:1.1rem;">🪙 ${p.coins}</div>
+                        <div style="font-size:0.8rem; color:#ccc;">$${p.usd} | ${p.metodo}</div>
+                        <div style="font-family:monospace; font-size:0.75rem; color:var(--primary-neon);">ID: ${p.txid_o_nombre}</div>
+                    </td>
+                    <td style="text-align:center;">
+                        ${btnPDF}
+                    </td>
+                    <td>
+                        <button class="btn-action btn-unban" style="margin-bottom:5px; width:100%;" onclick="aprobarPagoManual('${doc.id}', '${p.uid}', ${p.coins})">
+                            <i class="fas fa-check"></i> APROBAR
+                        </button>
+                        <button class="btn-action btn-ban" style="width:100%;" onclick="rechazarPagoManual('${doc.id}')">
+                            <i class="fas fa-times"></i> RECHAZAR
+                        </button>
+                    </td>
+                </tr>`;
+
+                if(esBinance) {
+                    htmlBinance += filaHtml;
+                } else {
+                    htmlTransf += filaHtml;
+                }
+            });
+        }
+        
+        document.getElementById('tablaTransfAR').innerHTML = htmlTransf || '<tr><td colspan="4" style="text-align:center; color:gray; padding: 20px;">No hay transferencias pendientes.</td></tr>';
+        document.getElementById('tablaBinance').innerHTML = htmlBinance || '<tr><td colspan="4" style="text-align:center; color:gray; padding: 20px;">No hay pagos Binance pendientes.</td></tr>';
+    });
+}
+
+async function aprobarPagoManual(pagoId, uid, coins) {
+    let confirmacion = await mostrarConfirm(
+        "APROBAR PAGO", 
+        "⚠️ ¿Audistaste el PDF y el dinero ingresó a la cuenta bancaria de LFA?<br><br>Se cargarán <b>🪙 " + coins + " Coins</b> al jugador."
+    );
+    
+    if(!confirmacion) {
+        return;
+    }
+    
+    try {
+        let batch = db.batch();
+        
+        // Sumamos las coins
+        batch.update(db.collection("usuarios").doc(uid), { 
+            number: firebase.firestore.FieldValue.increment(coins) 
+        });
+        
+        // Cambiamos estado
+        batch.update(db.collection("pagos_pendientes").doc(pagoId), { 
+            estado: "aprobado", 
+            fecha_aprobacion: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        
+        await batch.commit();
+        
+        await mostrarAlerta(
+            "APROBADO", 
+            "¡Pago aprobado y monedas acreditadas al instante!", 
+            "exito"
+        );
+        
+    } catch(e) { 
+        await mostrarAlerta(
+            "ERROR", 
+            "Error al procesar el pago en la base de datos.", 
+            "error"
+        ); 
+    }
+}
+
+async function rechazarPagoManual(pagoId) { 
+    let confirmacion = await mostrarConfirm(
+        "RECHAZAR PAGO", 
+        "¿Rechazar este comprobante y borrarlo de la lista de pendientes?"
+    );
+    
+    if(confirmacion) { 
+        await db.collection("pagos_pendientes").doc(pagoId).update({ 
+            estado: "rechazado" 
+        }); 
+    } 
+}
+
+function cargarRetiros() {
+    db.collection("retiros").where("estado", "==", "pendiente").onSnapshot(snap => {
+        let html = '';
+        
+        if(snap.empty) { 
+            html = `
+            <tr>
+                <td colspan="5" style="text-align:center; color:gray; padding: 30px;">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display:block;"></i>
+                    No hay retiros pendientes.
+                </td>
+            </tr>`; 
+        } else {
+            snap.forEach(doc => { 
+                const r = doc.data(); 
+                
+                let nombre = r.nombre_real || r.nombreJugador;
+                let wp = r.whatsapp;
+                let monto = r.montoCoins;
+                let cbu = r.cbuAlias;
+                let fechaFormateada = r.fecha ? r.fecha.toDate().toLocaleDateString() : 'Reciente';
+                
+                html += `
+                <tr>
+                    <td>
+                        <b>${nombre}</b><br>
+                        <span style="font-size:0.75rem; color:var(--text-gray);">
+                            <i class="fab fa-whatsapp"></i> ${wp}
+                        </span>
+                    </td>
+                    <td style="color:var(--danger); font-weight:bold; font-size:1.1rem;">
+                        🪙 ${monto}
+                    </td>
+                    <td>
+                        <code style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 5px; font-weight:bold; color:#00e5ff;">
+                            ${cbu}
+                        </code>
+                    </td>
+                    <td style="font-size:0.8rem; color: gray;">
+                        ${fechaFormateada}
+                    </td>
+                    <td>
+                        <button class="btn-action btn-unban" onclick="marcarRetiroPagado('${doc.id}')">
+                            <i class="fas fa-check-double"></i> PAGADO
+                        </button>
+                        <button class="btn-action btn-ban" style="margin-top:5px;" onclick="rechazarRetiro('${doc.id}', '${r.uid}', ${monto})">
+                            <i class="fas fa-undo"></i> DEVOLVER
+                        </button>
+                    </td>
+                </tr>`; 
+            });
+        }
+        
+        document.getElementById('listaRetirosAdmin').innerHTML = html;
+    });
+}
+
+async function marcarRetiroPagado(docId) {
+    let confirmacion = await mostrarConfirm(
+        `MARCAR COMO PAGADO`, 
+        `¿Ya enviaste la plata real a la cuenta bancaria del jugador?`
+    );
+    
+    if(!confirmacion) {
+        return;
+    }
+    
+    try { 
+        await db.collection("retiros").doc(docId).update({ 
+            estado: "completado" 
+        }); 
+        
+        await mostrarAlerta(
+            "ÉXITO", 
+            "Retiro marcado como pagado exitosamente.", 
+            "exito"
+        ); 
+        
+    } catch(e) { 
+        await mostrarAlerta(
+            "ERROR", 
+            e.message, 
+            "error"
+        ); 
+    }
+}
+
+async function rechazarRetiro(docId, uidJugador, montoDevolver) {
+    let motivo = prompt("El retiro será rechazado. ¿Cuál es el motivo? (Las monedas volverán a su billetera intactas):"); 
+    
+    if(motivo === null) {
+        return;
+    }
+    
+    if(motivo.trim() === "") {
+        motivo = "Rechazado por el Staff (Revisá tus datos)";
+    }
+    
+    try {
+        let batch = db.batch();
+        
+        batch.update(db.collection("usuarios").doc(uidJugador), { 
+            number: firebase.firestore.FieldValue.increment(montoDevolver) 
+        });
+        
+        batch.update(db.collection("retiros").doc(docId), { 
+            estado: "rechazado", 
+            motivo_rechazo: motivo 
+        });
+        
+        await batch.commit(); 
+        
+        await mostrarAlerta(
+            "ÉXITO", 
+            "Retiro cancelado. Los fondos fueron devueltos a la billetera del jugador.", 
+            "exito"
+        );
+        
+    } catch(e) { 
+        await mostrarAlerta(
+            "ERROR", 
+            e.message, 
+            "error"
+        ); 
+    }
+}
+
+function cargarSpawnerConfig() { 
+    db.collection("configuracion").doc("spawner").onSnapshot(doc => { 
+        if (doc.exists) { 
+            document.getElementById('toggleSpawner').checked = doc.data().activo; 
+        } 
+    }); 
+}
+
+function guardarSpawner() { 
+    let activado = document.getElementById('toggleSpawner').checked;
+    
+    db.collection("configuracion").doc("spawner").set({ 
+        activo: activado 
+    }, { merge: true }); 
+}
+
+async function toggleProBanner(estado) { 
+    try { 
+        await db.collection("configuracion").doc("lfa_pro").set({ 
+            activo: estado 
+        }, { merge: true }); 
+        
+        if (estado) {
+            await mostrarAlerta("MODO PRO", "El Banner PRO ha sido Activado.", "exito"); 
+        } else {
+            await mostrarAlerta("MODO PRO", "El Banner PRO ha sido Oculto de la vista.", "info"); 
+        }
+        
+    } catch (e) { 
+        console.error("Error al actualizar config PRO:", e); 
+    } 
+}
+
+// =======================================================
+// 🚨 FUNCIÓN DE CREACIÓN SEPARADA EN CUADROS (100% FUNCIONAL)
+// =======================================================
+async function crearTorneoEspecifico(tipo) {
+    let titulo = "";
+    let juego = "FC 26";
+    let plataforma = "Crossplay";
+    let formato = "";
+    let cupos = 0;
+    let costo = 0;
+    let linkSala = "";
+    let modoFinal = "";
+    let detalles = "";
+
+    // LECTURA DEL CUADRADO 1VS1
+    if (tipo === '1vs1') {
+        titulo = document.getElementById('tTitulo1v1').value.trim();
+        detalles = document.getElementById('tDetalles1v1').value.trim();
+        juego = document.getElementById('tJuego1v1').value;
+        plataforma = document.getElementById('tPlat1v1').value;
+        cupos = parseInt(document.getElementById('tCupos1v1').value);
+        costo = parseFloat(document.getElementById('tCosto1v1').value) || 0;
+        
+        formato = "1vs1";
+        modoFinal = document.getElementById('tModo1v1').value;
+        linkSala = "/sala"; 
+    } 
+    // LECTURA DEL CUADRADO CO-OP & DRAFT
+    else if (tipo === 'coop') {
+        titulo = document.getElementById('tTituloCoop').value.trim();
+        detalles = document.getElementById('tDetallesCoop').value.trim();
+        juego = document.getElementById('tJuegoCoop').value;
+        formato = document.getElementById('tFormatoCoop').value; 
+        cupos = parseInt(document.getElementById('tCuposCoop').value);
+        costo = parseFloat(document.getElementById('tCostoCoop').value) || 0;
+        
+        plataforma = "Crossplay (PS/Xbox/PC)"; 
+        
+        let modoElegido = document.getElementById('tModoCoop').value;
+        if (formato === "2vs2_draft") {
+            modoFinal = modoElegido + " | DRAFT 2VS2";
+        } else {
+            modoFinal = modoElegido + " | EQUIPOS 2VS2";
+        }
+        
+        linkSala = "/salacoop"; 
+    }
+    // LECTURA DEL CUADRADO LIGAS
+    else if (tipo === 'liga') {
+        titulo = document.getElementById('tTituloLiga').value.trim();
+        detalles = document.getElementById('tDetallesLiga').value.trim();
+        juego = document.getElementById('tJuegoLiga').value;
+        plataforma = document.getElementById('tPlatLiga').value;
+        cupos = parseInt(document.getElementById('tCuposLiga').value);
+        costo = parseFloat(document.getElementById('tCostoLiga').value) || 0;
+        
+        formato = "Liga";
+        modoFinal = document.getElementById('tModoLiga').value + " | LIGA 1VS1";
+        linkSala = "/liga"; 
+    }
+    // LECTURA DEL CUADRADO CLUBES PRO
+    else if (tipo === 'clubes') {
+        titulo = document.getElementById('tTituloClubes').value.trim();
+        detalles = document.getElementById('tDetallesClubes').value.trim();
+        juego = document.getElementById('tJuegoClubes').value;
+        plataforma = document.getElementById('tPlatClubes').value;
+        cupos = parseInt(document.getElementById('tCuposClubes').value);
+        costo = parseFloat(document.getElementById('tCostoClubes').value) || 0;
+        
+        formato = "Clubes";
+        modoFinal = document.getElementById('tModoClubes').value;
+        linkSala = "/clubes"; 
+    }
+
+    if (!titulo || titulo === "") {
+        await mostrarAlerta(
+            "FALTAN DATOS", 
+            "Tenés que ponerle un título al torneo antes de lanzarlo.", 
+            "error"
+        );
+        return;
+    }
+    
+    // Inyecta un hashtag random al título
+    if(!titulo.includes('#')) {
+        titulo += " #" + Math.floor(Math.random() * 9000 + 1000); 
+    }
+    
+    if(!detalles || detalles === "") {
+        detalles = "Premios LFA para el Campeón";
+    }
+    
+    let estadoInicial = "abierto";
+    if (formato === "2vs2_draft") {
+        estadoInicial = "esperando_sorteo";
+    }
+    
+    try {
+        await db.collection("torneos").add({ 
+            titulo: titulo, 
+            detalles: detalles, 
+            region: "GLOBAL", 
+            juego: juego, 
+            plataforma: plataforma, 
+            modo: modoFinal, 
+            formato: formato, 
+            link_sala: linkSala, 
+            cupos_totales: cupos, 
+            costo_inscripcion: costo, 
+            inscritos: 0, 
+            participantes: [], 
+            estado: estadoInicial, 
+            creado: firebase.firestore.FieldValue.serverTimestamp(), 
+            pozo_acumulado: 0 
+        });
+        
+        await mostrarAlerta(
+            "ÉXITO", 
+            "¡Competición publicada con éxito en el servidor!", 
+            "exito"
+        ); 
+        
+        // Limpiamos los inputs
+        if(tipo === '1vs1') document.getElementById('tTitulo1v1').value = '';
+        if(tipo === 'coop') document.getElementById('tTituloCoop').value = '';
+        if(tipo === 'liga') document.getElementById('tTituloLiga').value = '';
+        if(tipo === 'clubes') document.getElementById('tTituloClubes').value = '';
+        
+    } catch (error) { 
+        await mostrarAlerta(
+            "ERROR", 
+            "Error grave al crear el torneo: " + error.message, 
+            "error"
+        ); 
+    }
+}
+
+function cargarTorneosAdmin() {
+    // Query sin orderBy para evitar error de índice faltante, ordenamos en cliente
+    db.collection("torneos").limit(100).onSnapshot(snap => {
+        let html = '';
+        
+        if(snap.empty) { 
+            html = '<tr><td colspan="4" style="text-align:center; color:gray; padding:20px;">No hay torneos en el servidor.</td></tr>'; 
+        } else {
+            // Ordenar por creado en cliente, más recientes primero
+            const docs = [];
+            snap.forEach(doc => docs.push(doc));
+            docs.sort((a, b) => {
+                const ta = a.data().creado?.toMillis?.() || 0;
+                const tb = b.data().creado?.toMillis?.() || 0;
+                return tb - ta;
+            });
+            
+            docs.forEach(doc => {
+                const t = doc.data(); 
+                
+                const yaRepartido = (t.estado === "finalizado_premios"); 
+                
+                let btnDraft = '';
+                if(t.formato === "2vs2_draft" && t.estado === "esperando_sorteo") { 
+                    btnDraft = `<button class="btn-action btn-draft" onclick="ejecutarSorteoDraft('${doc.id}')"><i class="fas fa-random"></i> SORTEO DRAFT</button>`; 
+                }
+                
+                let inscriptos = 0;
+                if (t.formato === "2vs2_draft" && t.estado === "esperando_sorteo") {
+                    inscriptos = t.jugadores_individuales ? t.jugadores_individuales.length : 0;
+                } else {
+                    inscriptos = t.participantes ? t.participantes.length : 0;
+                }
+                
+                let infoJugadores = inscriptos + "/" + t.cupos_totales;
+                
+                let tagEstado = '';
+                if (t.estado === "en_juego") {
+                    tagEstado = '<span style="color:var(--danger); font-weight:bold; margin-left:5px;">🔴 EN JUEGO</span>';
+                }
+                
+                // El link predeterminado
+                let rutaAcceso = "/sala";
+                if (t.link_sala) {
+                    rutaAcceso = t.link_sala;
+                } else if ((t.formato || '').includes("2vs2") || (t.link_sala || '').includes("coop")) {
+                    rutaAcceso = "/salacoop";
+                }
+                
+                let btnEntrarSala = `<button class="btn-action" style="background:var(--primary-neon); color:black;" onclick="window.open('${rutaAcceso}?id=${doc.id}', '_blank')" title="Entrar a la Sala"><i class="fas fa-door-open"></i></button>`;
+                
+                html += `
+                <tr>
+                    <td>
+                        <b style="color:white; font-size:1.05rem;">${t.titulo || '(Sin título)'}</b> ${tagEstado}<br>
+                        <span style="color:var(--primary-neon); font-size:0.75rem;">${t.juego || '?'} | ${t.modo || t.formato || '?'}</span>
+                    </td>
+                    <td>
+                        <span style="font-family:'Orbitron'; font-size:0.75rem; border: 1px solid gray; padding: 4px 8px; border-radius: 5px;">
+                            ${(t.estado || 'desconocido').toUpperCase()}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-size:0.8rem;"><i class="fas fa-users"></i> ${infoJugadores}</div>
+                        <div style="color:var(--warning); font-weight:bold;">🪙 ${t.pozo_acumulado || 0}</div>
+                    </td>
+                    <td>
+                        ${btnEntrarSala}
+                        ${btnDraft}
+                        <button class="btn-action btn-repartir" ${yaRepartido ? 'disabled style="background:#333;"' : ''} onclick="abrirModalPremios('${doc.id}', ${t.pozo_acumulado || 0})" title="Repartir Pozo">
+                            <i class="fas fa-gift"></i>
+                        </button> 
+                        <button class="btn-action" style="background:#9146FF; color:white;" onclick="simularBots('${doc.id}', ${t.cupos_totales})" title="Llenar con BOTS">
+                            <i class="fas fa-robot"></i>
+                        </button>
+                        <button class="btn-action" style="background:#00e5ff; color:black;" onclick="avanzarRondaSimulada('${doc.id}', ${t.cupos_totales})" title="Avanzar Ronda (BOTS)">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                        <button class="btn-action btn-ban" onclick="borrarTorneo('${doc.id}')" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });  // fin docs.forEach
+        }
+        
+        document.getElementById('listaTorneosAdmin').innerHTML = html;
+    });
+}
+
+async function borrarTorneo(id) { 
+    let confirmacion = await mostrarConfirm(
+        "ELIMINAR TORNEO", 
+        "🚨 ¿Seguro que querés ELIMINAR este torneo de forma definitiva?"
+    );
+    
+    if(confirmacion) { 
+        await db.collection("torneos").doc(id).delete(); 
+    } 
+}
+
+// =======================================================
+// 🤖 SIMULADOR INTELIGENTE (ARREGLO DEL BUG DE ELIMINACIÓN)
+// =======================================================
+async function simularBots(tId, cuposEsperados) {
+    let confirmar = await mostrarConfirm(
+        "🤖 SIMULADOR LFA", 
+        `¿Querés rellenar los huecos vacíos con BOTS virtuales?`
+    );
+    
+    if(!confirmar) {
+        return;
+    }
+    
+    try {
+        const doc = await db.collection("torneos").doc(tId).get(); 
+        const d = doc.data();
+        
+        // 🚨 AQUÍ ESTABA EL ERROR. AHORA LEE CORRECTAMENTE DÓNDE ESTÁS VOS 🚨
+        let campoAUsar = "participantes";
+        if (d.formato === "2vs2_draft" && d.estado === "esperando_sorteo") {
+            campoAUsar = "jugadores_individuales";
+        }
+        
+        let partesActuales = d[campoAUsar] || []; 
+        let faltantes = cuposEsperados - partesActuales.length;
+        
+        if (faltantes <= 0) {
+            await mostrarAlerta(
+                "LLENO", 
+                "La sala ya tiene todos los cupos ocupados.", 
+                "info"
+            );
+            return;
+        }
+        
+        // CUIDAMOS A LOS HUMANOS: Copiamos el array existente
+        let nuevosParticipantes = [...partesActuales];
+        
+        for(let i=0; i<faltantes; i++) { 
+            nuevosParticipantes.push("BOT_" + Math.floor(Math.random() * 9000 + 1000)); 
+        }
+        
+        // GUARDAMOS EN EL LUGAR CORRECTO
+        if (d.formato === "2vs2_draft" && d.estado === "esperando_sorteo") {
+            await db.collection("torneos").doc(tId).update({ 
+                inscritos: cuposEsperados, 
+                jugadores_individuales: nuevosParticipantes 
+                // ❌ NO TOCAMOS PARTICIPANTES TODAVÍA PARA NO ELIMINAR A NADIE
+            });
+            
+            await mostrarAlerta(
+                "¡BOTS CARGADOS!", 
+                "La sala se llenó de jugadores virtuales.\\n\\nAHORA TOCÁ EL BOTÓN VIOLETA 'SORTEO DRAFT' PARA ARMAR LAS PAREJAS Y GENERAR LOS BRACKETS.", 
+                "exito"
+            );
+        } else {
+            await db.collection("torneos").doc(tId).update({ 
+                inscritos: cuposEsperados, 
+                participantes: nuevosParticipantes, 
+                estado: "en_juego", 
+                jugadores_listos: nuevosParticipantes 
+            });
+            
+            await mostrarAlerta(
+                "¡TORNEO SIMULADO!", 
+                "Se llenó con bots y el torneo ya arrancó en vivo.", 
+                "exito"
+            );
+        }
+    } catch(e) { 
+        await mostrarAlerta(
+            "ERROR", 
+            "Falló la simulación: " + e.message, 
+            "error"
+        ); 
+    }
+}
+
+// =======================================================
+// 🎲 ALGORITMO DRAFT MATEMÁTICO AVANZADO (CON BYES)
+// =======================================================
+async function ejecutarSorteoDraft(tid) {
+    let confirmacion = await mostrarConfirm(
+        "🎲 SORTEO DRAFT", 
+        "Esto mezclará a los jugadores y armará los equipos en vivo. ¿Aceptar?"
+    );
+    
+    if(!confirmacion) {
+        return;
+    }
+    
+    try {
+        const doc = await db.collection("torneos").doc(tid).get(); 
+        const t = doc.data();
+        let ji = t.jugadores_individuales || []; 
+        
+        if(ji.length < 2) {
+            await mostrarAlerta(
+                "ERROR", 
+                "Se necesitan mínimo 2 jugadores para armar 1 equipo.", 
+                "error"
+            );
+            return;
+        }
+        
+        let nombres = {};
+        for(let uid of ji) { 
+            if(uid.startsWith("BOT_")) { 
+                nombres[uid] = "BOT " + uid.split("_")[1].substring(0,3); 
+            } else { 
+                try { 
+                    let udoc = await db.collection("usuarios").doc(uid).get(); 
+                    nombres[uid] = udoc.exists ? udoc.data().nombre : "JUGADOR"; 
+                } catch(e) { 
+                    nombres[uid] = "JUGADOR"; 
+                } 
+            } 
+        }
+        
+        // Mezclamos (Shuffle)
+        for (let i = ji.length - 1; i > 0; i--) { 
+            const j = Math.floor(Math.random() * (i + 1)); 
+            let temp = ji[i]; 
+            ji[i] = ji[j]; 
+            ji[j] = temp; 
+        }
+        
+        let eDraft = {}; 
+        let nE = 1; 
+        let draftTeamsList = [];
+        
+        // Emparejamos de a 2
+        for (let i = 0; i < ji.length; i += 2) {
+            let u1 = ji[i]; 
+            let u2 = ji[i+1] || ("BOT_" + Math.floor(Math.random() * 9000));
+            
+            let n1 = nombres[u1] || "JUGADOR"; 
+            let n2 = nombres[u2] || ("BOT " + u2.split("_")[1].substring(0,3));
+            
+            let idF = "DRAFT_TEAM_" + nE; 
+            
+            eDraft[idF] = { 
+                p1: u1, 
+                p1_nombre: n1, 
+                p2: u2, 
+                p2_nombre: n2, 
+                nombre: (n1.split(" ")[0] + " / " + n2.split(" ")[0]).toUpperCase() 
+            };
+            
+            draftTeamsList.push(idF); 
+            nE++;
+        }
+        
+        let cantidadEquipos = draftTeamsList.length; 
+        
+        // 🚨 MATEMÁTICA DE BYES: EJ. SI SON 12 EQUIPOS, CALCULA 16 LUGARES Y METE 4 BYES
+        let powerOf2 = Math.pow(2, Math.ceil(Math.log2(cantidadEquipos))); 
+        let byesNeeded = powerOf2 - cantidadEquipos; 
+        let normalMatches = (cantidadEquipos - byesNeeded) / 2; 
+
+        let bTeams = []; 
+        let teamIdx = 0;
+        
+        for(let i=0; i < powerOf2 / 2; i++) {
+            if (i < normalMatches) { 
+                bTeams.push(draftTeamsList[teamIdx++]); 
+                bTeams.push(draftTeamsList[teamIdx++]); 
+            } else { 
+                bTeams.push(draftTeamsList[teamIdx++]); 
+                bTeams.push("BYE"); 
+            }
+        }
+
+        await db.collection("torneos").doc(tid).update({ 
+            estado: "en_juego", 
+            jugadores_individuales: ji, 
+            participantes: bTeams, // AHORA LA DB GUARDA EL ARRAY PERFECTO CON "BYE"
+            equipos_draft: eDraft, 
+            cupos_totales: powerOf2 // AVISA AL FRONTEND EL TAMAÑO REAL DEL BRACKET
+        });
+        
+        await mostrarAlerta(
+            "ÉXITO", 
+            "🎲 Parejas armadas y Torneo iniciado.\\nEl bracket ya está activo en la sala.", 
+            "exito"
+        );
+        
+    } catch(e) { 
+        await mostrarAlerta("ERROR", e.message, "error"); 
+    }
+}
+
+async function abrirModalPremios(id, pozo) {
+    torneoPremiosId = id; 
+    document.getElementById("infoPozo").innerText = `🪙 ${pozo} Coins`;
+    
+    const tDoc = await db.collection("torneos").doc(id).get(); 
+    const parts = tDoc.data().participantes || [];
+    
+    if(parts.length === 0) {
+        await mostrarAlerta("SIN JUGADORES", "No hay jugadores en esta sala.", "error");
+        return;
+    }
+    
+    let options = '<option value="">Elegir equipo ganador...</option>';
+    
+    for (const pid of parts) { 
+        if (pid === "BYE") {
+            continue;
+        }
+        
+        if(pid.startsWith("BOT_")) { 
+            options += `<option value="${pid}">BOT LFA</option>`; 
+        } else if(pid.startsWith("DRAFT_")) { 
+            options += `<option value="${pid}">${tDoc.data().equipos_draft[pid].nombre}</option>`; 
+        } else { 
+            const col = ((tDoc.data().formato||"").includes("2vs2")) ? "equipos_coop" : "usuarios"; 
+            try { 
+                const uDoc = await db.collection(col).doc(pid).get(); 
+                options += `<option value="${pid}">${uDoc.exists ? uDoc.data().nombre : pid}</option>`; 
+            } catch(e) { 
+                options += `<option value="${pid}">${pid}</option>`; 
+            } 
+        }
+    }
+    
+    document.getElementById("selectG1").innerHTML = options; 
+    document.getElementById("modalPremios").style.display = "flex";
+}
+
+function cerrarModalPremios() { 
+    document.getElementById("modalPremios").style.display = "none"; 
+}
+
+async function ejecutarReparto() {
+    const g1 = document.getElementById("selectG1").value; 
+    
+    if(!g1 || g1 === "") {
+        await mostrarAlerta("ERROR", "Tenés que elegir al campeón.", "error");
+        return;
+    }
+    
+    const btn = document.querySelector("#modalPremios .btn-main"); 
+    const originalText = btn.innerHTML; 
+    
+    btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> PROCESANDO..."; 
+    btn.disabled = true;
+    
+    try {
+        const tDoc = await db.collection("torneos").doc(torneoPremiosId).get(); 
+        const tData = tDoc.data(); 
+        
+        const esDraft = tData.formato === "2vs2_draft"; 
+        const esCoop = (tData.formato || "").toLowerCase().includes("2vs2") || (tData.modo || "").toLowerCase().includes("2vs2"); 
+        const pozo = tData.pozo_acumulado || 0;
+        
+        let batch = db.batch();
+        
+        if (esDraft && tData.equipos_draft) {
+            const eq1 = tData.equipos_draft[g1];
+            if (eq1) { 
+                if(eq1.p1 && !eq1.p1.startsWith("BOT_")) {
+                    batch.update(db.collection("usuarios").doc(eq1.p1), { 
+                        copas: firebase.firestore.FieldValue.increment(1), 
+                        number: firebase.firestore.FieldValue.increment(pozo / 2) 
+                    });
+                }
+                if(eq1.p2 && !eq1.p2.startsWith("BOT_")) {
+                    batch.update(db.collection("usuarios").doc(eq1.p2), { 
+                        copas: firebase.firestore.FieldValue.increment(1), 
+                        number: firebase.firestore.FieldValue.increment(pozo / 2) 
+                    });
+                }
+            }
+        } else if (esCoop) { 
+            if(!g1.startsWith("BOT_")) {
+                batch.update(db.collection("equipos_coop").doc(g1), { 
+                    copas: firebase.firestore.FieldValue.increment(1), 
+                    ganancias: firebase.firestore.FieldValue.increment(pozo) 
+                }); 
+            }
+        } else { 
+            if(!g1.startsWith("BOT_")) {
+                batch.update(db.collection("usuarios").doc(g1), { 
+                    copas: firebase.firestore.FieldValue.increment(1), 
+                    number: firebase.firestore.FieldValue.increment(pozo) 
+                }); 
+            }
+        }
+        
+        batch.update(db.collection("torneos").doc(torneoPremiosId), { 
+            estado: "finalizado_premios", 
+            ganador_final: g1 
+        });
+        
+        await batch.commit(); 
+        
+        await mostrarAlerta(
+            "PAGADO", 
+            "¡Premios entregados! El Ranking Mundial ha sido actualizado a la fuerza.", 
+            "exito"
+        ); 
+        
+        cerrarModalPremios();
+        
+    } catch(e) { 
+        await mostrarAlerta(
+            "ERROR", 
+            "Hubo un fallo: " + e.message, 
+            "error"
+        ); 
+    }
+    
+    btn.innerHTML = originalText; 
+    btn.disabled = false;
+}
+
+// =======================================================
+// 🛡️ CARGAR JUGADORES Y DESBANEAR EXPLICITO
+// =======================================================
+function cargarJugadores() {
+    db.collection("usuarios").orderBy("nombre").onSnapshot(snap => {
+        let html = ''; 
+        let hashesVistos = {}; 
+        dbJugadoresEnMemoria = []; 
+        
+        snap.forEach(doc => { 
+            const u = doc.data(); 
+            u.uid = doc.id; 
+            dbJugadoresEnMemoria.push(u); 
+            
+            if(u.hw_avanzado && u.hw_avanzado.canvas_hash && u.hw_avanzado.canvas_hash !== "N/A") { 
+                let hash = u.hw_avanzado.canvas_hash; 
+                hashesVistos[hash] = (hashesVistos[hash] || 0) + 1; 
+            } 
+        });
+        
+        dbJugadoresEnMemoria.forEach(u => {
+            let hw = u.hw_avanzado || {}; 
+            let hash = hw.canvas_hash || 'N/A'; 
+            let esClon = (hash !== 'N/A' && hashesVistos[hash] > 1);
+            let clonWarning = '';
+            
+            if (esClon) {
+                clonWarning = `<br><span style="color:var(--danger); font-weight:bold; font-size:0.75rem;"><i class="fas fa-exclamation-triangle"></i> MULTICUENTA</span>`;
+            }
+            
+            let rowStyle = '';
+            if (esClon) {
+                rowStyle = 'border-left: 4px solid var(--danger); background: rgba(255, 71, 87, 0.05);';
+            }
+            
+            // 🚨 BOTÓN DE DESBANEO EXPLICITO 🚨
+            let btnBanHTML = '';
+            if (u.baneado) {
+                btnBanHTML = `<button class="btn-action btn-unban" onclick="desbanearJugador('${u.uid}', '${u.nombre}')" title="Desbanear Jugador"><i class="fas fa-unlock"></i> DESBANEAR</button>`;
+            } else {
+                btnBanHTML = `<button class="btn-action btn-ban" onclick="abrirModalBan('${u.uid}', '${u.nombre}')" title="Banear Jugador"><i class="fas fa-gavel"></i> BAN</button>`;
+            }
+            
+            let htmlEstado = u.baneado ? '<span style="color:red; font-weight:bold;">BANEADO</span>' : '<span style="color:green; font-weight:bold;">ACTIVO</span>';
+            
+            html += `
+            <tr class="fila-jugador" style="${rowStyle}">
+                <td>
+                    <b>${u.nombre || 'Sin nombre'}</b><br>
+                    <span style="font-size:0.7rem; color:var(--primary-neon); cursor:pointer;" onclick="copiarUID('${u.uid}')">UID: ${u.uid.substring(0,8)}...</span>
+                </td>
+                <td>
+                    ${u.email}<br>
+                    <span style="font-size:0.7rem; color:gray;">IP: ${u.ip_conexion || 'Oculta'}</span>
+                </td>
+                <td>
+                    <div style="font-size:0.75rem;">
+                        🌍 ${u.pais_codigo || 'XX'}<br>
+                        💻 <span style="color:var(--warning); font-family:monospace;">${hash.substring(0,10)}...</span>
+                        ${clonWarning}
+                    </div>
+                </td>
+                <td>
+                    <b style="color:var(--warning);">🪙 ${(u.number || 0).toFixed(2)}</b>
+                </td>
+                <td>
+                    ${htmlEstado}
+                </td>
+                <td>
+                    <button class="btn-action btn-globe" onclick="abrirModoDetective('${u.uid}')"><i class="fas fa-search"></i></button> 
+                    ${btnBanHTML} 
+                    <button class="btn-action btn-coins" onclick="abrirModalCoins('${u.uid}', '${u.nombre}', ${u.number || 0})"><i class="fas fa-coins"></i></button>
+                </td>
+            </tr>`;
+        }); 
+        
+        document.getElementById('listaJugadores').innerHTML = html;
+    });
+}
+
+async function desbanearJugador(uid, nombre) { 
+    let confirmacion = await mostrarConfirm(
+        "DESBANEAR JUGADOR", 
+        `¿Estás seguro que querés quitarle el Ban a <b>${nombre}</b>?<br><br>Volverá a tener acceso a la plataforma.`
+    );
+    
+    if(confirmacion) { 
+        try { 
+            await db.collection("usuarios").doc(uid).update({ 
+                baneado: false, 
+                dias_ban: 0, 
+                ban_hasta: null 
+            }); 
+            
+            await mostrarAlerta(
+                "ÉXITO", 
+                "El jugador ha sido desbaneado y perdonado exitosamente.", 
+                "exito"
+            ); 
+        } catch(e) { 
+            await mostrarAlerta(
+                "ERROR", 
+                "No se pudo desbanear: " + e.message, 
+                "error"
+            ); 
+        } 
+    } 
+}
+
+async function abrirModoDetective(uidBuscado) {
+    const jugador = dbJugadoresEnMemoria.find(j => j.uid === uidBuscado); 
+    
+    if(!jugador) {
+        await mostrarAlerta("ERROR", "Jugador no encontrado en memoria.", "error");
+        return;
+    }
+    
+    const hw = jugador.hw_avanzado || {}; 
+    const hashPrincipal = hw.canvas_hash || 'N/A'; 
+    const ipPrincipal = jugador.ip_conexion || 'N/A';
+    
+    document.getElementById('detNombre').innerText = (jugador.nombre || 'Sin Nombre').toUpperCase(); 
+    document.getElementById('detEmail').innerText = jugador.email; 
+    document.getElementById('detPlataforma').innerText = jugador.plataforma_id || 'No registrada'; 
+    document.getElementById('detIP').innerText = ipPrincipal; 
+    document.getElementById('detHash').innerText = hashPrincipal; 
+    document.getElementById('detSistema').innerText = hw.ua ? hw.ua.substring(0, 50) + "..." : 'Desconocido';
+    
+    const clones = dbJugadoresEnMemoria.filter(j => { 
+        if (j.uid === uidBuscado) {
+            return false;
+        }
+        
+        const jHw = j.hw_avanzado || {}; 
+        const jHash = jHw.canvas_hash || 'N/A_X'; 
+        const jIp = j.ip_conexion || 'N/A_Y'; 
+        
+        return (jHash !== 'N/A' && jHash === hashPrincipal) || (jIp !== 'Oculta' && jIp === ipPrincipal); 
+    });
+    
+    let htmlClones = '';
+    
+    if (clones.length === 0) { 
+        htmlClones = '<div style="color:var(--primary-neon); text-align:center; font-weight:bold;"><i class="fas fa-check-circle"></i> CUENTA LIMPIA.</div>'; 
+    } else { 
+        htmlClones = `<div style="color:var(--danger); font-weight:bold; margin-bottom: 10px;"><i class="fas fa-exclamation-triangle"></i> ¡ATENCIÓN! Se detectaron ${clones.length} cuentas vinculadas:</div>`; 
+        
+        clones.forEach(c => { 
+            const motivo = (c.hw_avanzado && c.hw_avanzado.canvas_hash === hashPrincipal) ? 'Mismo Celular/PC' : 'Mismo Wi-Fi (IP)'; 
+            htmlClones += `
+            <div style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; margin-bottom: 5px; display:flex; justify-content:space-between; align-items:center; border-left: 3px solid var(--danger);">
+                <div>
+                    <b style="color:white;">${c.nombre}</b> <span style="color:gray; font-size:0.8rem;">(${c.email})</span><br>
+                    <span style="color:var(--danger); font-size:0.75rem; font-weight:bold;">MOTIVO: ${motivo}</span>
+                </div>
+                <button class="btn-action btn-ban" onclick="abrirModalBan('${c.uid}', '${c.nombre}')"><i class="fas fa-gavel"></i> BAN</button>
+            </div>`; 
+        }); 
+    }
+    
+    document.getElementById('detClones').innerHTML = htmlClones; 
+    document.getElementById('modalDetective').style.display = 'flex';
+}
+
+function cerrarModalDetective() { 
+    document.getElementById('modalDetective').style.display = 'none'; 
+}
+
+function abrirModalBan(uid, nombre) { 
+    uidEdicionActual = uid; 
+    document.getElementById('mBanNombre').innerText = nombre; 
+    document.getElementById('modalBan').style.display = 'flex'; 
+}
+
+function cerrarModalBan() { 
+    document.getElementById('modalBan').style.display = 'none'; 
+}
+
+async function ejecutarBan() { 
+    const val = document.getElementById('mBanTiempo').value; 
+    let dias = parseInt(val); 
+    
+    let dataUpdate = { 
+        baneado: true 
+    }; 
+    
+    if (dias > 0) { 
+        let f = new Date(); 
+        f.setDate(f.getDate() + dias); 
+        
+        dataUpdate.ban_hasta = firebase.firestore.Timestamp.fromDate(f); 
+        dataUpdate.dias_ban = dias; 
+    } else { 
+        dataUpdate.dias_ban = 0; 
+    } 
+    
+    await db.collection("usuarios").doc(uidEdicionActual).update(dataUpdate); 
+    await mostrarAlerta("SANCIONADO", "Jugador BANEADO.", "exito"); 
+    
+    cerrarModalBan(); 
+}
+
+function abrirModalCoins(uid, nombre, saldo) { 
+    uidEdicionActual = uid; 
+    document.getElementById('mCoinsNombre').innerText = nombre; 
+    document.getElementById('mCoinsActual').innerText = `🪙 ${saldo.toFixed(2)}`; 
+    document.getElementById('mCoinsNuevo').value = saldo.toFixed(2); 
+    document.getElementById('modalCoins').style.display = 'flex'; 
+}
+
+function cerrarModalCoins() { 
+    document.getElementById('modalCoins').style.display = 'none'; 
+}
+
+async function guardarEdicionCoins() { 
+    let n = parseFloat(document.getElementById('mCoinsNuevo').value); 
+    
+    if(n >= 0 && await mostrarConfirm("MODIFICAR SALDO", "Confirmar nuevo saldo: <b>🪙 " + n + "</b>")) { 
+        await db.collection("usuarios").doc(uidEdicionActual).update({ 
+            number: n 
+        }); 
+        cerrarModalCoins(); 
+    } 
+}
+
+function filtrarJugadores() { 
+    let input = document.getElementById('busquedaJugador').value.toLowerCase(); 
+    
+    document.querySelectorAll('.fila-jugador').forEach(row => { 
+        if (row.innerText.toLowerCase().includes(input)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    }); 
+}
+
+function cargarEvidenciasVAR() { 
+    db.collection("reportes_ia").orderBy("timestamp", "desc").limit(10).onSnapshot(snap => { 
+        let html = ''; 
+        
+        if (snap.empty) { 
+            document.getElementById('gridEvidencias').innerHTML = '<div style="color:gray;">VAR Vacío</div>'; 
+            return;
+        } 
+        
+        snap.forEach(doc => { 
+            const data = doc.data(); 
+            html += `
+            <div class="var-card">
+                <div style="color:var(--warning); font-weight:bold;">${data.jugador_nombre}</div>
+                <a href="${data.imagen_url}" target="_blank">
+                    <img src="${data.imagen_url}" class="var-img">
+                </a>
+            </div>`; 
+        }); 
+        
+        document.getElementById('gridEvidencias').innerHTML = html; 
+    }); 
+}
+
+async function vaciarVAR() { 
+    let confirmacion = await mostrarConfirm(
+        "VACIAR VAR", 
+        "🚨 ¿Estás seguro que querés VACIAR TODAS LAS FOTOS DEL VAR de la base de datos?"
+    );
+    
+    if(confirmacion) { 
+        const snap = await db.collection("reportes_ia").get(); 
+        const batch = db.batch(); 
+        
+        snap.forEach(doc => {
+            batch.delete(doc.ref);
+        }); 
+        
+        await batch.commit(); 
+    } 
+}
+
+async function cambiarFairPlay(nuevoPuntaje) { 
+    const jugadorUid = document.getElementById("fpJugadorUid").value.trim(); 
+    
+    if(!jugadorUid) {
+        await mostrarAlerta("FALTAN DATOS", "Pegá el UID del jugador primero en la caja de texto.", "error");
+        return;
+    }
+    
+    let confirmacion = await mostrarConfirm(
+        "MODIFICAR FAIR PLAY", 
+        "Seguro que querés cambiar el Trust Factor de este usuario a <b>" + nuevoPuntaje + "%</b>?"
+    );
+    
+    if(confirmacion) { 
+        try { 
+            const token = await auth.currentUser.getIdToken(); 
+            const res = await fetch("https://us-central1-lfaofficial.cloudfunctions.net/modificarFairPlay", { 
+                method: "POST", 
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "Authorization": `Bearer ${token}` 
+                }, 
+                body: JSON.stringify({ 
+                    jugadorUid: jugadorUid, 
+                    nuevoPuntaje: nuevoPuntaje 
+                }) 
+            }); 
+            
+            const data = await res.json(); 
+            
+            if(data.success) { 
+                await mostrarAlerta("ÉXITO", data.mensaje, "exito"); 
+                document.getElementById("fpJugadorUid").value = ""; 
+            } else { 
+                await mostrarAlerta("ERROR", data.error || "Desconocido", "error"); 
+            } 
+        } catch (e) { 
+            await mostrarAlerta("ERROR", "Error de conexión con el servidor de la función LFA.", "error"); 
+        } 
+    } 
+}
+
+// =======================================================
+// ⏭️ AVANZAR RONDA BOTS (RECONOCE BYES Y AUTO-AVANZA DE VERDAD)
+// =======================================================
+async function avanzarRondaSimulada(torneoId, cupos) {
+    let confirmacion = await mostrarConfirm(
+        "⏭️ AVANZAR RONDA", 
+        "¿Simular resultados al azar y avanzar a los ganadores a la siguiente llave?"
+    );
+    
+    if(!confirmacion) {
+        return;
+    }
+    
+    try {
+        const doc = await db.collection("torneos").doc(torneoId).get(); 
+        const d = doc.data(); 
+        
+        let rondaActual = 1;
+        let totalRondas = Math.ceil(Math.log2(cupos)); 
+        
+        if(totalRondas < 2) {
+            totalRondas = 2;
+        }
+        
+        // Detectamos en qué ronda está parado el torneo
+        if (!d.llaves_ronda2 || d.llaves_ronda2.length === 0) {
+            rondaActual = 1; 
+        } else if (!d.llaves_ronda3 || d.llaves_ronda3.length === 0) {
+            rondaActual = 2; 
+        } else if (!d.llaves_ronda4 || d.llaves_ronda4.length === 0) {
+            rondaActual = 3; 
+        } else if (!d.llaves_ronda5 || d.llaves_ronda5.length === 0) {
+            rondaActual = 4; 
+        } else if (!d.llaves_ronda6 || d.llaves_ronda6.length === 0) {
+            rondaActual = 5;
+        } else {
+            rondaActual = 6;
+        }
+        
+        let jugadoresActuales = [];
+        if (rondaActual === 1) {
+            jugadoresActuales = d.participantes;
+        } else {
+            jugadoresActuales = d['llaves_ronda'+rondaActual];
+        }
+        
+        if (!jugadoresActuales || jugadoresActuales.length <= 1) {
+            await mostrarAlerta("FIN", "Este torneo ya llegó a su fin. No se puede avanzar más.", "info");
+            return;
+        }
+        
+        let ganadores = []; 
+        let perdedores = []; 
+        
+        for(let i=0; i < jugadoresActuales.length; i += 2) { 
+            let p1 = jugadoresActuales[i]; 
+            let p2 = jugadoresActuales[i+1]; 
+            
+            // 🚨 SI NADIE ES "BYE", TIRAMOS LA MONEDA PARA VER QUIÉN GANA
+            if(p1 && p2 && p1 !== "BYE" && p2 !== "BYE") { 
+                let win = Math.random() > 0.5 ? p1 : p2; 
+                let lose = win === p1 ? p2 : p1; 
+                ganadores.push(win); 
+                perdedores.push(lose); 
+            } 
+            // 🚨 SI EL RIVAL ES UN PASE LIBRE (BYE), EL JUGADOR AVANZA DIRECTO AL 100%
+            else if (p1 && p1 !== "BYE") { 
+                ganadores.push(p1); 
+            } 
+            else if (p2 && p2 !== "BYE") { 
+                ganadores.push(p2); 
+            } 
+            else { 
+                ganadores.push("BYE"); 
+            } 
+        }
+        
+        let updateData = {};
+        
+        if (rondaActual === totalRondas - 1) {
+            updateData['llaves_ronda' + (rondaActual + 1)] = ganadores; 
+            updateData.llave_tercer_puesto = perdedores; 
+        } else if (rondaActual === totalRondas) { 
+            updateData.ganador_final = ganadores[0]; 
+            
+            if(d.llave_tercer_puesto && d.llave_tercer_puesto.length === 2) {
+                updateData.ganador_tercer_puesto = Math.random() > 0.5 ? d.llave_tercer_puesto[0] : d.llave_tercer_puesto[1];
+            }
+            updateData.estado = "finalizado"; 
+        } else { 
+            updateData['llaves_ronda' + (rondaActual + 1)] = ganadores; 
+        }
+        
+        await db.collection("torneos").doc(torneoId).update(updateData);
+        
+        await mostrarAlerta("RONDA AVANZADA", "Se simularon los resultados matemáticos. Revisá las llaves actualizadas en la Sala del torneo.", "exito");
+        
+    } catch(e) { 
+        await mostrarAlerta("ERROR", "Hubo un error al avanzar de ronda: " + e.message, "error"); 
+    }
+}
+</script>
+</body>
+</html>

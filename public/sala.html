@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="es">
+<script src="/lfa-security.js" defer></script>
+<script src="/lfa-i18n.js" defer></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sala 1VS1 | LFA Arena</title>
+    
+    <meta name="theme-color" content="#0b0e14">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { 
+            --primary-neon: #00ff88; 
+            --bg-dark: #050508; 
+            --card-bg: #0b0e14; 
+            --border: #30363d; 
+            --text-gray: #8b949e; 
+            --lfa-gold: #ffd700; 
+            --danger: #ff4757; 
+            --discord: #5865F2;
+        }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Roboto', sans-serif; 
+            background: var(--bg-dark); 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100dvh; 
+            overflow: hidden; 
+        }
+        
+        body::before { 
+            content: ''; 
+            position: fixed; 
+            top: -50%; 
+            left: -50%; 
+            width: 200%; 
+            height: 200%; 
+            background: radial-gradient(circle at center, rgba(0, 255, 136, 0.05) 0%, transparent 60%); 
+            z-index: -1; 
+            pointer-events: none;
+        }
+        
+        ::-webkit-scrollbar { display: none; } 
+        * { -ms-overflow-style: none; scrollbar-width: none; }
+
+        header { 
+            background: rgba(5, 5, 8, 0.95); 
+            padding: 15px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--primary-neon); 
+            flex-shrink: 0; 
+            box-shadow: 0 5px 20px rgba(0,255,136,0.2);
+        }
+        
+        .logo-text { 
+            font-family: 'Orbitron'; 
+            font-size: 1.5rem; 
+            font-weight: 900; 
+            color: white; 
+            letter-spacing: 1px; 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-text span { 
+            color: var(--primary-neon); 
+        }
+        
+        .btn-volver { 
+            background: transparent; 
+            border: 1px solid var(--text-gray); 
+            color: white; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            font-family: 'Orbitron'; 
+            cursor: pointer; 
+            text-decoration: none; 
+            font-size: 0.8rem; 
+            transition: 0.3s;
+        }
+        
+        .btn-volver:hover { 
+            border-color: var(--primary-neon); 
+            color: var(--primary-neon); 
+        }
+
+        .arena-container { 
+            display: flex; 
+            flex: 1; 
+            overflow: hidden; 
+        }
+        
+        .panel-info { 
+            width: 320px; 
+            background: var(--card-bg); 
+            border-right: 1px solid var(--border); 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; 
+            flex-shrink: 0; 
+            gap: 15px;
+        }
+        
+        .info-box { 
+            background: #050508; 
+            border: 1px solid var(--border); 
+            padding: 15px; 
+            border-radius: 10px; 
+        }
+        
+        .info-title { 
+            font-family: 'Orbitron'; 
+            color: var(--primary-neon); 
+            font-size: 0.85rem; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        
+        .panel-derecho { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            background: #0b0e14; 
+            position: relative; 
+            min-width: 0; 
+        }
+        
+        .tabs { 
+            display: flex; 
+            border-bottom: 1px solid var(--border); 
+            background: var(--card-bg); 
+            flex-shrink: 0; 
+            overflow-x: auto;
+        }
+        
+        .tab { 
+            flex: 1; 
+            text-align: center; 
+            padding: 15px; 
+            cursor: pointer; 
+            font-family: 'Orbitron'; 
+            font-weight: bold; 
+            color: var(--text-gray); 
+            transition: 0.3s; 
+            font-size: 0.8rem; 
+            white-space: nowrap;
+        }
+        
+        .tab.active { 
+            background: #050508; 
+            color: var(--primary-neon); 
+            border-bottom: 3px solid var(--primary-neon); 
+        }
+        
+        .tab-content { 
+            display: none; 
+            flex: 1; 
+            overflow-y: auto; 
+            flex-direction: column; 
+        }
+        
+        .tab-content.active { 
+            display: flex; 
+        }
+
+        .lobby-espera {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+            text-align: center;
+            background: radial-gradient(circle at center, #161b22 0%, #050508 100%);
+        }
+
+        .lobby-icon {
+            font-size: 4rem;
+            color: var(--primary-neon);
+            margin-bottom: 20px;
+            animation: pulseNeon 2s infinite;
+        }
+
+        .lobby-title {
+            font-family: 'Orbitron';
+            font-size: 2.5rem;
+            color: white;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .lobby-counter {
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid var(--primary-neon);
+            padding: 15px 40px;
+            border-radius: 15px;
+            font-family: 'Orbitron';
+            font-size: 3rem;
+            font-weight: 900;
+            color: white;
+            margin: 20px 0;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+        }
+
+        @keyframes pulseNeon { 
+            0% { transform: scale(1); } 
+            50% { transform: scale(1.1); } 
+            100% { transform: scale(1); } 
+        }
+
+        .match-cabin { 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+        
+        .match-header-coop { 
+            background: linear-gradient(145deg, #161b22 0%, #050508 100%); 
+            border: 2px solid var(--border); 
+            border-radius: 20px; 
+            padding: 30px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6); 
+            position: relative; 
+            overflow: hidden; 
+            transition: 0.3s;
+        }
+        
+        .match-header-coop.active-border { 
+            border-color: var(--primary-neon); 
+            box-shadow: 0 0 30px rgba(0,255,136,0.3); 
+        }
+        
+        .team-side { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            text-align: center; 
+            z-index: 2; 
+            width: 33%;
+        }
+        
+        .team-escudo { 
+            width: 100px; 
+            height: 100px; 
+            border-radius: 50%; 
+            border: 3px solid var(--border); 
+            margin-bottom: 15px; 
+            object-fit: cover; 
+            background: #000; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        
+        .t-name { 
+            font-family: 'Orbitron'; 
+            font-weight: 900; 
+            font-size: 1.4rem; 
+            color: white; 
+            margin-bottom: 5px; 
+            letter-spacing: 1px; 
+            text-transform: uppercase;
+        }
+
+        .vs-center { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            z-index: 2; 
+            width: 33%;
+        }
+        
+        .vs-text { 
+            font-family: 'Orbitron'; 
+            font-size: 3rem; 
+            font-weight: 900; 
+            color: var(--text-gray); 
+            text-shadow: 0 0 20px rgba(255,255,255,0.05); 
+            line-height: 1; 
+        }
+        
+        .match-header-coop.active-border .vs-text { 
+            color: var(--primary-neon); 
+            text-shadow: 0 0 20px rgba(0,255,136,0.5); 
+        }
+        
+        .timer-display { 
+            font-family: 'Orbitron'; 
+            font-size: 2rem; 
+            font-weight: bold; 
+            color: var(--text-gray); 
+            margin-top: 15px; 
+            background: #000; 
+            padding: 8px 20px; 
+            border-radius: 10px; 
+            border: 2px solid var(--border); 
+            letter-spacing: 3px; 
+        }
+        
+        .match-header-coop.active-border .timer-display { 
+            color: white; 
+            border-color: var(--primary-neon); 
+            box-shadow: inset 0 0 10px rgba(0,255,136,0.2); 
+        }
+
+        .btn-main { 
+            background: var(--primary-neon); 
+            color: black; 
+            border: none; 
+            padding: 12px 15px; 
+            font-family: 'Orbitron'; 
+            font-weight: 900; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            transition: 0.3s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px;
+        }
+        
+        .btn-main:hover:not(:disabled) { 
+            box-shadow: 0 0 15px rgba(0,255,136,0.4); 
+            background: white; 
+            transform: translateY(-2px); 
+        }
+        
+        .btn-main:disabled { 
+            background: #333 !important; 
+            color: gray !important; 
+            cursor: not-allowed !important; 
+            box-shadow: none !important; 
+            transform: none !important; 
+            border-color: #222 !important; 
+        }
+        
+        .btn-ready { 
+            background: transparent; 
+            border: 2px solid var(--lfa-gold); 
+            color: var(--lfa-gold); 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-family: 'Orbitron'; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px;
+        }
+        
+        .btn-ready:hover:not(:disabled) { 
+            background: var(--lfa-gold); 
+            color: black; 
+            box-shadow: 0 0 20px rgba(255,215,0,0.4); 
+        }
+        
+        .btn-ready.ready-active { 
+            background: rgba(0,255,136,0.1); 
+            border-color: var(--primary-neon); 
+            color: var(--primary-neon); 
+            pointer-events: none; 
+        }
+        
+        .btn-ready:disabled { 
+            border-color: #333; 
+            color: #555; 
+            cursor: not-allowed; 
+        }
+
+        .chat-container { 
+            display: flex; 
+            flex-direction: column; 
+            background: #050508; 
+            border: 1px solid var(--border); 
+            border-radius: 15px; 
+            flex: 1; 
+            overflow: hidden; 
+            min-height: 250px; 
+        }
+        
+        .chat-messages { 
+            flex: 1; 
+            padding: 15px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+        }
+        
+        .chat-input-area { 
+            padding: 10px; 
+            background: #0b0e14; 
+            border-top: 1px solid var(--border); 
+            display: flex; 
+            gap: 10px; 
+        }
+        
+        .chat-input { 
+            flex: 1; 
+            padding: 12px; 
+            background: #161b22; 
+            border: 1px solid var(--border); 
+            color: white; 
+            border-radius: 8px; 
+            font-family: 'Roboto'; 
+            outline: none; 
+            font-size: 16px !important; 
+        }
+        
+        .btn-send { 
+            background: var(--primary-neon); 
+            color: black; 
+            border: none; 
+            width: 50px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1.1rem;
+        }
+
+        .msg { 
+            max-width: 85%; 
+            padding: 10px 15px; 
+            border-radius: 12px; 
+            font-size: 0.85rem; 
+            line-height: 1.4; 
+            position: relative; 
+            word-wrap: break-word;
+        }
+        
+        .msg-yo { 
+            background: #00e5ff; 
+            color: black; 
+            align-self: flex-end; 
+            border-bottom-right-radius: 2px; 
+        }
+        
+        .msg-rival { 
+            background: #22272e; 
+            color: white; 
+            border: 1px solid var(--border); 
+            align-self: flex-start; 
+            border-bottom-left-radius: 2px; 
+        }
+        
+        .msg-autor { 
+            font-size: 0.65rem; 
+            font-weight: bold; 
+            margin-bottom: 4px; 
+            opacity: 0.8; 
+            font-family: 'Orbitron'; 
+        }
+
+        .bracket-container { 
+            display: flex; 
+            justify-content: flex-start; 
+            align-items: center; 
+            padding: 20px; 
+            font-family: 'Orbitron'; 
+            min-height: 100%; 
+            gap: 40px; 
+            overflow-x: auto; 
+            flex-wrap: nowrap;
+            background: radial-gradient(circle at center, #0b0e14 0%, #050508 100%); 
+        }
+        
+        .bracket-col { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-around; 
+            gap: 25px; 
+            position: relative; 
+            min-width: 220px; 
+        }
+        
+        .matchup { 
+            background: #161b22; 
+            border: 1px solid #30363d; 
+            border-radius: 8px; 
+            width: 220px; 
+            min-width: 220px; 
+            flex-shrink: 0; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+            position: relative; 
+            z-index: 2; 
+            overflow: hidden; 
+            transition: 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .matchup-player { 
+            padding: 10px 12px; 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            background: #111; 
+            border-bottom: 1px solid #222; 
+            transition: 0.3s; 
+            position: relative;
+        }
+        
+        .matchup-player:last-child { 
+            border-bottom: none; 
+        }
+        
+        .matchup-player i { 
+            color: var(--text-gray); 
+            width: 15px; 
+            text-align: center; 
+            font-size: 0.85rem;
+        }
+        
+        .matchup-player.winner { 
+            background: rgba(0,255,136,0.05); 
+            border-left: 4px solid var(--primary-neon); 
+            color: white; 
+        }
+        
+        .matchup-player.winner i { 
+            color: var(--primary-neon); 
+        }
+        
+        .matchup-player.loser { 
+            opacity: 0.4; 
+            text-decoration: line-through; 
+            border-left: 4px solid var(--danger); 
+        }
+        
+        .badge-pos { 
+            position: absolute; 
+            right: 5px; 
+            font-size: 0.6rem; 
+            padding: 2px 5px; 
+            border-radius: 4px; 
+            font-weight: 900; 
+            letter-spacing: 1px; 
+        }
+        
+        .bracket-col:not(:last-child):not(.round-champion) .matchup::after { 
+            content: ''; 
+            position: absolute; 
+            right: -20px; 
+            top: 50%; 
+            width: 20px; 
+            border-top: 2px solid #30363d; 
+            z-index: 1;
+        }
+        
+        .bracket-col:not(:first-child) .matchup::before { 
+            content: ''; 
+            position: absolute; 
+            left: -20px; 
+            top: 50%; 
+            width: 20px; 
+            border-top: 2px solid #30363d; 
+            z-index: 1;
+        }
+        
+        .matchup.final { 
+            border: 2px solid var(--warning); 
+            transform: scale(1.05); 
+            margin: 20px 10px; 
+            box-shadow: 0 0 20px rgba(255,215,0,0.2);
+        }
+        
+        .final-header { 
+            background: linear-gradient(90deg, #b8860b, #ffd700); 
+            color: black; 
+            font-weight: 900; 
+            text-align: center; 
+            padding: 6px; 
+            font-size: 0.8rem; 
+            letter-spacing: 1px;
+        }
+        
+        .champion-box { 
+            background: #111; 
+            border: 2px dashed #30363d; 
+            border-radius: 15px; 
+            padding: 25px 15px; 
+            text-align: center; 
+            width: 220px; 
+            min-width: 220px; 
+            flex-shrink: 0; 
+            position: relative; 
+            z-index: 2; 
+            transition: 0.5s;
+            margin-bottom: 10px;
+        }
+        
+        .champion-box.decided { 
+            border: 2px solid var(--warning); 
+            background: linear-gradient(145deg, #1a1500 0%, #000 100%); 
+            box-shadow: 0 0 40px rgba(255,215,0,0.3);
+        }
+        
+        .champion-box::before { 
+            content: ''; 
+            position: absolute; 
+            left: -20px; 
+            top: 50%; 
+            width: 20px; 
+            border-top: 2px solid #30363d; 
+            z-index: 1;
+        }
+        
+        .champion-box.decided::before { 
+            border-top-color: var(--warning); 
+        }
+
+        #celebrationOverlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            z-index: 9999; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            padding: 20px;
+        }
+        
+        .trophy-icon { 
+            font-size: 6rem; 
+            color: var(--lfa-gold); 
+            animation: popIn 1s ease-out; 
+            margin-bottom: 20px; 
+        }
+        
+        @keyframes popIn { 
+            0% { transform: scale(0); } 
+            80% { transform: scale(1.2); } 
+            100% { transform: scale(1); } 
+        }
+
+        @media (max-width: 900px) {
+            .arena-container { 
+                flex-direction: column; 
+                overflow-y: auto; 
+            }
+            
+            .panel-info { 
+                width: 100%; 
+                border-right: none; 
+                border-bottom: 1px solid var(--border); 
+                height: auto !important;
+            }
+            
+            .match-header-coop { 
+                display: grid !important; 
+                grid-template-columns: 1fr !important; 
+                gap: 15px; 
+                justify-items: center; 
+                text-align: center; 
+            }
+            
+            .match-header-coop > .team-side:nth-child(1) { order: 1; width: 100%; } 
+            .match-header-coop > .vs-center { display: contents; } 
+            .match-header-coop > .vs-center > .vs-text { order: 2; margin: 10px 0; } 
+            .match-header-coop > .team-side:nth-child(3) { order: 3; width: 100%; } 
+            .match-header-coop > .vs-center > .timer-display { order: 4; margin-top: 15px; } 
+            .match-header-coop > .vs-center > #matchFaseTexto { order: 5; margin-top: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-text">LFA <span>ARENA 1VS1</span></div>
+        <div class="header-actions">
+            <a href="/dashboard" class="btn-volver"><i class="fas fa-arrow-left"></i> SALIR AL HUB</a>
+        </div>
+    </header>
+
+    <div class="arena-container">
+        
+        <div class="panel-info">
+            <div class="info-box">
+                <div class="info-title">🏆 ARENA INDIVIDUAL</div>
+                <div id="salaTitulo" style="font-weight:bold; font-size:1.1rem; color: white;">Cargando...</div>
+                <div style="font-size:0.75rem; color:var(--text-gray); margin-top:5px;" id="salaTags">-</div>
+            </div>
+            
+            <div class="info-box" style="border-color: var(--primary-neon);">
+                <div class="info-title" style="color: var(--primary-neon);">⚙️ REGLAS OFICIALES</div>
+                <ul id="listaConfigOficial" style="font-size:0.75rem; color:white; line-height: 1.6; padding-left: 15px; margin: 5px 0;">
+                    <li>Cargando reglamento...</li>
+                </ul>
+            </div>
+            
+            <a href="https://discord.gg/twzKVFCk4g" target="_blank" style="background:#5865F2; color:white; font-family:'Orbitron'; font-weight:bold; font-size:0.75rem; text-align:center; padding:12px; text-decoration:none; display:block; transition:0.3s; border-radius: 8px;">
+                <i class="fab fa-discord"></i> CANAL DISCORD
+            </a>
+        </div>
+
+        <div class="panel-derecho">
+            
+            <div id="pantallaLobby" class="lobby-espera" style="display:none;">
+                <i class="fas fa-user-clock lobby-icon"></i>
+                <h1 class="lobby-title" id="tituloLobbyEspera">SALA DE ESPERA</h1>
+                <p style="color:var(--text-gray); font-size:1.1rem; margin:0;" id="subtituloLobbyEspera">Aguardando a que se completen los cupos del torneo.</p>
+                <div class="lobby-counter" id="lobbyCounter">0 / 16 JUGADORES</div>
+            </div>
+
+            <div id="pantallaTorneoActivo" style="display:flex; flex-direction:column; flex:1;">
+                <div class="tabs" id="tabsCaja">
+                    <div class="tab active" onclick="cambiarPestaña('partido')"><i class="fas fa-crosshairs"></i> EL ENCUENTRO</div>
+                    <div class="tab" onclick="cambiarPestaña('chat')"><i class="fas fa-globe"></i> SALA GLOBAL</div>
+                    <div class="tab" onclick="cambiarPestaña('bracket')"><i class="fas fa-sitemap"></i> BRACKET OFICIAL</div>
+                </div>
+                
+                <div id="pestaña-partido" class="tab-content active" style="padding: 15px;">
+                    <div class="match-cabin">
+                        <div class="match-header-coop" id="matchHeaderBox">
+                            
+                            <div class="team-side">
+                                <img src="https://i.imgur.com/vHqBovx.png" class="team-escudo" id="miLogo" style="border-color: var(--primary-neon);">
+                                <div class="t-name" id="miNombreEquipo" style="color: var(--primary-neon);">CARGANDO</div>
+                            </div>
+                            
+                            <div class="vs-center">
+                                <div class="vs-text">VS</div>
+                                <div class="timer-display" id="relojMatch">10:00</div>
+                                <div style="font-family:'Orbitron'; font-size:0.7rem; color:var(--text-gray); margin-top:10px; font-weight:bold;" id="matchFaseTexto">ESPERANDO RIVAL...</div>
+                            </div>
+                            
+                            <div class="team-side">
+                                <img src="https://i.imgur.com/vHqBovx.png" class="team-escudo" id="rivalLogo" style="border-color: var(--danger);">
+                                <div class="t-name" id="rivalNombreEquipo" style="color: var(--danger);">BUSCANDO...</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;" id="boxBotonesAccion">
+                            <button class="btn-ready" id="btnReady" style="grid-column: 1/-1;" onclick="marcarListo()" disabled>
+                                <i class="fas fa-spinner fa-spin"></i> CARGANDO DATOS...
+                            </button>
+                            <button class="btn-main" style="background:#00e5ff;" onclick="document.getElementById('inputVAR').click()">
+                                <i class="fas fa-camera"></i> SUBIR RESULTADO (VAR)
+                            </button>
+                            <input type="file" id="inputVAR" accept="image/*" style="display:none;" onchange="subirEvidencia(event)">
+                            <button class="btn-main" style="background:var(--danger); color:white;" onclick="reportarProblema()">
+                                <i class="fas fa-gavel"></i> DISPUTA / W.O.
+                            </button>
+                            <div id="uploadStatus" style="grid-column: 1/-1; display:none; padding:12px; background:rgba(0,229,255,0.1); border:1px solid #00e5ff; border-radius:8px; color:#00e5ff; font-family:'Orbitron'; font-size:0.85rem; text-align:center; font-weight:bold;"></div>
+                        </div>
+                        
+                        <div id="cajaEliminadoOverlay" style="display:none; background:rgba(255, 71, 87, 0.1); border: 2px solid var(--danger); color:white; padding:25px; border-radius:15px; text-align:center; font-family:'Orbitron'; font-weight:bold; font-size:1.2rem; margin-top:10px;">
+                            <i class="fas fa-times-circle" style="font-size:3rem; margin-bottom:15px; display:block; color: var(--danger);"></i>
+                            HAS SIDO ELIMINADO.<br>
+                            <span style="font-size:0.85rem; font-family:'Roboto'; font-weight:normal; color: #ccc;">Seguí los resultados del torneo en el Bracket.</span>
+                        </div>
+
+                        <div class="chat-container" id="cajaPartidoEntera">
+                            <div style="background:rgba(0, 255, 136, 0.1); padding: 8px; text-align:center; font-family:'Orbitron'; font-size:0.8rem; color:var(--primary-neon); border-bottom: 1px solid var(--border); font-weight:bold;" id="tituloChatPrivado">
+                                <i class="fas fa-lock"></i> CHAT DEL ENCUENTRO
+                            </div>
+                            <div class="chat-messages" id="chatPrivadoCaja">
+                                <div style="text-align:center; color:gray; font-size:0.8rem; margin-top:20px;">Esperando rival para habilitar chat...</div>
+                            </div>
+                            <div class="chat-input-area" id="cajaInputPrivado">
+                                <input type="text" id="chatPrivadoInput" class="chat-input" placeholder="Coordinar la sala con tu rival..." onkeypress="if(event.key === 'Enter') enviarMensajePrivado()">
+                                <button class="btn-send" onclick="enviarMensajePrivado()"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pestaña-chat" class="tab-content">
+                    <div class="chat-messages" id="chatCaja"></div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" class="chat-input" placeholder="Mensaje a toda la sala..." onkeypress="if(event.key === 'Enter') enviarMensajeGlobal()">
+                        <button class="btn-send" onclick="enviarMensajeGlobal()"><i class="fas fa-globe"></i></button>
+                    </div>
+                </div>
+
+                <div id="pestaña-bracket" class="tab-content" style="background: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');">
+                    <div id="bracketView" class="bracket-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="celebrationOverlay">
+        <button onclick="document.getElementById('celebrationOverlay').style.display='none'" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:2.5rem; cursor:pointer;">
+            <i class="fas fa-times"></i>
+        </button>
+        <i class="fas fa-trophy trophy-icon"></i>
+        <h1 style="font-family:'Orbitron'; font-size: 2.5rem; color: white; margin:0;">¡TENEMOS CAMPEÓN!</h1>
+        <h2 id="nombreCampeonFinal" style="font-family:'Orbitron'; font-size: 2rem; color: var(--primary-neon); margin-top:10px;">-</h2>
+        
+        <div style="background: rgba(255,215,0,0.1); border: 1px solid var(--lfa-gold); padding: 20px; border-radius: 15px; max-width: 600px; margin-top: 15px;">
+            <p id="textoPremioFinal" style="color: white; font-size: 1.1rem; line-height:1.5; font-weight:bold; margin:0;">
+                Si ganaste un premio en efectivo, tus LFA Coins ya están en tu Billetera Oficial del Hub. Podés retirarlas al instante.<br><br>
+                <span style="color: var(--primary-neon);">Si el torneo era GRATIS, comunicate con Soporte para reclamar tu premio.</span>
+            </p>
+            <div style="display: flex; justify-content: center; margin-top: 20px;">
+                <button class="btn-main" style="background: #9146FF; color: white; width: auto; padding: 15px 25px;" onclick="window.location.href='/dashboard';">
+                    <i class="fas fa-wallet"></i> VOLVER AL HUB Y BILLETERA
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // ⚙️ LÓGICA DE FIREBASE Y FUNCIONES
+    // ==========================================
+    function escaparHTML(t) { 
+        let d = document.createElement('div'); 
+        d.innerText = t; 
+        return d.innerHTML; 
+    }
+
+    const firebaseConfig = { 
+        apiKey: "AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I", 
+        authDomain: "somoslfa.com", 
+        projectId: "lfaofficial",
+        storageBucket: "lfaofficial.firebasestorage.app"
+    };
+    
+    firebase.initializeApp(firebaseConfig); 
+    const auth = firebase.auth(); 
+    const db = firebase.firestore(); 
+    const storage = firebase.storage();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const salaId = urlParams.get('id');
+
+    let miUID = ""; 
+    let miNombreJugador = "JUGADOR"; 
+    let datosTorneo = {}; 
+    
+    let miTeamId = null; 
+    let miTeamName = "JUGADOR"; 
+    let rivalTeamId = null; 
+    let rivalTeamName = "ESPERANDO..."; 
+    
+    let matchIdUnico = null; 
+    let cartelMatchMostrado = false; 
+    let arrayEquiposDescargados = [];
+    let estoyEliminado = false;
+
+    if(!salaId) { 
+        window.location.href="/dashboard"; 
+    }
+
+    // 🚨 EL BLINDAJE DE LOGIN
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            miUID = user.uid;
+            
+            db.collection("usuarios").doc(miUID).onSnapshot(doc => {
+                if(doc.exists) { 
+                    miNombreJugador = (doc.data().nombre || "JUGADOR").toUpperCase(); 
+                    if (document.getElementById('miNombreEquipo')) {
+                        document.getElementById('miNombreEquipo').innerText = miNombreJugador;
+                        miTeamName = miNombreJugador;
+                    }
+                }
+            });
+
+            escucharChatGlobal(); 
+            escucharSala();
+        } else { 
+            window.location.href = "/"; 
+        }
+    });
+
+    let intervaloReloj;
+    function procesarRelojServidor(startTimeMs) {
+        clearInterval(intervaloReloj); 
+        const display = document.getElementById('relojMatch');
+        
+        intervaloReloj = setInterval(() => {
+            const ahora = Date.now(); 
+            const transcurrido = Math.floor((ahora - startTimeMs) / 1000); 
+            let tiempoRestante = 600 - transcurrido;
+            
+            if (tiempoRestante <= 0) { 
+                clearInterval(intervaloReloj); 
+                display.innerText = "00:00"; 
+                display.style.color = "var(--danger)"; 
+            } else { 
+                let m = Math.floor(tiempoRestante / 60); 
+                let s = tiempoRestante % 60; 
+                display.innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`; 
+                display.style.color = ""; 
+            }
+        }, 1000);
+    }
+
+    // 💀 MOTOR DE MUERTE SÚBITA (1VS1)
+    function verificarEliminado(d, miTeam) {
+        if(!miTeam || !d.participantes) return false;
+        
+        // 🚨 SI ESTÁ ABIERTO NO SE ELIMINA A NADIE
+        if (d.estado === "abierto") return false;
+        
+        let cupos = d.cupos_totales || 4;
+        let totalRondas = Math.ceil(Math.log2(cupos));
+        if(totalRondas < 2) totalRondas = 2;
+
+        let eliminado = false;
+        let rondas = [d.participantes];
+        
+        for(let r=2; r<=totalRondas; r++) {
+            rondas.push(d['llaves_ronda'+r] || []);
+        }
+        rondas.push(d.ganador_final ? [d.ganador_final] : []); 
+
+        for(let i=0; i<rondas.length - 1; i++) {
+            let rondaActual = rondas[i];
+            let rondaSiguiente = rondas[i+1];
+
+            if(rondaActual.includes(miTeam) && rondaSiguiente.length > 0 && !rondaSiguiente.includes(miTeam)) {
+                if(d.llave_tercer_puesto && d.llave_tercer_puesto.includes(miTeam)) {
+                    if(d.ganador_tercer_puesto && d.ganador_tercer_puesto !== miTeam) {
+                        eliminado = true; 
+                    }
+                } else {
+                    eliminado = true; 
+                }
+            }
+        }
+        return eliminado;
+    }
+
+    let previoEstado = "";
+    let previoDisputa = false;
+    
+    function escucharSala() {
+        db.collection("torneos").doc(salaId).onSnapshot(async doc => {
+            if(!doc.exists) return;
+            const d = doc.data(); 
+            datosTorneo = d;
+            
+            if (d.disputa_activa && !previoDisputa) {
+                previoDisputa = true;
+                Swal.fire({ title: '⚠️ DISPUTA ACTIVA', text: 'La sala está congelada. Un administrador revisará pronto.', icon: 'warning', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            } else if (!d.disputa_activa) {
+                previoDisputa = false;
+            }
+            
+            cargarDatosIzquierda(d);
+
+            // ===============================================
+            // 🧠 ESTADO 1: ESPERANDO QUE SE LLENE EL TORNEO 1VS1
+            // ===============================================
+            if (d.estado === "abierto") {
+                document.getElementById('pantallaLobby').style.display = "flex";
+                document.getElementById('pantallaTorneoActivo').style.display = "none";
+
+                let arrPart = d.participantes || [];
+                let arrInd = d.jugadores_individuales || [];
+                let cuposAnotados = Math.max(arrPart.length, arrInd.length);
+                let cuposMaximos = d.cupos_totales;
+
+                document.getElementById('lobbyCounter').innerText = `${cuposAnotados} / ${cuposMaximos} JUGADORES`;
+                
+                previoEstado = d.estado;
+                return;
+            }
+
+            // ===============================================
+            // 🧠 ESTADO 2: EL PARTIDO ARRANCA
+            // ===============================================
+            document.getElementById('pantallaLobby').style.display = "none";
+            document.getElementById('pantallaTorneoActivo').style.display = "flex";
+
+            miTeamId = miUID; 
+            miTeamName = miNombreJugador.toUpperCase(); 
+
+            document.getElementById('miNombreEquipo').innerText = miTeamName;
+            
+            await dibujarBracketProfesional(d);
+            
+            estoyEliminado = verificarEliminado(d, miTeamId);
+
+            if(estoyEliminado) {
+                document.getElementById('cajaInputPrivado').style.display = 'none';
+                document.getElementById('cajaEliminadoOverlay').style.display = 'block';
+                document.getElementById('boxBotonesAccion').style.display = 'none'; 
+            } else {
+                document.getElementById('cajaInputPrivado').style.display = 'flex';
+                document.getElementById('cajaEliminadoOverlay').style.display = 'none';
+                document.getElementById('boxBotonesAccion').style.display = 'grid'; 
+            }
+
+            if(d.estado === 'finalizado' || d.estado === 'finalizado_premios') { 
+                let champId = d.ganador_final;
+                if(champId && previoEstado !== d.estado) { 
+                    let nomA = "CAMPEÓN"; 
+                    let eqM = arrayEquiposDescargados.find(e => e.id === champId); 
+                    if(eqM) nomA = eqM.nombre; 
+                    lanzarCelebracion(nomA, d); 
+                }
+            }
+            
+            previoEstado = d.estado;
+            
+            if(!estoyEliminado) {
+                encontrarRival(d);
+            } else {
+                matchIdUnico = null; 
+                document.getElementById('rivalNombreEquipo').innerText = "ELIMINADO"; 
+                document.getElementById('chatPrivadoCaja').innerHTML = '<div style="text-align:center; color:gray; font-size:0.8rem; margin-top:20px;">Estás fuera de competencia. Podés mirar los resultados en el Bracket.</div>';
+            }
+
+            const listos = d.jugadores_listos || [];
+            const btnR = document.getElementById('btnReady'); 
+            btnR.disabled = false; 
+
+            if (d.estado === 'finalizado' || d.estado === 'finalizado_premios' || estoyEliminado) {
+                document.getElementById('matchHeaderBox').className = "match-header-coop";
+                clearInterval(intervaloReloj); 
+                document.getElementById('relojMatch').innerText = "FINALIZADO"; 
+                document.getElementById('relojMatch').className = "timer-display finished"; 
+                
+                if(estoyEliminado) document.getElementById('relojMatch').innerText = "ELIMINADO";
+                cartelMatchMostrado = true;
+            } 
+            else if (listos.includes(miTeamId) && listos.includes(rivalTeamId)) {
+                document.getElementById('matchHeaderBox').className = "match-header-coop active-border"; 
+                document.getElementById('relojMatch').className = "timer-display";
+                
+                if(!cartelMatchMostrado && d.partido_iniciado_en) { 
+                    cartelMatchMostrado = true; 
+                    Swal.fire({ title: '¡RUGIDO LFA!', text: 'Ambos jugadores están listos. El reloj corre.', icon: 'info', background: '#161b22', color: 'white', confirmButtonColor: '#00ff88' }); 
+                }
+                
+                if (d.partido_iniciado_en) procesarRelojServidor(d.partido_iniciado_en);
+            } else {
+                document.getElementById('matchHeaderBox').className = "match-header-coop";
+                clearInterval(intervaloReloj); 
+                document.getElementById('relojMatch').innerText = "10:00"; 
+                document.getElementById('relojMatch').className = "timer-display"; 
+                cartelMatchMostrado = false;
+            }
+
+            if (listos.includes(miTeamId)) { 
+                btnR.innerHTML = "<i class='fas fa-check-circle'></i> JUGADOR LISTO"; 
+                btnR.classList.add('ready-active'); 
+            } else { 
+                btnR.innerHTML = "<i class='fas fa-hand-pointer'></i> MARCAR COMO LISTO"; 
+                btnR.classList.remove('ready-active'); 
+            }
+        });
+    }
+
+    // 🚨 BÚSQUEDA DE RIVAL (CON RECONOCIMIENTO DE BYE) 🚨
+    async function encontrarRival(d) {
+        const oldRivalId = rivalTeamId; 
+        rivalTeamId = null;
+
+        let cupos = d.cupos_totales || 4;
+        let totalRondas = Math.ceil(Math.log2(cupos));
+        if(totalRondas < 2) totalRondas = 2;
+
+        let rondaActivaArr = d.participantes || [];
+        let faseTexto = "RONDA ELIMINATORIA";
+
+        if (d.llave_tercer_puesto && d.llave_tercer_puesto.includes(miTeamId)) {
+            rondaActivaArr = d.llave_tercer_puesto;
+            faseTexto = "TERCER PUESTO";
+        } else {
+            for(let r=2; r<=totalRondas; r++) {
+                if (d['llaves_ronda'+r] && d['llaves_ronda'+r].includes(miTeamId)) {
+                    rondaActivaArr = d['llaves_ronda'+r];
+                    faseTexto = r === totalRondas ? "GRAN FINAL" : (r === totalRondas - 1 ? "SEMIFINAL" : "RONDA " + r);
+                }
+            }
+        }
+
+        document.getElementById('matchFaseTexto').innerText = faseTexto;
+
+        const miIndex = rondaActivaArr.indexOf(miTeamId);
+        if (miIndex !== -1) {
+            if (miIndex % 2 === 0) {
+                rivalTeamId = rondaActivaArr[miIndex + 1];
+            } else {
+                rivalTeamId = rondaActivaArr[miIndex - 1];
+            }
+        }
+
+        if (rivalTeamId) {
+            // SI TE TOCÓ UN BYE, AVANZÁS AUTOMÁTICAMENTE
+            if (rivalTeamId === "BYE") {
+                matchIdUnico = null;
+                document.getElementById('rivalNombreEquipo').innerText = "PASE LIBRE (BYE)";
+                document.getElementById('chatPrivadoCaja').innerHTML = '<div style="text-align:center; color:gray; font-size:0.8rem; margin-top:20px;">Tenés PASE LIBRE (BYE) en esta ronda. Avanzás automáticamente a la siguiente fase.</div>';
+                return;
+            }
+
+            matchIdUnico = miTeamId < rivalTeamId ? `${miTeamId}_${rivalTeamId}` : `${rivalTeamId}_${miTeamId}`;
+            
+            if(rivalTeamId !== oldRivalId) {
+                if(rivalTeamId.startsWith("BOT_")) {
+                    rivalTeamName = "🤖 " + rivalTeamId;
+                } else {
+                    let uMemoria = arrayEquiposDescargados.find(e => e.id === rivalTeamId);
+                    if(uMemoria) {
+                        rivalTeamName = uMemoria.nombre; 
+                    } else {
+                        try {
+                            let uDoc = await db.collection("usuarios").doc(rivalTeamId).get();
+                            rivalTeamName = uDoc.exists ? (uDoc.data().nombre || "JUGADOR RIVAL").toUpperCase() : "JUGADOR RIVAL";
+                        } catch(e) {
+                            rivalTeamName = "JUGADOR RIVAL";
+                        }
+                    }
+                }
+                
+                document.getElementById('rivalNombreEquipo').innerText = rivalTeamName;
+                
+                escucharChatPrivado(); 
+                enviarMensajeBienvenidaPrivado(rivalTeamName);
+            }
+        } else {
+            matchIdUnico = null; 
+            document.getElementById('rivalNombreEquipo').innerText = "ESPERANDO..."; 
+            document.getElementById('chatPrivadoCaja').innerHTML = '<div style="text-align:center; color:gray; font-size:0.8rem; margin-top:20px;">Esperando a que el sistema defina a tu rival...</div>';
+        }
+    }
+
+    async function enviarMensajeBienvenidaPrivado(nombreRiv) {
+        const chatRef = db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico);
+        if(!nombreRiv || nombreRiv === "ESPERANDO..." || nombreRiv === "ELIMINADO" || nombreRiv === "-") return;
+
+        const check = await chatRef.where("tipo", "==", "bienvenida_relator").get();
+        if(!check.empty) return;
+        
+        const msj = `<div class="msg-bot-priv-header"><i class="fas fa-microphone-alt"></i> RELATOR LFA</div>¡Encuentro Confirmado!<br>🛡️ <b>${miTeamName}</b> VS <b>${nombreRiv}</b><br><br>Pasen los datos para arrancar el partido por acá.<br>⏱️ <b style="color:var(--danger);">Tolerancia 10 Minutos.</b>`;
+        
+        try { 
+            await chatRef.add({ texto: msj, autorId: "BOT", autorNombre: "RELATOR", timestamp: firebase.firestore.FieldValue.serverTimestamp(), tipo: "bienvenida_relator" }); 
+        } catch(e) {}
+    }
+
+    async function marcarListo() {
+        if(estoyEliminado || !miTeamId) {
+            Swal.fire({ title: 'No permitido', text: 'No puedes marcar como listo. Fuera de competencia.', icon: 'error', background: '#161b22', color: 'white', confirmButtonColor: '#ff4757' });
+            return;
+        }
+        
+        if(!rivalTeamId) {
+            Swal.fire({ title: 'Sin rival', text: 'Aguarda a que se asigne tu rival.', icon: 'info', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            return;
+        }
+        
+        const btnReady = document.getElementById('btnReady');
+        btnReady.disabled = true;
+        btnReady.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Marcando como listo...";
+        
+        try {
+            const listos = datosTorneo.jugadores_listos || [];
+            if(listos.includes(miTeamId)) {
+                Swal.fire({ title: 'Ya marcado', text: 'Ya estás registrado como listo.', icon: 'info', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+                btnReady.disabled = false;
+                return;
+            }
+            
+            await db.collection("torneos").doc(salaId).update({ 
+                jugadores_listos: firebase.firestore.FieldValue.arrayUnion(miTeamId) 
+            });
+            
+            if (matchIdUnico) { 
+                await db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico).add({ 
+                    texto: `✅ ${miTeamName.toUpperCase()} está listo para jugar.`, 
+                    autorId: miTeamId, 
+                    autorNombre: miNombreJugador, 
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                    tipo: "sistema_privado" 
+                }); 
+            }
+            
+            Swal.fire({
+                title: '¡Listo!',
+                text: 'Aguardando a que tu rival también esté listo...',
+                icon: 'success',
+                background: '#161b22',
+                color: 'white',
+                confirmButtonColor: '#00ff88',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            
+        } catch(e) {
+            Swal.fire({ title: 'Error', text: 'No se pudo marcar como listo: ' + e.message, icon: 'error', background: '#161b22', color: 'white', confirmButtonColor: '#ff4757' });
+            btnReady.disabled = false;
+        }
+    }
+
+    function cambiarPestaña(pestaña) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        event.currentTarget.classList.add('active'); 
+        document.getElementById('pestaña-' + pestaña).classList.add('active');
+        
+        if(pestaña === 'chat') { 
+            const c = document.getElementById('chatCaja'); c.scrollTop = c.scrollHeight; 
+        }
+        if(pestaña === 'partido') { 
+            const c = document.getElementById('chatPrivadoCaja'); c.scrollTop = c.scrollHeight; 
+        }
+    }
+
+    function cargarDatosIzquierda(d) {
+        document.getElementById('salaTitulo').innerText = d.titulo || 'TORNEO LFA';
+        document.getElementById('salaTags').innerHTML = `${d.juego || ''} | ${d.plataforma || 'CROSSPLAY'} | ${d.modo || ''}`;
+        
+        let reglas = `
+            <li style="color:var(--danger); font-weight:bold; margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:5px;">⏱️ Tolerancia: 10 Minutos</li>
+            <li><b>Formato:</b> 1VS1 INDIVIDUAL</li>
+            <li><b>Duración:</b> 10 Minutos</li>
+            <li><b>Condición:</b> Excelente</li>
+            <li><b>Tiempo Extra/Penales:</b> Solo Final</li>
+            <li><b>Subir Foto:</b> Obligatorio en Pestaña El Encuentro.</li>
+            <li><b>Llaves:</b> Octavos, Cuartos, Semi, Tercer Puesto y Final.</li>
+        `;
+        document.getElementById('listaConfigOficial').innerHTML = reglas;
+    }
+
+    // ==========================================
+    // 🚀 LA FÓRMULA DEL BRACKET PERFECTO (1VS1 CON BYES)
+    // ==========================================
+    async function dibujarBracketProfesional(d) {
+        const container = document.getElementById('bracketView');
+        const partsIds = d.participantes || [];
+        
+        let totalEquiposEnTorneo = partsIds.length > 0 ? partsIds.length : (d.cupos_totales || 4); 
+
+        if(partsIds.length === 0) { 
+            container.innerHTML = '<div style="color:gray; text-align:center; padding: 20px; font-size: 1.5rem;">Esperando que se arme el bracket...</div>'; 
+            return; 
+        }
+
+        let equipos = [];
+        
+        // 1VS1: Busca los nombres en Usuarios
+        for (let i = 0; i < partsIds.length; i++) {
+            let pid = partsIds[i];
+            if (pid) {
+                if (pid === "BYE") {
+                    equipos.push({ id: pid, nombre: "PASE LIBRE (BYE)", logo: "" });
+                } else if(pid.startsWith("BOT_")) {
+                    equipos.push({ id: pid, nombre: "🤖 " + pid, logo: "https://i.imgur.com/vHqBovx.png" });
+                } else {
+                    try { 
+                        const uDoc = await db.collection("usuarios").doc(pid).get();
+                        if(uDoc.exists) {
+                            equipos.push({ id: pid, nombre: uDoc.data().nombre.toUpperCase(), logo: "https://i.imgur.com/vHqBovx.png" });
+                        } else {
+                            equipos.push({ id: pid, nombre: "JUGADOR", logo: "https://i.imgur.com/vHqBovx.png" });
+                        }
+                    } catch(e) { 
+                        equipos.push({ id: pid, nombre: "JUGADOR", logo: "https://i.imgur.com/vHqBovx.png" }); 
+                    }
+                }
+            } else {
+                equipos.push({ id: null, nombre: "ESPERANDO...", logo: "" });
+            }
+        }
+        
+        arrayEquiposDescargados = equipos;
+
+        let powerOf2 = Math.pow(2, Math.ceil(Math.log2(totalEquiposEnTorneo)));
+        let totalRondas = Math.log2(powerOf2); 
+        if(totalRondas < 2) totalRondas = 2; 
+        
+        let rondasData = []; 
+        rondasData[1] = partsIds; 
+        
+        for(let r = 2; r <= totalRondas; r++) {
+            rondasData[r] = d['llaves_ronda' + r] || [];
+        }
+        
+        const campeonFinal = d.ganador_final || null; 
+        let isFinalFinished = (d.estado === 'finalizado' || d.estado === 'finalizado_premios');
+        
+        let html = '';
+        
+        for(let ronda = 1; ronda <= totalRondas; ronda++) {
+            let numMatches = Math.pow(2, totalRondas - ronda); 
+            html += `<div class="bracket-col round-${ronda}">`;
+            
+            let pInThis = rondasData[ronda] || []; 
+            let pInNext = (ronda === totalRondas) ? [campeonFinal] : (rondasData[ronda+1] || []);
+
+            if(ronda === totalRondas) {
+                // LA GRAN FINAL
+                let p1_id = pInThis[0] || null; 
+                let p2_id = pInThis[1] || null;
+                let p1_eq = equipos.find(e=>e.id===p1_id) || {nombre:'TBD'}; 
+                let p2_eq = equipos.find(e=>e.id===p2_id) || {nombre:'TBD'};
+                
+                let c1 = (campeonFinal === p1_id && p1_id) ? 'winner' : (campeonFinal ? 'loser' : ''); 
+                let c2 = (campeonFinal === p2_id && p2_id) ? 'winner' : (campeonFinal ? 'loser' : '');
+                
+                let lbl1 = (isFinalFinished && c1 === 'winner') ? '<span class="badge-pos badge-campeon">🏆 1° PUESTO</span>' : ((isFinalFinished && c1 === 'loser') ? '<span class="badge-pos badge-subcampeon">🥈 2° PUESTO</span>' : '');
+                let lbl2 = (isFinalFinished && c2 === 'winner') ? '<span class="badge-pos badge-campeon">🏆 1° PUESTO</span>' : ((isFinalFinished && c2 === 'loser') ? '<span class="badge-pos badge-subcampeon">🥈 2° PUESTO</span>' : '');
+
+                html += `
+                <div class="matchup final">
+                    <div class="final-header"><i class="fas fa-trophy"></i> GRAN FINAL</div>
+                    <div class="matchup-player ${c1}"><i class="fas fa-shield-alt"></i> <span style="position:relative; z-index:2;">${p1_eq.nombre.substring(0,18)}</span> ${lbl1}</div>
+                    <div class="matchup-player ${c2}"><i class="fas fa-shield-alt"></i> <span style="position:relative; z-index:2;">${p2_eq.nombre.substring(0,18)}</span> ${lbl2}</div>
+                </div>`;
+                
+                // 🥉 TERCER PUESTO
+                if (d.llave_tercer_puesto && d.llave_tercer_puesto.length === 2) {
+                    let p3_1 = d.llave_tercer_puesto[0];
+                    let p3_2 = d.llave_tercer_puesto[1];
+                    let p3_1_name = equipos.find(e=>e.id===p3_1)?.nombre || 'TBD';
+                    let p3_2_name = equipos.find(e=>e.id===p3_2)?.nombre || 'TBD';
+                    
+                    let c3_1 = (d.ganador_tercer_puesto === p3_1 && p3_1) ? 'winner' : (d.ganador_tercer_puesto ? 'loser' : '');
+                    let c3_2 = (d.ganador_tercer_puesto === p3_2 && p3_2) ? 'winner' : (d.ganador_tercer_puesto ? 'loser' : '');
+
+                    html += `
+                    <div class="matchup final" style="margin-top:40px; border-color:#cd7f32; box-shadow: 0 0 15px rgba(205,127,50,0.2);">
+                        <div class="final-header" style="background: linear-gradient(90deg, #8b4513, #cd7f32);"><i class="fas fa-medal"></i> TERCER PUESTO</div>
+                        <div class="matchup-player ${c3_1}"><i class="fas fa-shield-alt"></i> <span>${p3_1_name.substring(0,18)}</span></div>
+                        <div class="matchup-player ${c3_2}"><i class="fas fa-shield-alt"></i> <span>${p3_2_name.substring(0,18)}</span></div>
+                    </div>`;
+                }
+
+            } else {
+                for(let m = 0; m < numMatches; m++) {
+                    let p1_id = pInThis[m*2] || null; 
+                    let p2_id = pInThis[m*2+1] || null;
+                    
+                    let p1_eq = equipos.find(e=>e.id===p1_id) || {nombre:'TBD'}; 
+                    let p2_eq = equipos.find(e=>e.id===p2_id) || {nombre:'TBD'};
+                    
+                    let winId = pInNext[m] || null; 
+                    
+                    let c1 = (winId === p1_id && p1_id) ? 'winner' : (winId ? 'loser' : ''); 
+                    let c2 = (winId === p2_id && p2_id) ? 'winner' : (winId ? 'loser' : '');
+
+                    html += `
+                    <div class="matchup">
+                        <div class="matchup-player ${c1}"><i class="fas fa-shield-alt"></i> <span>${p1_eq.nombre.substring(0,18)}</span></div>
+                        <div class="matchup-player ${c2}"><i class="fas fa-shield-alt"></i> <span>${p2_eq.nombre.substring(0,18)}</span></div>
+                    </div>`;
+                }
+            } 
+            html += `</div>`;
+        }
+        
+        let champName = 'POR DEFINIR'; 
+        let champIcon = '<i class="fas fa-question" style="color:gray;"></i>';
+        let isDecided = false;
+
+        if(campeonFinal) { 
+            isDecided = true; 
+            let eqC = equipos.find(e=>e.id===campeonFinal); 
+            if(eqC) {
+                champName = eqC.nombre; 
+            }
+            champIcon = '<i class="fas fa-trophy" style="color:gold; filter: drop-shadow(0 0 20px gold);"></i>'; 
+        }
+
+        html += `
+        <div class="bracket-col round-champion">
+            <div class="champion-box ${isDecided?'decided':''}">
+                <div style="font-size:4rem; margin-bottom:15px; ${isDecided?'animation: popIn 1s ease-out;':''}">${champIcon}</div>
+                <div style="font-size:0.9rem; color:var(--warning); font-weight:bold; margin-bottom:5px; font-family:'Orbitron'; letter-spacing:2px; ${isDecided?'text-shadow: 0 0 10px rgba(255,215,0,0.5);':''}">🏆 CAMPEÓN DEFINITIVO</div>
+                <div style="font-size:1.4rem; color:white; font-weight:900; word-break: break-all; ${isDecided?'text-shadow: 0 0 10px rgba(255,255,255,0.5);':''}">${champName.toUpperCase()}</div>
+            </div>
+        </div>`;
+        
+        container.innerHTML = html;
+    }
+
+    async function enviarMensajeGlobal() {
+        const txt = document.getElementById('chatInput').value.trim(); 
+        if(!txt) return; 
+        document.getElementById('chatInput').value = "";
+        
+        try { 
+            await db.collection("torneos").doc(salaId).collection("mensajes").add({ texto: escaparHTML(txt), autorId: miUID, autorNombre: miNombreJugador, timestamp: firebase.firestore.FieldValue.serverTimestamp(), tipo: "chat" }); 
+        } catch(e) {}
+    }
+
+    function escucharChatGlobal() {
+        db.collection("torneos").doc(salaId).collection("mensajes").orderBy("timestamp", "asc").onSnapshot(snap => {
+            let html = `<div class="msg msg-bot-priv" style="text-align:center;">SALA DE ESPERA GLOBAL</div>`;
+            snap.forEach(doc => { 
+                const m = doc.data(); 
+                if(m.autorId === miUID) { 
+                    html += `<div class="msg msg-yo"><div class="msg-autor">TÚ</div>${m.texto}</div>`; 
+                } else { 
+                    html += `<div class="msg msg-rival"><div class="msg-autor" style="color:var(--primary-neon);">${m.autorNombre.toUpperCase()}</div>${m.texto}</div>`; 
+                } 
+            });
+            document.getElementById('chatCaja').innerHTML = html; 
+            document.getElementById('chatCaja').scrollTop = 9999;
+        });
+    }
+
+    async function enviarMensajePrivado() {
+        const txt = document.getElementById('chatPrivadoInput').value.trim(); 
+        if(!txt || !matchIdUnico || estoyEliminado) return; 
+        document.getElementById('chatPrivadoInput').value = "";
+        
+        try { 
+            await db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico).add({ texto: escaparHTML(txt), autorId: miTeamId, autorNombre: miNombreJugador, timestamp: firebase.firestore.FieldValue.serverTimestamp(), tipo: "chat" }); 
+        } catch(e) {}
+    }
+
+    function escucharChatPrivado() {
+        if(!matchIdUnico) return;
+        db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico).orderBy("timestamp", "asc").onSnapshot(snap => {
+            let html = `<div class="msg msg-bot-priv" style="text-align:center;">COORDINA LA SALA ACÁ CON TU RIVAL</div>`;
+            snap.forEach(doc => {
+                const m = doc.data();
+                if(m.tipo === "sistema_privado" || m.tipo === "bienvenida_relator") { 
+                    html += `<div class="msg msg-bot-priv" style="text-align:center; color: #00e5ff; font-weight:bold;">${m.texto}</div>`; 
+                } 
+                else if (m.autorId === miTeamId) { 
+                    html += `<div class="msg msg-yo"><div class="msg-autor">${m.autorNombre.toUpperCase()}</div>${m.texto}${m.imagen_url ? `<img src="${m.imagen_url}" class="chat-thumb" onclick="ampliarImagen('${m.imagen_url}')">` : ''}</div>`; 
+                } 
+                else { 
+                    html += `<div class="msg msg-rival"><div class="msg-autor" style="color:#00e5ff;">${m.autorNombre.toUpperCase()}</div>${m.texto}${m.imagen_url ? `<img src="${m.imagen_url}" class="chat-thumb" onclick="ampliarImagen('${m.imagen_url}')">` : ''}</div>`; 
+                }
+            });
+            document.getElementById('chatPrivadoCaja').innerHTML = html; 
+            document.getElementById('chatPrivadoCaja').scrollTop = 9999;
+        });
+    }
+
+    async function subirEvidencia(event) {
+        if(estoyEliminado || !miTeamId) {
+            Swal.fire({ title: 'No permitido', text: 'Estás eliminado o no eres jugador válido.', icon: 'error', background: '#161b22', color: 'white', confirmButtonColor: '#ff4757' });
+            return;
+        }
+        if(!datosTorneo.jugadores_listos || datosTorneo.jugadores_listos.length < 2) {
+            Swal.fire({ title: 'Partido no iniciado', text: 'Ambos jugadores deben estar listos primero.', icon: 'warning', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            return;
+        }
+        
+        const file = event.target.files[0]; 
+        if(!file) return;
+        if(!file.type.startsWith('image/')) {
+            Swal.fire({ title: 'Archivo inválido', text: 'Seleccioná una imagen válida.', icon: 'warning', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            event.target.value = '';
+            return;
+        }
+        
+        const status = document.getElementById('uploadStatus'); 
+        status.style.display = 'block'; 
+        status.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Comprimiendo imagen...";
+        
+        try {
+            const opt = { maxSizeMB: 0.4, maxWidthOrHeight: 1200 }; 
+            const cFile = await imageCompression(file, opt);
+            
+            status.innerHTML = "<i class='fas fa-cloud-upload-alt'></i> Subiendo a VAR...";
+            const sRef = storage.ref(`var_evidencias/${salaId}/${miTeamId}_${Date.now()}.jpg`); 
+            await sRef.put(cFile); 
+            const url = await sRef.getDownloadURL();
+            
+            status.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Registrando en base de datos...";
+            
+            await db.collection("reportes_ia").add({ 
+                torneo_id: salaId, 
+                jugador_uid: miTeamId, 
+                jugador_nombre: miTeamName, 
+                imagen_url: url, 
+                estado: "procesando", 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                match_id: matchIdUnico
+            });
+            
+            await db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico).add({ 
+                texto: `📸 ${miNombreJugador.toUpperCase()} subió el resultado al VAR.`, 
+                imagen_url: url, 
+                autorId: miTeamId, 
+                autorNombre: miNombreJugador, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                tipo: "resultado_var" 
+            });
+            
+            status.style.background = "rgba(0,255,136,0.1)";
+            status.style.borderColor = "#00ff88";
+            status.innerHTML = "<i class='fas fa-check-circle'></i> ✓ Resultado enviado al VAR"; 
+            setTimeout(() => status.style.display = 'none', 4000); 
+            document.getElementById('inputVAR').value = "";
+            
+            Swal.fire({ 
+                title: '¡Éxito!', 
+                text: 'Tu resultado fue enviado al VAR. Aguardando decisión...', 
+                icon: 'success', 
+                background: '#161b22', 
+                color: 'white', 
+                confirmButtonColor: '#00ff88',
+                timer: 3000
+            });
+        } catch(e) { 
+            status.style.background = "rgba(255,71,87,0.1)";
+            status.style.borderColor = "#ff4757";
+            status.innerHTML = "<i class='fas fa-exclamation-circle'></i> Error al subir. Reintenta.";
+            console.error(e);
+            Swal.fire({ 
+                title: 'Error de subida', 
+                text: 'No se pudo enviar la foto. ' + e.message, 
+                icon: 'error', 
+                background: '#161b22', 
+                color: 'white', 
+                confirmButtonColor: '#ff4757' 
+            });
+        }
+    }
+
+    async function reportarProblema() {
+        if(estoyEliminado) {
+            Swal.fire({ title: 'Fuera de competencia', text: 'No puedes reportar disputas si estás eliminado.', icon: 'warning', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            return;
+        }
+        
+        if(!matchIdUnico) {
+            Swal.fire({ title: 'Sin rival', text: 'Necesitas un rival asignado para reportar una disputa.', icon: 'info', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            return;
+        }
+        
+        if(datosTorneo.disputa_activa) {
+            Swal.fire({ title: 'Disputa en curso', text: 'Ya hay una disputa activa en este torneo. Aguarda al Admin.', icon: 'warning', background: '#161b22', color: 'white', confirmButtonColor: '#ffd700' });
+            return;
+        }
+        
+        Swal.fire({
+            title: '¿Reportar un problema?',
+            html: `
+                <div style="text-align: left; color: white;">
+                    <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                        <input type="radio" name="tipoDisputa" value="lag" checked> LAG / CONEXIÓN
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                        <input type="radio" name="tipoDisputa" value="trampa"> SOSPECHA DE TRAMPA
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                        <input type="radio" name="tipoDisputa" value="wo"> W.O. (Rival no aparece)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                        <input type="radio" name="tipoDisputa" value="otro"> OTRO
+                    </label>
+                </div>
+                <textarea id="detalleDisputa" placeholder="Describe el problema..." style="width: 90%; height: 80px; padding: 10px; margin-top: 15px; background: #161b22; border: 1px solid #30363d; color: white; border-radius: 8px; font-family: 'Roboto';"></textarea>
+            `,
+            background: '#161b22',
+            color: 'white',
+            confirmButtonColor: '#ff4757',
+            confirmButtonText: 'REPORTAR DISPUTA',
+            cancelButtonColor: '#30363d',
+            showCancelButton: true,
+            didOpen: () => {
+                document.getElementById('detalleDisputa').focus();
+            },
+            preConfirm: async () => {
+                const tipo = document.querySelector('input[name="tipoDisputa"]:checked').value;
+                const detalle = document.getElementById('detalleDisputa').value.trim();
+                
+                if(!detalle || detalle.length < 5) {
+                    Swal.showValidationMessage('Describe el problema con más detalle (mínimo 5 caracteres)');
+                    return false;
+                }
+                
+                return { tipo, detalle };
+            }
+        }).then(async (result) => {
+            if(result.isConfirmed) {
+                try {
+                    Swal.fire({
+                        title: 'Registrando disputa...',
+                        didOpen: () => Swal.showLoading(),
+                        background: '#161b22',
+                        color: 'white',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    });
+                    
+                    const tipoProblema = result.value.tipo;
+                    const detalles = result.value.detalle;
+                    
+                    await db.collection("torneos").doc(salaId).update({ 
+                        disputa_activa: true, 
+                        disputado_por: miTeamId,
+                        tipo_disputa: tipoProblema,
+                        detalles_disputa: escaparHTML(detalles),
+                        timestamp_disputa: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    await db.collection("torneos").doc(salaId).collection("chat_" + matchIdUnico).add({ 
+                        texto: `⚠️ ¡DISPUTA ABIERTA! - ${tipoProblema.toUpperCase()}. Sala congelada. Un administrador revisará pronto.`, 
+                        detalles: escaparHTML(detalles),
+                        autorId: "BOT", 
+                        autorNombre: "SISTEMA", 
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                        tipo: "alerta_disputa"
+                    });
+                    
+                    Swal.fire({
+                        title: '✓ Disputa registrada',
+                        text: 'La sala está congelada. Un administrador revisará en breve.',
+                        icon: 'success',
+                        background: '#161b22',
+                        color: 'white',
+                        confirmButtonColor: '#00ff88'
+                    });
+                } catch(e) {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'No se pudo registrar la disputa: ' + e.message,
+                        icon: 'error',
+                        background: '#161b22',
+                        color: 'white',
+                        confirmButtonColor: '#ff4757'
+                    });
+                }
+            }
+        });
+    }
+
+    function lanzarCelebracion(nombre, d) {
+        document.getElementById('nombreCampeonFinal').innerText = nombre.toUpperCase();
+        document.getElementById('celebrationOverlay').style.display = 'flex';
+        var dur = 5*1000; var aEnd = Date.now()+dur; var def = { startVelocity:30, spread:360, ticks:60, zIndex:10000 };
+        function r(min, max) { return Math.random()*(max-min)+min; }
+        var i = setInterval(function() {
+            var t = aEnd - Date.now(); 
+            if (t <= 0) return clearInterval(i); 
+            var p = 50 * (t/dur);
+            confetti(Object.assign({}, def, { particleCount: p, origin: { x: r(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, def, { particleCount: p, origin: { x: r(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+    }
+</script>
+</body>
+</html>
