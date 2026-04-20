@@ -8,6 +8,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
+  updateProfile,
   GoogleAuthProvider,
   FacebookAuthProvider,
   AuthError,
@@ -20,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import LfaModal, { type LfaModalHandle } from '@/app/_components/LfaModal';
+import TermsModal from '@/app/auth/_components/TermsModal';
 import type { Translations } from '@/app/_components/LangDropdown';
 import type { RegionDetectionResult } from '@/lib/types';
 

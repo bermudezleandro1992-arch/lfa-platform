@@ -53,13 +53,13 @@ export default function LfaTV({ uid }: { uid: string }) {
         snap.forEach(d => {
           const data = d.data() as Streamer;
           if (data.twitch_canal || data.kick_canal || data.youtube_canal) {
-            list.push({ uid: d.id, ...data });
+            list.push({ ...data, uid: d.id });
           }
         });
         // También traer los que solo tienen kick o youtube
         const snap2 = await getDocs(query(collection(db, 'usuarios'), where('kick_canal', '!=', ''), limit(20)));
         snap2.forEach(d => {
-          if (!list.find(s => s.uid === d.id)) list.push({ uid: d.id, ...d.data() as Streamer });
+          if (!list.find(s => s.uid === d.id)) list.push({ ...d.data() as Streamer, uid: d.id });
         });
         setStreamers(list.filter(s => s.uid !== 'somoslfa_oficial').slice(0, 20));
       } catch { /* ok */ }
