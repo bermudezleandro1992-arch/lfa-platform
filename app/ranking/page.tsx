@@ -325,6 +325,65 @@ export default function RankingPage() {
             </div>
           </div>
 
+          {/* ── PANEL FAIR PLAY ─────────────────────────────── */}
+          <div style={{ marginTop: 32, background: '#161b22', border: '1px solid #30363d', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '13px 18px', borderBottom: '1px solid #30363d', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.82rem', fontWeight: 900 }}>⚖️ SISTEMA FAIR PLAY — CÓMO FUNCIONA</span>
+            </div>
+            <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+
+              {/* Cómo sumar */}
+              <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.72rem', fontWeight: 900, marginBottom: 10 }}>📈 CÓMO SUBIR PUNTOS</div>
+                {[
+                  { pts: '+2', txt: 'Confirmar el resultado del rival' },
+                  { pts: '+1', txt: 'Reportar tu resultado correctamente' },
+                  { pts: '+5', txt: 'Completar 10 torneos sin penalidades' },
+                ].map(r => (
+                  <div key={r.pts} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ background: 'rgba(0,255,136,0.15)', color: '#00ff88', borderRadius: 6, padding: '2px 8px', fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', fontWeight: 900, flexShrink: 0 }}>{r.pts}</span>
+                    <span style={{ color: '#c9d1d9', fontSize: '0.78rem' }}>{r.txt}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cómo bajar */}
+              <div style={{ background: 'rgba(255,71,87,0.04)', border: '1px solid rgba(255,71,87,0.15)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.72rem', fontWeight: 900, marginBottom: 10 }}>📉 CÓMO PERDER PUNTOS</div>
+                {[
+                  { pts: '-15', txt: 'Reportar resultado falso (VAR te da la razón al rival)' },
+                  { pts: '-15', txt: 'No reportar resultado en tiempo y forma' },
+                  { pts: '-5',  txt: 'Abandonar una sala ya inscripto sin motivo' },
+                ].map(r => (
+                  <div key={r.pts + r.txt} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ background: 'rgba(255,71,87,0.15)', color: '#ff4757', borderRadius: 6, padding: '2px 8px', fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', fontWeight: 900, flexShrink: 0 }}>{r.pts}</span>
+                    <span style={{ color: '#c9d1d9', fontSize: '0.78rem' }}>{r.txt}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Niveles */}
+              <div style={{ background: 'rgba(255,215,0,0.03)', border: '1px solid rgba(255,215,0,0.12)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.72rem', fontWeight: 900, marginBottom: 10 }}>🏷️ NIVELES DE FAIR PLAY</div>
+                {[
+                  { rango: '80–100%', color: '#00ff88', label: 'EXCELENTE',    desc: 'Acceso completo' },
+                  { rango: '50–79%',  color: '#ffd700', label: 'REGULAR',      desc: 'Acceso normal' },
+                  { rango: '< 50%',   color: '#ff4757', label: 'RESTRINGIDO',  desc: 'No podés inscribirte' },
+                ].map(n => (
+                  <div key={n.rango} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ color: n.color, fontFamily: "'Orbitron',sans-serif", fontSize: '0.68rem', fontWeight: 900, minWidth: 56 }}>{n.rango}</span>
+                    <span style={{ background: `${n.color}15`, color: n.color, border: `1px solid ${n.color}40`, borderRadius: 4, padding: '1px 6px', fontSize: '0.62rem', fontWeight: 700 }}>{n.label}</span>
+                    <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>{n.desc}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, color: '#8b949e', fontSize: '0.7rem', lineHeight: 1.5 }}>
+                  💡 El FP inicia en 100%. Solo el CEO puede restaurarlo manualmente.
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
     </>

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import dynamic from 'next/dynamic';
+
+const HubLfaTV = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
 
 /* ─── Tipos ───────────────────────────────────────────── */
 interface UserData {
@@ -155,27 +158,40 @@ export default function HubPage() {
         {/* ── CONTENIDO ────────────────────────────────── */}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 16px 60px' }}>
 
-          {/* Accesos rápidos → Dashboard */}
-          <div style={{ marginBottom: 40, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+          {/* ── LFA TV embebida ──────────────────────────── */}
+          <HubLfaTV />
+
+          {/* ── Accesos rápidos ──────────────────────────── */}
+          <div style={{ marginBottom: 32, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <button
-              onClick={() => router.push('/dashboard?tab=tv')}
-              style={{ background: '#161b22', border: '2px solid #ff475740', borderRadius: 14, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff4757'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #ff475730'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff475740'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
-            >
-              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📺</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 900, color: '#ff4757', marginBottom: 6 }}>LFA TV</div>
-              <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Stream en vivo oficial</div>
-            </button>
-            <button
-              onClick={() => router.push('/dashboard?tab=ranking')}
-              style={{ background: '#161b22', border: '2px solid #ffd70040', borderRadius: 14, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white' }}
+              onClick={() => router.push('/dashboard?tab=cantina')}
+              style={{ background: '#161b22', border: '2px solid #ffd70040', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd700'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #ffd70030'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd70040'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
             >
-              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🏆</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 900, color: '#ffd700', marginBottom: 6 }}>RANKING</div>
-              <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Top jugadores globales</div>
+              <div style={{ fontSize: '2rem' }}>🍺</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#ffd700' }}>CANTINA</div>
+              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Chat de la comunidad</div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=ranking')}
+              style={{ background: '#161b22', border: '2px solid #58a6ff40', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #58a6ff30'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff40'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: '2rem' }}>🏆</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#58a6ff' }}>RANKING</div>
+              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Hall of Fame global</div>
+            </button>
+            <button
+              onClick={() => router.push('/perfil')}
+              style={{ background: '#161b22', border: '2px solid #00ff8840', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#00ff88'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #00ff8830'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#00ff8840'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: '2rem' }}>👤</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#00ff88' }}>MI PERFIL</div>
+              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Stats · Fair Play · Wallet</div>
             </button>
           </div>
 

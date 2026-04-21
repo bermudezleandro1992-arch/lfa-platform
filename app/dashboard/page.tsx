@@ -9,10 +9,9 @@ import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
 import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
 
-const RankingInline    = dynamic(() => import('@/app/_components/dashboard/RankingInline'),    { ssr: false });
-const LfaTV            = dynamic(() => import('@/app/_components/dashboard/LfaTV'),            { ssr: false });
-const LiveMatches      = dynamic(() => import('@/app/_components/dashboard/LiveMatches'),      { ssr: false });
-const RecentChampions  = dynamic(() => import('@/app/_components/dashboard/RecentChampions'),  { ssr: false });
+const RankingInline = dynamic(() => import('@/app/_components/dashboard/RankingInline'), { ssr: false });
+const LfaTV         = dynamic(() => import('@/app/_components/dashboard/LfaTV'),         { ssr: false });
+const CantinaChat   = dynamic(() => import('@/app/_components/dashboard/CantinaChat'),   { ssr: false });
 
 export default function DashboardPage() {
   return (
@@ -27,15 +26,12 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
-  const [tab,   setTab]   = useState<'arena'|'live'|'ranking'|'tv'|'champions'>(() => {
-    // Se inicializa con 'arena'; el useEffect lo ajusta según ?tab=
-    return 'arena';
-  });
+  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'|'cantina'>(() => 'arena');
 
   // Leer ?tab= de la URL al montar
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'ranking' || t === 'tv' || t === 'live' || t === 'champions') setTab(t as any);
+    if (t === 'ranking' || t === 'tv' || t === 'cantina') setTab(t as 'ranking'|'tv'|'cantina');
   }, [searchParams]);
 
   useEffect(() => {
@@ -87,17 +83,14 @@ function DashboardContent() {
         <button onClick={() => setTab('arena')} style={{ background:'transparent', border:'none', borderBottom: tab==='arena' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='arena' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           ⚔️ ARENA 1VS1
         </button>
-        <button onClick={() => setTab('live')} style={{ background:'transparent', border:'none', borderBottom: tab==='live' ? '2px solid #ff4757' : '2px solid transparent', color: tab==='live' ? '#ff4757' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          🔴 EN JUEGO
-        </button>
-        <button onClick={() => setTab('champions')} style={{ background:'transparent', border:'none', borderBottom: tab==='champions' ? '2px solid #ffd700' : '2px solid transparent', color: tab==='champions' ? '#ffd700' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          🏆 CAMPEONES
-        </button>
         <button onClick={() => setTab('ranking')} style={{ background:'transparent', border:'none', borderBottom: tab==='ranking' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ranking' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           📊 RANKING
         </button>
         <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           📺 LFA TV
+        </button>
+        <button onClick={() => setTab('cantina')} style={{ background:'transparent', border:'none', borderBottom: tab==='cantina' ? '2px solid #ffd700' : '2px solid transparent', color: tab==='cantina' ? '#ffd700' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
+          🍺 CANTINA
         </button>
         <div style={{ flex: 1 }} />
         <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
@@ -105,16 +98,19 @@ function DashboardContent() {
         </Link>
       </div>
 
-      {tab === 'arena'     && (
+      {tab === 'arena'   && (
         <>
           <BuscarSala />
           <DashboardFooter />
         </>
       )}
-      {tab === 'live'      && <LiveMatches />}
-      {tab === 'champions' && <RecentChampions />}
-      {tab === 'ranking'   && <RankingInline />}
-      {tab === 'tv'        && <LfaTV uid={uid} />}
+      {tab === 'ranking' && <RankingInline />}
+      {tab === 'tv'      && <LfaTV uid={uid} />}
+      {tab === 'cantina' && (
+        <div style={{ background:'#0b0e14', minHeight:'calc(100vh - 54px)', display:'flex', flexDirection:'column' }}>
+          <CantinaChat uid={uid} />
+        </div>
+      )}
     </>
   );
 }
