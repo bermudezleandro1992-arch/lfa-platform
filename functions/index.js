@@ -1655,6 +1655,94 @@ exports.weekendSpawn = onSchedule({
     await runWeekendSpawn();
 });
 
+// ─── checkWaitingRooms ──────────────────────────────────────────────────────
+// Runs every 5 min. After 10 min with no fill:
+//   - Paid rooms with players → sets waiting_alert_sent + waiting_expires_at
+//   - Paid rooms with 0 players → deletes them
+//   - Free rooms → closes/deletes them (no refund needed)
+// Rooms where waiting_expires_at has passed → closes and auto-refunds all players
+exports.checkWaitingRooms = onSchedule({
+    schedule: "every 5 minutes",
+    timeZone: "UTC",
+    region:   "us-central1",
+}, async () => {
+    const now       = Date.now();
+    const alertMs   = 10 * 60 * 1000; // 10 min before alert
+    const extendMs  = 10 * 60 * 1000; // 10 min extension window
+
+    const snap = await db.collection("tournaments").where("status", "==", "OPEN").get();
+    if (snap.empty) return;
+
+    // Firestore batch limit = 500 ops; chunk if needed
+    const ops = [];
+
+    snap.forEach(docSnap => {
+        const t       = docSnap.data();
+        const created = t.created_at?.toMillis?.() ?? 0;
+        const players = Array.isArray(t.players) ? t.players : [];
+        const isFree  = (t.entry_fee ?? 0) === 0;
+        const alerted = t.waiting_alert_sent === true;
+        const expMs   = t.waiting_expires_at?.toMillis?.() ?? 0;
+
+        // ── 1. Room already alerted ─────────────────────────────────────────
+        if (alerted) {
+            if (expMs > 0 && expMs < now) {
+                // Window expired → close room and refund all players
+                ops.push({ ref: docSnap.ref, action: "close", players, entry_fee: t.entry_fee ?? 0, isFree });
+            }
+            return; // still within extension window, skip
+        }
+
+        // ── 2. Room not yet alerted ─────────────────────────────────────────
+        if (created === 0 || now - created < alertMs) return; // too soon
+
+        if (isFree) {
+            ops.push({ ref: docSnap.ref, action: players.length === 0 ? "delete" : "close", players, entry_fee: 0, isFree: true });
+        } else {
+            if (players.length === 0) {
+                ops.push({ ref: docSnap.ref, action: "delete", players: [], entry_fee: 0, isFree: false });
+            } else {
+                ops.push({ ref: docSnap.ref, action: "alert", players, entry_fee: t.entry_fee ?? 0, isFree: false });
+            }
+        }
+    });
+
+    if (ops.length === 0) return;
+
+    // Process in batches of 400 to stay under the 500-op limit
+    const CHUNK = 400;
+    for (let i = 0; i < ops.length; i += CHUNK) {
+        const batch = db.batch();
+        const chunk = ops.slice(i, i + CHUNK);
+
+        chunk.forEach(op => {
+            if (op.action === "alert") {
+                batch.update(op.ref, {
+                    waiting_alert_sent:  true,
+                    waiting_expires_at:  admin.firestore.Timestamp.fromMillis(now + extendMs),
+                });
+            } else if (op.action === "close") {
+                batch.update(op.ref, { status: "CLOSED", closed_reason: "waiting_timeout" });
+                if (!op.isFree && op.entry_fee > 0) {
+                    op.players.forEach(uid => {
+                        const uRef = db.collection("usuarios").doc(uid);
+                        batch.update(uRef, { number: admin.firestore.FieldValue.increment(op.entry_fee) });
+                    });
+                }
+            } else { // delete
+                batch.delete(op.ref);
+            }
+        });
+
+        await batch.commit();
+    }
+
+    const alerts  = ops.filter(o => o.action === "alert").length;
+    const closed  = ops.filter(o => o.action === "close").length;
+    const deleted = ops.filter(o => o.action === "delete").length;
+    console.log(`[checkWaitingRooms] alerts=${alerts} closed=${closed} deleted=${deleted}`);
+});
+
 // Endpoint HTTP para que el CEO dispare el spawn manualmente
 exports.manualSpawn = functions.https.onRequest(async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");

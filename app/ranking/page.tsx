@@ -16,10 +16,17 @@ interface Jugador {
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
-function countryFlag(code = '') {
-  if (!code || code.length !== 2) return '';
-  const o = 0x1F1E6 - 65;
-  return String.fromCodePoint(code.toUpperCase().charCodeAt(0)+o, code.toUpperCase().charCodeAt(1)+o);
+function FlagImg({ code }: { code?: string }) {
+  if (!code || code.length !== 2) return null;
+  return (
+    <img
+      src={`https://flagcdn.com/20x15/${code.toLowerCase()}.png`}
+      alt={code}
+      style={{ display:'inline-block', verticalAlign:'middle', marginRight:4, borderRadius:2 }}
+      width={20} height={15}
+      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  );
 }
 const RL: Record<string, string> = {
   LATAM_SUR: 'LATAM Sur', LATAM_NORTE: 'LATAM Norte',
@@ -216,10 +223,9 @@ export default function RankingPage() {
                       {/* Nombre */}
                       <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.76rem', fontWeight: 900, color: j.id === uid ? '#00ff88' : 'white', marginBottom: 4, lineHeight: 1.2 }}>
                         <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                          {j.country && <span style={{ marginRight: 4 }}>{countryFlag(j.country)}</span>}
+                          <FlagImg code={j.country} />
                           {(j.nombre || 'ANÓNIMO').toUpperCase()}
                         </Link>
-                        {j.id === uid && <span style={{ display: 'block', color: '#00ff88', fontSize: '0.58rem' }}>← TÚ</span>}
                       </div>
 
                       {/* Tier badge */}
@@ -275,7 +281,7 @@ export default function RankingPage() {
                             <div>
                               <div style={{ fontWeight: 700, color: esYo ? '#00ff88' : 'white', fontSize: '0.82rem' }}>
                                 <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                                  {j.country && <span style={{ marginRight: 4 }}>{countryFlag(j.country)}</span>}
+                                  <FlagImg code={j.country} />
                                   {(j.nombre || 'ANÓNIMO').toUpperCase()}
                                 </Link>
                                 {esYo && <span style={{ marginLeft: 6, color: '#00ff88', fontSize: '0.6rem' }}>← TÚ</span>}

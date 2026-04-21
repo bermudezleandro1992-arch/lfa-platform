@@ -286,6 +286,26 @@ export default function CeoPage() {
     const ok = await alerta('ELIMINAR SALA','¿Eliminar definitivamente?','error');
     if (!ok) return; await deleteDoc(doc(db,'tournaments',id));
   }
+  async function limpiarSalasVacias() {
+    const vacias = rooms.filter(r => r.status === 'OPEN' && (r.players?.length || 0) === 0);
+    if (vacias.length === 0) { await alerta('SIN SALAS', 'No hay salas OPEN sin jugadores.', 'info'); return; }
+    const ok = await alerta('LIMPIAR VACÍAS', `¿Eliminar ${vacias.length} sala(s) OPEN sin jugadores?`, 'error');
+    if (!ok) return;
+    const b = writeBatch(db);
+    vacias.forEach(r => b.delete(doc(db,'tournaments',r.id)));
+    await b.commit();
+    await alerta('LISTO', `${vacias.length} salas vacías eliminadas.`, 'exito');
+  }
+  async function limpiarTodasAbiertas() {
+    const abiertas = rooms.filter(r => r.status === 'OPEN');
+    if (abiertas.length === 0) { await alerta('SIN SALAS', 'No hay salas OPEN.', 'info'); return; }
+    const ok = await alerta('⚠️ PELIGRO', `¿Eliminar TODAS las ${abiertas.length} salas OPEN? (incluye salas con jugadores)`, 'error');
+    if (!ok) return;
+    const b = writeBatch(db);
+    abiertas.forEach(r => b.delete(doc(db,'tournaments',r.id)));
+    await b.commit();
+    await alerta('LISTO', `${abiertas.length} salas eliminadas.`, 'exito');
+  }
   async function crearSalaManual() {
     const FEES: Record<string, number> = { FREE:0, RECREATIVO:500, COMPETITIVO:1000, ELITE:10000 };
     const cap      = parseInt(crCap);
@@ -600,7 +620,13 @@ export default function CeoPage() {
 
           {/* ══ TORNEOS ═════════════════════════════════════ */}
           {tab === 'torneos' && <>
-            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 18px', fontSize:'0.9rem' }}>🏆 CONTROL DE SALAS — ARENA 1VS1</h2>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10, marginBottom:18 }}>
+              <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:0, fontSize:'0.9rem' }}>🏆 CONTROL DE SALAS — ARENA 1VS1</h2>
+              <div style={{ display:'flex', gap:8 }}>
+                <button style={sm('rgba(255,165,0,0.15)','#ffa500')} onClick={limpiarSalasVacias}>🧹 Vacías</button>
+                <button style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={limpiarTodasAbiertas}>🗑️ Todas OPEN</button>
+              </div>
+            </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))', gap:18, marginBottom:22 }}>
               {/* Crear sala */}
