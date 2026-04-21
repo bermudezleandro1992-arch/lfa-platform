@@ -33,13 +33,11 @@ interface Room {
 interface Retiro {
   id: string; nombre_real?: string; nombreJugador?: string;
   whatsapp?: string; montoCoins?: number; cbuAlias?: string;
-  metodo?: string; usd?: number;
   fecha?: { toDate?: () => Date }; uid?: string;
 }
 interface PagoManual {
   id: string; jugador_nombre?: string; uid?: string; coins?: number;
   usd?: number; metodo?: string; comprobante_url?: string;
-  tx_hash?: string; sender_wallet?: string;
 }
 interface Evidencia {
   id: string; imagen_url?: string; sala_id?: string;
@@ -47,11 +45,7 @@ interface Evidencia {
 }
 interface SpawnerConfig {
   activo?: boolean; last_run?: { toDate?: () => Date }; last_created?: number;
-}
-interface BotMatch {
-  id: string; tournamentId: string; round: string; status: string;
-  p1: string; p2: string; p1_username?: string; p2_username?: string;
-  winner?: string | null; score?: string;
+  slots_activos?: string[];
 }
 
 /* ─── Constantes ─────────────────────────────────────────── */
@@ -70,6 +64,30 @@ const RL: Record<string, string> = {
   AMERICA: 'América', GLOBAL: 'Global',
 };
 
+/* ─── Spawner slot config ─────────────────────────────────── */
+const SPAWN_SLOT_PAIRS: [number, number][] = [
+  [2,500],[2,2000],[4,0],[4,500],[6,0],[6,500],[6,2000],
+  [8,0],[8,500],[8,2000],[12,500],[12,2000],[16,0],[16,10000],
+];
+const SPAWN_GAMES_CFG = [
+  { game:'FC26',      modes:['GENERAL_95','ULTIMATE']  },
+  { game:'EFOOTBALL', modes:['DREAM_TEAM','GENUINOS']  },
+];
+const DEFAULT_SLOTS: string[] = [
+  'FC26|GENERAL_95|4|0','FC26|GENERAL_95|4|500',
+  'FC26|GENERAL_95|8|0','FC26|GENERAL_95|8|500','FC26|GENERAL_95|8|2000',
+  'FC26|ULTIMATE|4|0','FC26|ULTIMATE|4|500',
+  'FC26|ULTIMATE|8|0','FC26|ULTIMATE|8|500',
+  'EFOOTBALL|DREAM_TEAM|4|0','EFOOTBALL|DREAM_TEAM|4|500',
+  'EFOOTBALL|DREAM_TEAM|8|0','EFOOTBALL|DREAM_TEAM|8|500',
+  'EFOOTBALL|GENUINOS|4|0','EFOOTBALL|GENUINOS|4|500',
+  'EFOOTBALL|GENUINOS|8|0','EFOOTBALL|GENUINOS|8|500',
+];
+
+function slotKey(game: string, mode: string, capacity: number, fee: number) {
+  return `${game}|${mode}|${capacity}|${fee}`;
+}
+
 /* ─── Estilos reutilizables ──────────────────────────────── */
 const card: React.CSSProperties = { background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 'clamp(14px,2.5vw,22px)' };
 const inp: React.CSSProperties = { width: '100%', padding: '10px 13px', background: '#0b0e14', border: '1px solid #30363d', color: 'white', borderRadius: 8, marginBottom: 10, fontFamily: "'Roboto',sans-serif", boxSizing: 'border-box', outline: 'none', fontSize: '0.875rem' };
@@ -82,7 +100,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'bots'|'sistema'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -100,10 +118,6 @@ export default function CeoPage() {
   const [busqueda,  setBusqueda]  = useState('');
   const [spawning,  setSpawning]  = useState(false);
   const [spawnLog,  setSpawnLog]  = useState('');
-  const [botLog,    setBotLog]    = useState('');
-  const [botLoading,setBotLoading]= useState('');
-  const [botMatches,setBotMatches]= useState<BotMatch[]>([]);
-  const [testMatchId,setTestMatchId] = useState('');
   const [banModal,  setBanModal]  = useState<{uid:string;nombre:string;horas:number}|null>(null);
   const [coinsM,    setCoinsM]    = useState<{uid:string;nombre:string;actual:number;nuevo:string}|null>(null);
   const [expM,      setExpM]      = useState<Jugador|null>(null);
@@ -165,10 +179,6 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(query(collection(db,'evidencias'), orderBy('timestamp','desc'), limit(30)), snap => {
       const l: Evidencia[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as Evidencia)); setEvidencias(l);
-    }));
-
-    subs.push(onSnapshot(query(collection(db,'matches'), orderBy('created_at','desc'), limit(100)), snap => {
-      const l: BotMatch[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as BotMatch)); setBotMatches(l);
     }));
 
     subs.push(onSnapshot(doc(db,'configuracion','spawner'), d => {
@@ -265,26 +275,6 @@ export default function CeoPage() {
     setSpawning(false);
   }
 
-  async function botAction(tournamentId: string, action: 'fillWithBots' | 'advanceRound' | 'resetBots') {
-    setBotLoading(tournamentId + action);
-    setBotLog('⏳ Ejecutando...');
-    try {
-      const user = auth.currentUser;
-      if (!user) throw new Error('Sin sesión');
-      const token = await getIdToken(user);
-      const res = await fetch('/api/dev/botActions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, tournamentId }),
-      });
-      const data = await res.json();
-      setBotLog(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
-    } catch (e: unknown) {
-      setBotLog(`❌ Error: ${(e as Error).message}`);
-    }
-    setBotLoading('');
-  }
-
   async function vaciarVAR() {
     const ok = await alerta('VACIAR VAR','¿Borrar TODAS las evidencias?','error');
     if (!ok) return;
@@ -315,14 +305,13 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'bots'|'sistema';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
     { id:'torneos',   label:'🏆 Torneos',   badge: openRooms },
     { id:'finanzas',  label:'💰 Finanzas',  badge: retPend + pagPend },
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
-    { id:'bots',      label:'🧪 Bots/QA',   badge: rooms.filter(r => r.status==='ACTIVE').length },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
   ];
 
@@ -585,9 +574,7 @@ export default function CeoPage() {
                             <tr key={p.id} className="crow">
                               <td style={td}><b>{(p.jugador_nombre||'').toUpperCase()}</b><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{(p.uid||'').slice(0,8)}</span></td>
                               <td style={{ ...td, color:'#ffd700' }}>🪙{p.coins}<br/><span style={{ color:'#ccc', fontSize:'0.68rem' }}>${p.usd} | {p.metodo}</span></td>
-                              <td style={td}>{p.tx_hash
-                                  ? <button style={sm('#222')} title={p.tx_hash} onClick={() => navigator.clipboard?.writeText(p.tx_hash!)} >📋 TX</button>
-                                  : p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>—</span>}</td>
+                              <td style={td}>{p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>—</span>}</td>
                               <td style={td}>
                                 <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
                                   <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => aprobarPago(p.id,p.uid!,p.coins!)}>✅</button>
@@ -612,9 +599,9 @@ export default function CeoPage() {
                     <tbody>
                       {retiros.map(r => (
                         <tr key={r.id} className="crow">
-                          <td style={td}><b>{r.nombre_real||r.nombreJugador}</b><br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>{r.metodo || 'Binance USDT'}</span></td>
-                          <td style={{ ...td, color:'#ff4757', fontWeight:700 }}>🪙 {r.montoCoins}<br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>${((r.montoCoins||0)/100).toFixed(2)} USDT</span></td>
-                          <td style={td}><button style={sm('#222')} title={r.cbuAlias} onClick={() => navigator.clipboard?.writeText(r.cbuAlias||'')}><span style={{ fontFamily:'monospace', fontSize:'0.72rem', color:'#00e5ff' }}>{(r.cbuAlias||'').slice(0,16)}…</span></button></td>
+                          <td style={td}><b>{r.nombre_real||r.nombreJugador}</b><br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp}</span></td>
+                          <td style={{ ...td, color:'#ff4757', fontWeight:700 }}>🪙 {r.montoCoins}</td>
+                          <td style={td}><code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.cbuAlias}</code></td>
                           <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
                           <td style={td}>
                             <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
@@ -664,21 +651,58 @@ export default function CeoPage() {
                 )}
               </div>
 
-              {/* Plantillas */}
-              <div style={{ ...card, borderTop:'3px solid #009ee3' }}>
-                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:'0 0 10px', fontSize:'0.85rem' }}>📋 PLANTILLAS (2 salas c/u)</h3>
-                {[
-                  { g:'FC26',      m:'GENERAL_95', tiers:['FREE','RECREATIVO','COMPETITIVO'], regions:['LATAM_SUR','LATAM_NORTE'] },
-                  { g:'FC26',      m:'ULTIMATE',   tiers:['FREE','RECREATIVO','COMPETITIVO'], regions:['LATAM_SUR'] },
-                  { g:'EFOOTBALL', m:'DREAM_TEAM', tiers:['FREE','RECREATIVO'],               regions:['LATAM_SUR'] },
-                  { g:'EFOOTBALL', m:'GENUINOS',   tiers:['FREE','COMPETITIVO'],              regions:['LATAM_SUR'] },
-                ].map(t => (
-                  <div key={t.g+t.m} style={{ padding:'8px 0', borderBottom:'1px solid #1c2028' }}>
-                    <div style={{ fontWeight:700, fontSize:'0.8rem', marginBottom:4 }}>{GL[t.g]} — {ML[t.m]}</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                      {t.tiers.map(tier => <span key={tier} style={{ background:'rgba(255,255,255,0.04)', color:TIER_CLR[tier], padding:'2px 7px', borderRadius:4, fontSize:'0.66rem', fontWeight:700 }}>{tier}</span>)}
-                      {t.regions.map(r => <span key={r} style={{ background:'rgba(0,158,227,0.08)', color:'#009ee3', padding:'2px 7px', borderRadius:4, fontSize:'0.66rem' }}>{RL[r]}</span>)}
-                    </div>
+              {/* Slots activos */}
+              <div style={{ ...card, borderTop:'3px solid #009ee3', gridColumn:'1/-1' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:0, fontSize:'0.85rem' }}>
+                    📋 SLOTS ACTIVOS — {(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length} activados × 3 regiones = <span style={{ color:'#ffd700' }}>{(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length * 3 * 2}</span> salas máx
+                  </h3>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button style={sm('#0d1117','#8b949e')} onClick={() => updateDoc(doc(db,'configuracion','spawner'),{ slots_activos:[] })}>Desactivar todo</button>
+                    <button style={sm('#009ee3','white')} onClick={() => updateDoc(doc(db,'configuracion','spawner'),{ slots_activos: SPAWN_SLOT_PAIRS.flatMap(([c,f]) => SPAWN_GAMES_CFG.flatMap(g => g.modes.map(m => slotKey(g.game,m,c,f)))) })}>Activar todo</button>
+                    <button style={sm('#00ff88','black')} onClick={() => updateDoc(doc(db,'configuracion','spawner'),{ slots_activos: DEFAULT_SLOTS })}>⚡ Fase 1</button>
+                  </div>
+                </div>
+                {SPAWN_GAMES_CFG.map(g => (
+                  <div key={g.game} style={{ marginBottom:18 }}>
+                    {g.modes.map(mode => {
+                      const activeSlots = spawnerCfg.slots_activos ?? DEFAULT_SLOTS;
+                      const activoCount = SPAWN_SLOT_PAIRS.filter(([c,f]) => activeSlots.includes(slotKey(g.game,mode,c,f))).length;
+                      return (
+                        <div key={mode} style={{ marginBottom:10 }}>
+                          <div style={{ color:'#e6edf3', fontWeight:700, fontSize:'0.78rem', marginBottom:7 }}>
+                            {GL[g.game]} — {ML[mode]}
+                            <span style={{ color:'#8b949e', fontWeight:400, marginLeft:8, fontSize:'0.68rem' }}>{activoCount}/{SPAWN_SLOT_PAIRS.length} activos</span>
+                          </div>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                            {SPAWN_SLOT_PAIRS.map(([cap, fee]) => {
+                              const key = slotKey(g.game, mode, cap, fee);
+                              const on  = (spawnerCfg.slots_activos ?? DEFAULT_SLOTS).includes(key);
+                              const tierColor = fee === 0 ? '#8b949e' : fee < 1000 ? '#3fb950' : fee < 10000 ? '#58a6ff' : '#ffd700';
+                              return (
+                                <button key={key}
+                                  onClick={() => {
+                                    const cur = spawnerCfg.slots_activos ?? DEFAULT_SLOTS;
+                                    const next = on ? cur.filter(k => k !== key) : [...cur, key];
+                                    updateDoc(doc(db,'configuracion','spawner'), { slots_activos: next });
+                                  }}
+                                  style={{
+                                    background: on ? `${tierColor}18` : '#0d1117',
+                                    border: `1px solid ${on ? tierColor : '#30363d'}`,
+                                    color: on ? tierColor : '#484f58',
+                                    padding:'4px 10px', borderRadius:6, cursor:'pointer',
+                                    fontSize:'0.67rem', fontWeight:700, transition:'0.15s',
+                                    fontFamily:"'Orbitron',sans-serif",
+                                  }}
+                                >
+                                  {cap}j {fee === 0 ? 'FREE' : `${(fee/1000).toFixed(fee%1000===0?0:1)}K`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
@@ -700,133 +724,6 @@ export default function CeoPage() {
                   );
                 })}
               </div>
-            </div>
-          </>}
-
-          {/* ══ BOTS / QA ═══════════════════════════════════ */}
-          {tab === 'bots' && <>
-            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00e5ff', margin:'0 0 18px', fontSize:'0.9rem', borderLeft:'4px solid #00e5ff', paddingLeft:12 }}>🧪 LABORATORIO DE BOTS — TESTING & QA</h2>
-
-            {/* Log */}
-            {botLog && (
-              <div style={{ marginBottom:16, padding:'12px 16px', background:botLog.startsWith('✅') ? 'rgba(0,255,136,0.07)' : botLog.startsWith('❌') ? 'rgba(255,71,87,0.07)' : 'rgba(0,229,255,0.07)', border:`1px solid ${botLog.startsWith('✅') ? '#00ff88' : botLog.startsWith('❌') ? '#ff4757' : '#00e5ff'}`, borderRadius:10, color:botLog.startsWith('✅') ? '#00ff88' : botLog.startsWith('❌') ? '#ff4757' : '#00e5ff', fontSize:'0.82rem', fontFamily:"'Roboto',sans-serif" }}>
-                {botLog}
-              </div>
-            )}
-
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))', gap:18, marginBottom:22 }}>
-
-              {/* OPEN rooms — fill with bots */}
-              <div style={{ ...card, borderTop:'3px solid #00ff88', maxHeight:480, overflowY:'auto' }}>
-                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:'0 0 14px', fontSize:'0.82rem' }}>🟢 SALAS OPEN — Llenar con Bots</h3>
-                {rooms.filter(r => r.status === 'OPEN').length === 0
-                  ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin salas abiertas</p>
-                  : rooms.filter(r => r.status === 'OPEN').map(r => {
-                      const isBusy = botLoading === r.id + 'fillWithBots';
-                      const spots = (r.capacity || 0) - (r.players?.length || 0);
-                      return (
-                        <div key={r.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid #1c2028', gap:8, flexWrap:'wrap' }}>
-                          <div>
-                            <div style={{ fontWeight:700, fontSize:'0.8rem', color:'white' }}>{GL[r.game||'']||r.game} · <span style={{ color:TIER_CLR[r.tier||'']||'#fff' }}>{r.tier}</span></div>
-                            <div style={{ color:'#8b949e', fontSize:'0.68rem' }}>{ML[r.mode||'']||r.mode} · {RL[r.region||'']||r.region}</div>
-                            <div style={{ color:'#00ff88', fontSize:'0.7rem', marginTop:2 }}>{r.players?.length||0}/{r.capacity} jugadores · <span style={{ color:'#ffd700' }}>{spots} lugar(es) libre(s)</span></div>
-                          </div>
-                          <button className="cact" style={{ ...sm(isBusy ? '#30363d' : 'rgba(0,255,136,0.15)', isBusy ? '#555' : '#00ff88'), whiteSpace:'nowrap', opacity:isBusy ? 0.5 : 1 }}
-                            disabled={isBusy} onClick={() => botAction(r.id, 'fillWithBots')}>
-                            {isBusy ? '⏳' : '🤖 LLENAR BOTS'}
-                          </button>
-                        </div>
-                      );
-                    })
-                }
-              </div>
-
-              {/* ACTIVE rooms — advance round or reset */}
-              <div style={{ ...card, borderTop:'3px solid #ffd700', maxHeight:480, overflowY:'auto' }}>
-                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 14px', fontSize:'0.82rem' }}>⚡ SALAS ACTIVAS — Control de Rondas</h3>
-                {rooms.filter(r => r.status === 'ACTIVE' || r.status === 'FINISHED').length === 0
-                  ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin salas activas</p>
-                  : rooms.filter(r => r.status === 'ACTIVE' || r.status === 'FINISHED').map(r => {
-                      const rMatches = botMatches.filter(m => m.tournamentId === r.id);
-                      const waitingCount  = rMatches.filter(m => m.status === 'WAITING').length;
-                      const finishedCount = rMatches.filter(m => m.status === 'FINISHED').length;
-                      const currentRound  = (r as Room & { current_round?: string }).current_round;
-                      const isBusyAdv   = botLoading === r.id + 'advanceRound';
-                      const isBusyReset = botLoading === r.id + 'resetBots';
-                      return (
-                        <div key={r.id} style={{ padding:'9px 0', borderBottom:'1px solid #1c2028' }}>
-                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-                            <div>
-                              <div style={{ fontWeight:700, fontSize:'0.8rem', color:'white' }}>{GL[r.game||'']||r.game} · <span style={{ color:TIER_CLR[r.tier||'']||'#fff' }}>{r.tier}</span></div>
-                              <div style={{ color:'#8b949e', fontSize:'0.68rem' }}>{ML[r.mode||'']||r.mode}</div>
-                              <div style={{ color:'#ffd700', fontSize:'0.7rem', marginTop:3 }}>Ronda actual: <b>{currentRound || '—'}</b></div>
-                              <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:1 }}>⏳ {waitingCount} WAITING · ✅ {finishedCount} DONE · total: {rMatches.length}</div>
-                              <div style={{ color: r.status==='FINISHED' ? '#00ff88' : '#ff4757', fontSize:'0.68rem', fontWeight:700 }}>{r.status}</div>
-                            </div>
-                            <div style={{ display:'flex', flexDirection:'column', gap:5, flexShrink:0 }}>
-                              {r.status === 'ACTIVE' && (
-                                <button className="cact" style={{ ...sm(isBusyAdv ? '#30363d' : 'rgba(255,215,0,0.15)', isBusyAdv ? '#555' : '#ffd700'), opacity:isBusyAdv ? 0.5 : 1 }}
-                                  disabled={isBusyAdv} onClick={() => botAction(r.id, 'advanceRound')}>
-                                  {isBusyAdv ? '⏳' : '⚡ AVANZAR'}
-                                </button>
-                              )}
-                              <button className="cact" style={{ ...sm(isBusyReset ? '#30363d' : 'rgba(255,71,87,0.12)', isBusyReset ? '#555' : '#ff4757'), opacity:isBusyReset ? 0.5 : 1 }}
-                                disabled={isBusyReset} onClick={() => botAction(r.id, 'resetBots')}>
-                                {isBusyReset ? '⏳' : '🔄 RESET'}
-                              </button>
-                              <a href={`/match/${r.id}`} target="_blank" rel="noreferrer"
-                                style={{ ...sm('#30363d'), textAlign:'center', textDecoration:'none' }}>👁️ VER</a>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                }
-              </div>
-            </div>
-
-            {/* Matches table */}
-            <div style={{ ...card, padding:0, overflow:'hidden', marginBottom:22 }}>
-              <div style={{ padding:'12px 18px', borderBottom:'1px solid #30363d', fontFamily:"'Orbitron',sans-serif", color:'#00e5ff', fontSize:'0.82rem', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                MATCHES EN VIVO ({botMatches.length})
-                <span style={{ color:'#8b949e', fontSize:'0.7rem', fontFamily:"'Roboto',sans-serif" }}>Tiempo real · últimos 100</span>
-              </div>
-              <div style={{ overflowX:'auto' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.77rem', minWidth:700 }}>
-                  <thead><tr>{['SALA','RONDA','P1','P2','SCORE','ESTADO','LINK'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {botMatches.slice(0,40).map(m => (
-                      <tr key={m.id} className="crow">
-                        <td style={{ ...td, color:'#8b949e', fontSize:'0.65rem', fontFamily:'monospace' }}>{m.tournamentId?.slice(0,10)}…</td>
-                        <td style={{ ...td, color:'#00e5ff', fontWeight:700 }}>{m.round}</td>
-                        <td style={td}>{m.p1_username || m.p1?.slice(0,10)}</td>
-                        <td style={td}>{m.p2_username || m.p2?.slice(0,10)}</td>
-                        <td style={{ ...td, color:'#ffd700', fontWeight:700 }}>{m.score || '—'}</td>
-                        <td style={{ ...td, color:m.status==='WAITING' ? '#00ff88' : m.status==='FINISHED' ? '#8b949e' : '#ff4757', fontWeight:700 }}>{m.status}</td>
-                        <td style={td}>
-                          <a href={`/match/${m.id}`} target="_blank" rel="noreferrer" style={{ color:'#009ee3', fontSize:'0.7rem' }}>→ SALA</a>
-                        </td>
-                      </tr>
-                    ))}
-                    {botMatches.length === 0 && <tr><td colSpan={7} style={{ textAlign:'center', color:'#8b949e', padding:24 }}>Sin matches todavía</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Test de foto — match manual */}
-            <div style={{ ...card, borderTop:'3px solid #9146FF' }}>
-              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#9146FF', margin:'0 0 10px', fontSize:'0.82rem' }}>📸 TEST DE FOTO / VAR</h3>
-              <p style={{ color:'#8b949e', fontSize:'0.75rem', marginTop:-4, marginBottom:12 }}>Pegá un Match ID para ir directo a la sala y probar el reporte de resultado + foto.</p>
-              <div style={{ display:'flex', gap:10 }}>
-                <input value={testMatchId} onChange={e => setTestMatchId(e.target.value)}
-                  style={{ ...inp, marginBottom:0, flex:1 }} placeholder="Match ID (ej: abc123xyz)" />
-                <a href={testMatchId ? `/match/${testMatchId}` : '#'} target="_blank" rel="noreferrer"
-                  style={{ ...btn('#9146FF','white'), textDecoration:'none', whiteSpace:'nowrap', flexShrink:0, opacity:testMatchId ? 1 : 0.4, pointerEvents:testMatchId ? 'auto' : 'none' }}>
-                  🚀 IR A SALA
-                </a>
-              </div>
-              <p style={{ color:'#8b949e', fontSize:'0.7rem', marginTop:10 }}>Tip: Hacé click en "→ SALA" en la tabla de arriba para ir directamente a cualquier match activo.</p>
             </div>
           </>}
 

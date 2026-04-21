@@ -1414,15 +1414,36 @@ for (const g of _SPAWN_GAMES) {
     }
 }
 
+// Slots activos por defecto (Fase 1 — lanzamiento)
+const DEFAULT_SLOTS_ACTIVOS = [
+    "FC26|GENERAL_95|4|0",   "FC26|GENERAL_95|4|500",
+    "FC26|GENERAL_95|8|0",   "FC26|GENERAL_95|8|500",  "FC26|GENERAL_95|8|2000",
+    "FC26|ULTIMATE|4|0",     "FC26|ULTIMATE|4|500",
+    "FC26|ULTIMATE|8|0",     "FC26|ULTIMATE|8|500",
+    "EFOOTBALL|DREAM_TEAM|4|0", "EFOOTBALL|DREAM_TEAM|4|500",
+    "EFOOTBALL|DREAM_TEAM|8|0", "EFOOTBALL|DREAM_TEAM|8|500",
+    "EFOOTBALL|GENUINOS|4|0",   "EFOOTBALL|GENUINOS|4|500",
+    "EFOOTBALL|GENUINOS|8|0",   "EFOOTBALL|GENUINOS|8|500",
+];
+
 async function runSpawnCycle() {
     const configDoc = await db.collection("configuracion").doc("spawner").get();
     if (!configDoc.exists || configDoc.data().activo !== true) {
         console.log("[Spawner] Desactivado en configuración, saltando ciclo.");
-        return { created: 0, checked: SPAWN_TEMPLATES.length };
+        return { created: 0, checked: 0 };
     }
 
+    // Leer slots activos; si no existe el campo usar los defaults de Fase 1
+    const slotsActivos = configDoc.data().slots_activos || DEFAULT_SLOTS_ACTIVOS;
+    const activoSet = new Set(slotsActivos);
+
+    // Filtrar templates a solo los activos (sin región — se aplica a las 3)
+    const templates = SPAWN_TEMPLATES.filter(tpl =>
+        activoSet.has(`${tpl.game}|${tpl.mode}|${tpl.capacity}|${tpl.entry_fee}`)
+    );
+
     let created = 0;
-    for (const tpl of SPAWN_TEMPLATES) {
+    for (const tpl of templates) {
         const snap = await db.collection("tournaments")
             .where("game",      "==", tpl.game)
             .where("mode",      "==", tpl.mode)
@@ -1463,8 +1484,8 @@ async function runSpawnCycle() {
         last_created: created,
     }, { merge: true });
 
-    console.log(`[Spawner] Ciclo completo. Salas nuevas: ${created}`);
-    return { created, checked: SPAWN_TEMPLATES.length };
+    console.log(`[Spawner] Ciclo completo. Activos: ${templates.length} slots. Salas nuevas: ${created}`);
+    return { created, checked: templates.length };
 }
 
 // Trigger automático cada hora
@@ -1531,6 +1552,89 @@ exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) =
     } catch (e) {
         console.error("[ReponerSala] Error:", e.message);
     }
+});
+
+// ============================================================
+// 🏆 SPAWNER FIN DE SEMANA — Torneos especiales de 32 jugadores
+//    Corre viernes a las 23:00 hs ARG (sábado 02:00 UTC)
+//    Crea: 2 salas × 3 regiones × 2 modos × 2 juegos = 24 torneos
+// ============================================================
+const _WEEKEND_GAMES = [
+    { game: "FC26",      modes: ["GENERAL_95", "ULTIMATE"] },
+    { game: "EFOOTBALL", modes: ["DREAM_TEAM", "GENUINOS"] },
+];
+const _WEEKEND_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA"];
+const _WEEKEND_TIERS = [
+    { entry_fee: 2000,  tier: "COMPETITIVO" },
+    { entry_fee: 10000, tier: "ELITE"       },
+];
+const _WEEKEND_CAPACITY = 32;
+
+function calcWeekendPrizes(entry_fee) {
+    const pool = Math.floor(_WEEKEND_CAPACITY * entry_fee * 0.9);
+    return {
+        prize_pool: pool,
+        prizes: [
+            { place: 1, label: "🥇 1°", percentage: 60, coins: Math.floor(pool * 0.60) },
+            { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pool * 0.30) },
+            { place: 3, label: "🥉 3°", percentage: 10, coins: Math.floor(pool * 0.10) },
+        ],
+    };
+}
+
+async function runWeekendSpawn() {
+    let created = 0;
+    for (const g of _WEEKEND_GAMES) {
+        for (const mode of g.modes) {
+            for (const { entry_fee, tier } of _WEEKEND_TIERS) {
+                for (const region of _WEEKEND_REGIONS) {
+                    const snap = await db.collection("tournaments")
+                        .where("game",      "==", g.game)
+                        .where("mode",      "==", mode)
+                        .where("entry_fee", "==", entry_fee)
+                        .where("capacity",  "==", _WEEKEND_CAPACITY)
+                        .where("region",    "==", region)
+                        .where("status",    "in", ["OPEN", "ACTIVE"])
+                        .get();
+
+                    const needed = Math.max(0, 2 - snap.size);
+                    if (needed === 0) continue;
+
+                    const { prize_pool, prizes } = calcWeekendPrizes(entry_fee);
+                    const batch = db.batch();
+                    for (let i = 0; i < needed; i++) {
+                        const ref = db.collection("tournaments").doc();
+                        batch.set(ref, {
+                            game: g.game, mode, region, tier,
+                            free: false,
+                            entry_fee,
+                            prize_pool,
+                            prizes,
+                            capacity: _WEEKEND_CAPACITY,
+                            players: [],
+                            status:  "OPEN",
+                            spawned: true,
+                            special: true,
+                            created_at: admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                        created++;
+                    }
+                    await batch.commit();
+                }
+            }
+        }
+    }
+    console.log(`[WeekendSpawn] Salas creadas: ${created}`);
+    return { created };
+}
+
+// Viernes 23:00 ARG = Sábado 02:00 UTC
+exports.weekendSpawn = onSchedule({
+    schedule: "0 2 * * 6",
+    timeZone: "UTC",
+    region:   "us-central1",
+}, async () => {
+    await runWeekendSpawn();
 });
 
 // Endpoint HTTP para que el CEO dispare el spawn manualmente
