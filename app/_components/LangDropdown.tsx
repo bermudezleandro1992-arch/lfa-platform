@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos e i18n
 // ─────────────────────────────────────────────────────────────────────────────
-export type LangCode = 'es' | 'pt' | 'en' | 'jp' | 'kr';
+export type LangCode = 'es' | 'pt' | 'en';
 
 export interface Translations {
   slogan1:    string;
@@ -38,8 +38,6 @@ const LANGUAGES: Record<LangCode, { flag: string; label: string; name: string }>
   es: { flag: 'https://flagcdn.com/w20/ar.png', label: 'ES', name: 'Español'   },
   pt: { flag: 'https://flagcdn.com/w20/br.png', label: 'PT', name: 'Português' },
   en: { flag: 'https://flagcdn.com/w20/us.png', label: 'EN', name: 'English'   },
-  jp: { flag: 'https://flagcdn.com/w20/jp.png', label: 'JP', name: '日本語'    },
-  kr: { flag: 'https://flagcdn.com/w20/kr.png', label: 'KR', name: '한국어'    },
 };
 
 export const TRANSLATIONS: Record<LangCode, Translations> = {
@@ -93,38 +91,6 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     legal_titulo: 'Last step, Legend!',
     legal_desc: 'To compete for real money and maintain fair play, you must accept our rules.',
     legal_btn: 'CONFIRM AND ENTER THE PITCH',
-  },
-  jp: {
-    slogan1: '自動化されたサッカーリーグ', slogan2: 'ピッチを支配する',
-    email: 'メールアドレス', pass: 'パスワード（8文字以上、大文字1つ）',
-    obligatorio: '⚠️ 必須: コンソールまたはPCのIDを入力', id_jugador: 'コンソール/PC ID（例：Your_GamerTag）',
-    olvide_pass: 'パスワードをお忘れですか？', btn_entrar: 'ログイン / 登録',
-    o_accede: 'または次でアクセス', btn_google: 'Googleで続行', btn_facebook: 'Facebook',
-    btn_instalar: '📲 LFAアプリをインストール',
-    leido_todo: 'ルール、利用規約、プライバシー、返金に同意します。',
-    foot_titulo: 'LFA - 自動サッカーリーグ',
-    foot_desc: 'トーナメント & リーグ eFootball · FC 26',
-    foot_reg: '公式ルール', foot_term: '利用規約', foot_priv: 'プライバシーポリシー', foot_reem: '返金ポリシー',
-    redes: '私たちのソーシャル:', derechos: '© 2026 LFA。全著作権所有。責任を持ってプレイしてください。',
-    legal_titulo: '最後のステップ、レジェンド！',
-    legal_desc: 'リアルマネーで競争し、フェアプレイを維持するには、ルールに同意する必要があります。',
-    legal_btn: '確認してピッチに入る',
-  },
-  kr: {
-    slogan1: '자동화된 축구 리그', slogan2: '경기장을 지배하라',
-    email: '이메일 주소', pass: '비밀번호(최소 8자 및 대문자 1개)',
-    obligatorio: '⚠️ 필수: 콘솔 또는 PC ID를 입력', id_jugador: '콘솔/PC ID (예: Your_GamerTag)',
-    olvide_pass: '비밀번호를 잊으셨나요?', btn_entrar: '로그인 / 가입',
-    o_accede: '또는 다음으로 액세스', btn_google: 'Google로 계속하기', btn_facebook: 'Facebook',
-    btn_instalar: '📲 LFA 앱 설치',
-    leido_todo: '규정, 약관, 개인정보 및 환불에 동의합니다.',
-    foot_titulo: 'LFA - 자동 축구 리그',
-    foot_desc: '토너먼트 & 리그 eFootball · FC 26',
-    foot_reg: '공식 규정', foot_term: '이용 약관', foot_priv: '개인 정보 보호 정책', foot_reem: '환불 정책',
-    redes: '우리의 소셜:', derechos: '© 2026 LFA. 모든 권리 보유. 책임감 있게 플레이하세요.',
-    legal_titulo: '마지막 단계, 레전드!',
-    legal_desc: '실제 돈을 놓고 경쟁하고 공정한 플레이를 유지하려면 규칙에 동의해야 합니다.',
-    legal_btn: '확인하고 경기장 입장',
   },
 };
 
