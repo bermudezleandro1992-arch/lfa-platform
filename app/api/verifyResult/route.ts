@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
     if (!matchId || !screenshotUrl)
       return NextResponse.json({ error: 'matchId y screenshotUrl son requeridos.' }, { status: 400 });
 
+    // Seguridad: solo se aceptan URLs de Firebase Storage del proyecto
+    const ALLOWED_STORAGE_HOST = 'https://firebasestorage.googleapis.com/';
+    if (typeof screenshotUrl !== 'string' || !screenshotUrl.startsWith(ALLOWED_STORAGE_HOST)) {
+      return NextResponse.json({ error: 'URL de screenshot no válida.' }, { status: 400 });
+    }
+
     /* Obtener match */
     const matchSnap = await adminDb.collection('matches').doc(matchId).get();
     if (!matchSnap.exists)

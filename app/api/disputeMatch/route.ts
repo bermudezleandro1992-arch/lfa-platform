@@ -16,6 +16,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'matchId y reason requeridos.' }, { status: 400 });
     }
 
+    // Seguridad: limitar longitud del motivo para evitar abuso
+    if (typeof reason !== 'string' || reason.trim().length > 500) {
+      return NextResponse.json({ error: 'El motivo no puede superar 500 caracteres.' }, { status: 400 });
+    }
+
     const matchRef  = adminDb.collection('matches').doc(matchId);
     const matchSnap = await matchRef.get();
     if (!matchSnap.exists) return NextResponse.json({ error: 'Match no encontrado.' }, { status: 404 });

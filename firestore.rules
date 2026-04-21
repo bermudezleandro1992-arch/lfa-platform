@@ -65,7 +65,7 @@ service cloud.firestore {
                     || esAdmin();
 
       match /mensajes/{mensajeId} {
-        allow read: if true;
+        allow read: if authExists();
         allow create: if authExists();
         allow delete: if esAdmin();
       }
