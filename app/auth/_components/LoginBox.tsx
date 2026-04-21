@@ -15,6 +15,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
+  fetchSignInMethodsForEmail,
   GoogleAuthProvider,
   FacebookAuthProvider,
   signOut,
@@ -25,36 +26,6 @@ import { auth, db } from '@/lib/firebase';
 import LfaModal, { type LfaModalHandle } from '@/app/_components/LfaModal';
 import type { Translations } from '@/app/_components/LangDropdown';
 import type { RegionDetectionResult } from '@/lib/types';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Rate limiting (cliente) — bloqueo tras 5 intentos fallidos por 15 minutos
-// ─────────────────────────────────────────────────────────────────────────────
-const FAIL_KEY    = 'lfa_login_fails';
-const LOCKOUT_KEY = 'lfa_login_lockout';
-const MAX_FAILS   = 5;
-const LOCKOUT_MS  = 15 * 60 * 1000; // 15 minutos
-
-function registrarFallo() {
-  const fails = (parseInt(localStorage.getItem(FAIL_KEY) ?? '0', 10)) + 1;
-  localStorage.setItem(FAIL_KEY, String(fails));
-  if (fails >= MAX_FAILS) {
-    localStorage.setItem(LOCKOUT_KEY, String(Date.now() + LOCKOUT_MS));
-    localStorage.removeItem(FAIL_KEY);
-  }
-}
-
-function limpiarFallos() {
-  localStorage.removeItem(FAIL_KEY);
-  localStorage.removeItem(LOCKOUT_KEY);
-}
-
-function verificarBloqueo(): number {
-  const lockout = parseInt(localStorage.getItem(LOCKOUT_KEY) ?? '0', 10);
-  if (!lockout) return 0;
-  const restante = lockout - Date.now();
-  if (restante <= 0) { limpiarFallos(); return 0; }
-  return restante;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Providers (singleton)
@@ -121,14 +92,6 @@ export default function LoginBox({ t }: LoginBoxProps) {
 
   // ── INGRESAR (email+pass — login o registro automático) ───────────────────
   const ingresar = useCallback(async () => {
-    // Verificar bloqueo por intentos fallidos
-    const msBloqueo = verificarBloqueo();
-    if (msBloqueo > 0) {
-      const mins = Math.ceil(msBloqueo / 60000);
-      await alerta('CUENTA BLOQUEADA', `⛔ Demasiados intentos fallidos. Intentá de nuevo en ${mins} minuto${mins > 1 ? 's' : ''}.`, 'error');
-      return;
-    }
-
     if (!terms) {
       await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento, Términos y Políticas marcando la casilla antes de entrar.');
       return;
@@ -163,13 +126,9 @@ export default function LoginBox({ t }: LoginBoxProps) {
         return;
       }
 
-      limpiarFallos(); // login exitoso — resetear contador
-
       let updateData: Record<string, unknown> = {
         ip_conexion: datosRed.country, hw_avanzado: hw,
-        pais_codigo: datosRed.country, country: datosRed.country,
-        countryName: datosRed.countryName, region: datosRed.region,
-        terminos_aceptados: true,
+        pais_codigo: datosRed.country, terminos_aceptados: true,
       };
       if (platId.trim()) updateData.plataforma_id = sanitizarInput(platId);
       await setDoc(doc(db, 'usuarios', cred.user.uid), updateData, { merge: true });
@@ -224,8 +183,6 @@ export default function LoginBox({ t }: LoginBoxProps) {
             ip_conexion:        datosRed.country,
             hw_avanzado:        hw,
             pais_codigo:        datosRed.country,
-            country:            datosRed.country,
-            countryName:        datosRed.countryName,
             region:             datosRed.region,
             terminos_aceptados: true,
           });
@@ -238,14 +195,12 @@ export default function LoginBox({ t }: LoginBoxProps) {
         } catch (regErr) {
           const re = regErr as AuthError;
           if (re.code === 'auth/email-already-in-use') {
-            registrarFallo();
             await alerta('ERROR DE LOGIN', '⛔ Esta cuenta ya existe, pero la contraseña es incorrecta.', 'error');
           } else {
             await alerta('ERROR DE REGISTRO', re.message, 'error');
           }
         }
       } else {
-        registrarFallo();
         await alerta('ERROR', error.message, 'error');
       }
     }
@@ -300,17 +255,13 @@ export default function LoginBox({ t }: LoginBoxProps) {
           ip_conexion:        datosRed.country,
           hw_avanzado:        hw,
           pais_codigo:        datosRed.country,
-          country:            datosRed.country,
-          countryName:        datosRed.countryName,
           region:             datosRed.region,
           terminos_aceptados: true,
         });
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
-          pais_codigo: datosRed.country, country: datosRed.country,
-          countryName: datosRed.countryName, region: datosRed.region,
-          terminos_aceptados: true,
+          pais_codigo: datosRed.country, terminos_aceptados: true,
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
@@ -374,17 +325,13 @@ export default function LoginBox({ t }: LoginBoxProps) {
           ip_conexion:        datosRed.country,
           hw_avanzado:        hw,
           pais_codigo:        datosRed.country,
-          country:            datosRed.country,
-          countryName:        datosRed.countryName,
           region:             datosRed.region,
           terminos_aceptados: true,
         });
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
-          pais_codigo: datosRed.country, country: datosRed.country,
-          countryName: datosRed.countryName, region: datosRed.region,
-          terminos_aceptados: true,
+          pais_codigo: datosRed.country, terminos_aceptados: true,
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
@@ -392,8 +339,18 @@ export default function LoginBox({ t }: LoginBoxProps) {
 
       await verificarDivision(result.user.uid);
     } catch (err) {
-      const e = err as AuthError;
-      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      const e = err as AuthError & { customData?: { email?: string } };
+      if (e.code === 'auth/account-exists-with-different-credential') {
+        const email = e.customData?.email ?? '';
+        let methods: string[] = [];
+        try { methods = email ? await fetchSignInMethodsForEmail(auth, email) : []; } catch { /* ignore */ }
+        const proveedor = methods.includes('google.com') ? 'Google' : methods[0] ?? 'otro proveedor';
+        await alerta(
+          'CUENTA YA REGISTRADA',
+          `Este email ya está registrado con ${proveedor}. Iniciá sesión con ${proveedor} primero y tu cuenta de Facebook se vinculará automáticamente.`,
+          'error',
+        );
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
         await alerta('ERROR', 'Error con Facebook: ' + e.message, 'error');
       }
     }
