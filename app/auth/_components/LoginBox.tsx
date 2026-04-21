@@ -27,6 +27,36 @@ import type { Translations } from '@/app/_components/LangDropdown';
 import type { RegionDetectionResult } from '@/lib/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rate limiting (cliente) — bloqueo tras 5 intentos fallidos por 15 minutos
+// ─────────────────────────────────────────────────────────────────────────────
+const FAIL_KEY    = 'lfa_login_fails';
+const LOCKOUT_KEY = 'lfa_login_lockout';
+const MAX_FAILS   = 5;
+const LOCKOUT_MS  = 15 * 60 * 1000; // 15 minutos
+
+function registrarFallo() {
+  const fails = (parseInt(localStorage.getItem(FAIL_KEY) ?? '0', 10)) + 1;
+  localStorage.setItem(FAIL_KEY, String(fails));
+  if (fails >= MAX_FAILS) {
+    localStorage.setItem(LOCKOUT_KEY, String(Date.now() + LOCKOUT_MS));
+    localStorage.removeItem(FAIL_KEY);
+  }
+}
+
+function limpiarFallos() {
+  localStorage.removeItem(FAIL_KEY);
+  localStorage.removeItem(LOCKOUT_KEY);
+}
+
+function verificarBloqueo(): number {
+  const lockout = parseInt(localStorage.getItem(LOCKOUT_KEY) ?? '0', 10);
+  if (!lockout) return 0;
+  const restante = lockout - Date.now();
+  if (restante <= 0) { limpiarFallos(); return 0; }
+  return restante;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Providers (singleton)
 // ─────────────────────────────────────────────────────────────────────────────
 const googleProvider   = new GoogleAuthProvider();
@@ -91,6 +121,14 @@ export default function LoginBox({ t }: LoginBoxProps) {
 
   // ── INGRESAR (email+pass — login o registro automático) ───────────────────
   const ingresar = useCallback(async () => {
+    // Verificar bloqueo por intentos fallidos
+    const msBloqueo = verificarBloqueo();
+    if (msBloqueo > 0) {
+      const mins = Math.ceil(msBloqueo / 60000);
+      await alerta('CUENTA BLOQUEADA', `⛔ Demasiados intentos fallidos. Intentá de nuevo en ${mins} minuto${mins > 1 ? 's' : ''}.`, 'error');
+      return;
+    }
+
     if (!terms) {
       await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento, Términos y Políticas marcando la casilla antes de entrar.');
       return;
@@ -124,6 +162,8 @@ export default function LoginBox({ t }: LoginBoxProps) {
         setLoading(false);
         return;
       }
+
+      limpiarFallos(); // login exitoso — resetear contador
 
       let updateData: Record<string, unknown> = {
         ip_conexion: datosRed.country, hw_avanzado: hw,
@@ -198,12 +238,14 @@ export default function LoginBox({ t }: LoginBoxProps) {
         } catch (regErr) {
           const re = regErr as AuthError;
           if (re.code === 'auth/email-already-in-use') {
+            registrarFallo();
             await alerta('ERROR DE LOGIN', '⛔ Esta cuenta ya existe, pero la contraseña es incorrecta.', 'error');
           } else {
             await alerta('ERROR DE REGISTRO', re.message, 'error');
           }
         }
       } else {
+        registrarFallo();
         await alerta('ERROR', error.message, 'error');
       }
     }

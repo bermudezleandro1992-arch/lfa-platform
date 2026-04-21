@@ -78,6 +78,19 @@ export default function HomePage() {
           {/* Logo box */}
           <div className="logo-box" aria-hidden="true">
             <span style={{ color: '#ffd700', fontSize: '1.5rem', marginBottom: '3px' }}>♛</span>
+            <span
+              style={{
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: '1rem',
+                color: '#00ff88',
+                letterSpacing: '8px',
+                fontWeight: 900,
+                display: 'block',
+                marginBottom: '2px',
+              }}
+            >
+              SOMOS
+            </span>
             <span className="lfa-title-style">LFA</span>
             <div className="stars">★ ★ ★</div>
           </div>
