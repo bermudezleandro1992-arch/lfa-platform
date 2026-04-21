@@ -155,6 +155,20 @@ service cloud.firestore {
       allow update, delete: if authExists() && (isOwner(resource.data.uid) || esAdmin());
     }
 
+    match /cantina_messages/{msgId} {
+      allow read: if authExists();
+      allow create: if authExists()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.texto is string
+                    && request.resource.data.texto.size() <= 280;
+      allow update: if authExists()
+                    && (request.auth.uid == "2bOrFxTAcPgFPoHKJHQfYxoQJpw1"
+                        || obtenerRol() == "soporte"
+                        || obtenerRol() == "mod")
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']);
+      allow delete: if esAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -21,6 +21,29 @@ interface ChatMsg {
 
 const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 
+/* ─── Filtro anti-spam / insultos ───────────────────────── */
+const PALABRAS_BLOQUEADAS = [
+  // Insultos españoles/argentinos
+  'pelotudo','boludo','forro','concha','puta','puto','hijo de puta','hdp',
+  'hdputa','la concha','culero','pendejo','marica','maricón','maricon',
+  'idiota','imbécil','imbecil','estupido','estúpido','cretino','imbé',
+  'cabron','cabrón','mierda','cagada','gilipollas','coño','verga','pija',
+  'chupala','chupame','suckme','negro de mierda','negro mierda',
+  // Racismo / discriminación
+  'negro de','negrito de','muerto de hambre','villa','villero',
+  // Spam patterns
+  'http://','https://','www.','discord.gg','t.me/',
+];
+
+function contienePalabrasBloqueadas(texto: string): string | null {
+  const lower = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  for (const p of PALABRAS_BLOQUEADAS) {
+    const pn = p.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (lower.includes(pn)) return p;
+  }
+  return null;
+}
+
 const ROL_CLR: Record<string, string> = {
   ceo:     '#ffd700',
   soporte: '#ff4757',
@@ -47,10 +70,12 @@ export default function CantinaChat({ uid }: { uid: string }) {
   const [messages,   setMessages]   = useState<ChatMsg[]>([]);
   const [texto,      setTexto]      = useState('');
   const [sending,    setSending]    = useState(false);
+  const [errMsg,     setErrMsg]     = useState('');
   const [userInfo,   setUserInfo]   = useState<{ nombre: string; avatar_url?: string; rol: string } | null>(null);
   const [onlineCount,setOnlineCount]= useState(1);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const lastSent   = useRef<number>(0);
+  const lastTexto  = useRef<string>('');
   const inputRef   = useRef<HTMLInputElement>(null);
 
   const isMod = uid === CEO_UID || userInfo?.rol === 'soporte' || userInfo?.rol === 'mod';
@@ -101,9 +126,31 @@ export default function CantinaChat({ uid }: { uid: string }) {
     if (!t || sending || !userInfo) return;
     if (t.length > 280) return;
 
+    // Anti-spam: rate limit 5s
     const now = Date.now();
-    if (now - lastSent.current < 2500) return; // rate limit 2.5s
+    if (now - lastSent.current < 5000) {
+      setErrMsg('⏳ Esperá un momento antes de enviar otro mensaje.');
+      setTimeout(() => setErrMsg(''), 3000);
+      return;
+    }
+
+    // Anti-spam: mismo mensaje repetido
+    if (t === lastTexto.current) {
+      setErrMsg('🚫 No podés enviar el mismo mensaje dos veces seguidas.');
+      setTimeout(() => setErrMsg(''), 3000);
+      return;
+    }
+
+    // Filtro insultos/links
+    const palabraMala = contienePalabrasBloqueadas(t);
+    if (palabraMala) {
+      setErrMsg('🚫 Mensaje bloqueado. Mantené el Fair Play en la Cantina.');
+      setTimeout(() => setErrMsg(''), 4000);
+      return;
+    }
+
     lastSent.current = now;
+    lastTexto.current = t;
 
     setSending(true);
     setTexto('');
@@ -235,6 +282,11 @@ export default function CantinaChat({ uid }: { uid: string }) {
         </div>
 
         <div style={{ flex: 1, position: 'relative' }}>
+          {errMsg && (
+            <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4, background: 'rgba(255,71,87,0.12)', border: '1px solid #ff475750', borderRadius: 8, padding: '6px 10px', fontSize: '0.72rem', color: '#ff4757', zIndex: 10 }}>
+              {errMsg}
+            </div>
+          )}
           <input
             ref={inputRef}
             className="cant-input"

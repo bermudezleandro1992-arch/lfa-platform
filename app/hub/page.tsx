@@ -7,7 +7,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
 
-const HubLfaTV = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
+const HubLfaTV    = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
+const CantinaChat = dynamic(() => import('@/app/_components/dashboard/CantinaChat'), { ssr: false });
 
 /* ─── Tipos ───────────────────────────────────────────── */
 interface UserData {
@@ -64,6 +65,7 @@ export default function HubPage() {
   const router                         = useRouter();
   const [userData, setUserData]        = useState<UserData | null>(null);
   const [esAdmin,  setEsAdmin]         = useState(false);
+  const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
 
   /* ── Auth guard ─────────────────────────────────────── */
@@ -78,6 +80,7 @@ export default function HubPage() {
           setUserData(d);
           setEsAdmin(user.uid === DUEÑO_UID || d.rol === 'soporte');
         }
+        setUid(user.uid);
       } catch { /* sin red */ }
       setLoading(false);
     });
@@ -134,6 +137,11 @@ export default function HubPage() {
                 ⚙️ CEO
               </a>
             )}
+            {/* Billetera */}
+            <a href="/billetera" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,215,0,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid #ffd70040', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
+              <span style={{ fontSize: '1rem' }}>💰</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>BILLETERA</span>
+            </a>
             {/* Perfil + coins + logout */}
             <a href="/perfil" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: '7px 14px', borderRadius: 30, border: '1px solid #30363d', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid #00ff88', overflow: 'hidden', background: '#1c2028', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -161,38 +169,18 @@ export default function HubPage() {
           {/* ── LFA TV embebida ──────────────────────────── */}
           <HubLfaTV />
 
-          {/* ── Accesos rápidos ──────────────────────────── */}
-          <div style={{ marginBottom: 32, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <button
-              onClick={() => router.push('/dashboard?tab=cantina')}
-              style={{ background: '#161b22', border: '2px solid #ffd70040', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd700'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #ffd70030'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd70040'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
-            >
-              <div style={{ fontSize: '2rem' }}>🍺</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#ffd700' }}>CANTINA</div>
-              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Chat de la comunidad</div>
-            </button>
-            <button
-              onClick={() => router.push('/dashboard?tab=ranking')}
-              style={{ background: '#161b22', border: '2px solid #58a6ff40', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #58a6ff30'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff40'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
-            >
-              <div style={{ fontSize: '2rem' }}>🏆</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#58a6ff' }}>RANKING</div>
-              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Hall of Fame global</div>
-            </button>
-            <button
-              onClick={() => router.push('/perfil')}
-              style={{ background: '#161b22', border: '2px solid #00ff8840', borderRadius: 14, padding: '20px 18px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#00ff88'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #00ff8830'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#00ff8840'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
-            >
-              <div style={{ fontSize: '2rem' }}>👤</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.85rem', fontWeight: 900, color: '#00ff88' }}>MI PERFIL</div>
-              <div style={{ color: '#8b949e', fontSize: '0.72rem' }}>Stats · Fair Play · Wallet</div>
-            </button>
+          {/* ── CANTINA embebida ─────────────────────────── */}
+          <div style={{ marginBottom: 32, background: '#0d1117', border: '1px solid #ffd70030', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 480 }}>
+            <div style={{ padding: '10px 18px', borderBottom: '1px solid #ffd70020', background: 'rgba(255,215,0,0.04)', flexShrink: 0 }}>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 CANTINA LFA — CHAT GENERAL</span>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {uid ? <CantinaChat uid={uid} /> : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem' }}>
+                  CARGANDO CANTINA...
+                </div>
+              )}
+            </div>
           </div>
 
           {/* MODOS */}
