@@ -30,20 +30,10 @@ interface TxItem {
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
-function FlagImg({ code, size = 22 }: { code?: string; size?: number }) {
-  if (!code || code.length !== 2) return null;
-  const c = code.toLowerCase();
-  return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${c}.png`}
-      srcSet={`https://flagcdn.com/w${size * 2}/${c}.png 2x`}
-      width={size}
-      height={Math.round(size * 0.67)}
-      alt={code.toUpperCase()}
-      title={code.toUpperCase()}
-      style={{ display: 'inline-block', borderRadius: 2, objectFit: 'cover', verticalAlign: 'middle', flexShrink: 0 }}
-    />
-  );
+function countryFlag(code = '') {
+  if (!code || code.length !== 2) return '';
+  const o = 0x1F1E6 - 65;
+  return String.fromCodePoint(code.toUpperCase().charCodeAt(0) + o, code.toUpperCase().charCodeAt(1) + o);
 }
 function getTierBadge(t: number) {
   if (t >= 50) return { label: 'LEYENDA', color: '#ff4757', glow: 'rgba(255,71,87,0.4)',   icon: '👑' };
@@ -163,7 +153,8 @@ export default function PerfilPage() {
     const file = e.target.files?.[0];
     if (!file || !uid) return;
     if (file.size > 2 * 1024 * 1024) { setMsg('❌ Máx 2MB'); return; }
-    if (!file.type.startsWith('image/')) { setMsg('❌ Solo imágenes'); return; }
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) { setMsg('❌ Solo JPEG, PNG o WEBP'); return; }
     setUploading(true);
     try {
       const r = ref(storage, `avatars/${uid}`);
@@ -188,7 +179,7 @@ export default function PerfilPage() {
       youtube_canal: youtubeCanal.trim().replace(/^@/, ''),
     });
     setMsg('✅ Datos guardados'); setSaving(false);
-  }, [uid, nombre, nombreReal, celular, ciudad, provincia, idConsola, twitchCanal, kickCanal, youtubeCanal]);
+  }, [uid, nombre, nombreReal, celular, ciudad, provincia, idConsola]);
 
   /* Copiar link */
   function copiarRef() {
@@ -266,7 +257,7 @@ export default function PerfilPage() {
                   <h1 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.1rem,3vw,1.6rem)', fontWeight: 900, margin: 0 }}>
                     {userData.nombre || 'SIN NOMBRE'}
                   </h1>
-                  {userData.country && <FlagImg code={userData.country} size={24} />}
+                  {userData.country && <span style={{ fontSize: '1.4rem' }} title={userData.countryName}>{countryFlag(userData.country)}</span>}
                   {userData.es_afiliado && <span style={{ color: '#ffd700', fontSize: '0.68rem', fontWeight: 700 }}>⭐ AFILIADO</span>}
                 </div>
                 <div style={{ color: '#8b949e', fontSize: '0.76rem', marginBottom: 14 }}>
