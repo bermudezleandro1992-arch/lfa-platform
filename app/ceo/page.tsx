@@ -12,7 +12,7 @@ import { onAuthStateChanged, getIdToken } from 'firebase/auth';
 import {
   collection, doc, onSnapshot, updateDoc, deleteDoc,
   addDoc, serverTimestamp, writeBatch, increment,
-  query, where, limit, orderBy, getDoc,
+  query, where, limit, orderBy, getDoc, setDoc,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import LfaModal, { LfaModalHandle } from '@/app/_components/LfaModal';
@@ -20,10 +20,10 @@ import LfaModal, { LfaModalHandle } from '@/app/_components/LfaModal';
 /* ─── Tipos ──────────────────────────────────────────────── */
 interface Jugador {
   id: string; nombre?: string; email?: string; number?: number;
-  baneado?: boolean; ip?: string; canvas_hash?: string;
-  sistema?: string; plataforma_id?: string; region?: string;
+  baneado?: boolean; ip?: string; ip_conexion?: string; canvas_hash?: string;
+  sistema?: string; plataforma_id?: string; region?: string; pais_codigo?: string;
   fair_play?: number; titulos?: number; partidos_jugados?: number;
-  rol?: string; es_afiliado?: boolean;
+  rol?: string; es_afiliado?: boolean; ban_hasta?: { toDate?: () => Date } | null;
 }
 interface Room {
   id: string; game?: string; mode?: string; tier?: string; region?: string;
@@ -118,9 +118,15 @@ export default function CeoPage() {
   const [busqueda,  setBusqueda]  = useState('');
   const [spawning,  setSpawning]  = useState(false);
   const [spawnLog,  setSpawnLog]  = useState('');
-  const [banModal,  setBanModal]  = useState<{uid:string;nombre:string;horas:number}|null>(null);
+  const [banModal,  setBanModal]  = useState<{uid:string;nombre:string;horas:number;ip?:string}|null>(null);
   const [coinsM,    setCoinsM]    = useState<{uid:string;nombre:string;actual:number;nuevo:string}|null>(null);
   const [expM,      setExpM]      = useState<Jugador|null>(null);
+
+  /* ── Usuarios filtros y control ─────────────────────────── */
+  const [filtroU,     setFiltroU]     = useState<'todos'|'activos'|'baneados'|'bots'>('todos');
+  const [ipBlacklist, setIpBlacklist] = useState<string[]>([]);
+  const [banConIp,    setBanConIp]    = useState(false);
+  const [cleanupLog,  setCleanupLog]  = useState('');
 
   /* ── Crear sala form ─────────────────────────────────────── */
   const [crGame,   setCrGame]   = useState('FC26');
@@ -185,6 +191,10 @@ export default function CeoPage() {
       if (d.exists()) setSpawnerCfg(d.data() as SpawnerConfig);
     }));
 
+    subs.push(onSnapshot(doc(db,'configuracion','ip_blacklist'), d => {
+      if (d.exists()) setIpBlacklist((d.data() as { ips?: string[] }).ips ?? []);
+    }));
+
     subs.push(onSnapshot(doc(db,'estadisticas','globales'), d => {
       if (d.exists()) setVisitas((d.data() as { visitas_totales?: number }).visitas_totales || 0);
     }));
@@ -218,12 +228,45 @@ export default function CeoPage() {
   async function ejecutarBan(uid: string, nombre: string, horas: number) {
     const banHasta = horas === 0 ? null : new Date(Date.now() + horas * 3_600_000);
     await updateDoc(doc(db,'usuarios',uid), { baneado: true, ban_hasta: banHasta });
+    if (banConIp && banModal?.ip && banModal.ip.length > 4) {
+      const newList = [...new Set([...ipBlacklist, banModal.ip])];
+      const blRef = doc(db,'configuracion','ip_blacklist');
+      await updateDoc(blRef, { ips: newList }).catch(() =>
+        setDoc(blRef, { ips: newList })
+      );
+    }
     await alerta('SANCIONADO', `${nombre} — ${horas === 0 ? 'Ban permanente' : horas+'h'}.`, 'error');
     setBanModal(null);
+    setBanConIp(false);
   }
   async function desbanear(uid: string, nombre: string) {
     await updateDoc(doc(db,'usuarios',uid), { baneado: false, ban_hasta: null });
     await alerta('DESBANEADO', `${nombre} desbaneado.`, 'exito');
+  }
+
+  async function limpiarBots() {
+    const bots = jugadores.filter(j => j.rol === 'bot');
+    if (bots.length === 0) { await alerta('SIN BOTS', 'No hay usuarios con rol=bot.', 'info'); return; }
+    const ok = await alerta('LIMPIAR BOTS', `¿Eliminar ${bots.length} cuentas bot de Firestore?`, 'error');
+    if (!ok) return;
+    const b = writeBatch(db);
+    bots.forEach(j => b.delete(doc(db,'usuarios',j.id)));
+    await b.commit();
+    setCleanupLog(`✅ ${bots.length} bots eliminados.`);
+    await alerta('LIMPIEZA COMPLETA', `${bots.length} cuentas bot eliminadas.`, 'exito');
+  }
+
+  async function limpiarPorPrefijo(prefijo: string) {
+    if (!prefijo.trim()) return;
+    const targets = jugadores.filter(j => (j.nombre||'').toLowerCase().startsWith(prefijo.toLowerCase()));
+    if (targets.length === 0) { await alerta('SIN RESULTADOS', `No hay usuarios cuyo nick empiece con “${prefijo}”.`, 'info'); return; }
+    const ok = await alerta('CONFIRMAR LIMPIEZA', `¿Eliminar ${targets.length} usuario(s) que empiecen con “${prefijo}”?`, 'error');
+    if (!ok) return;
+    const b = writeBatch(db);
+    targets.forEach(j => b.delete(doc(db,'usuarios',j.id)));
+    await b.commit();
+    setCleanupLog(`✅ ${targets.length} usuarios eliminados (prefijo: ${prefijo}).`);
+    await alerta('LIMPIEZA COMPLETA', `${targets.length} usuarios eliminados.`, 'exito');
   }
   async function guardarCoins(uid: string, nuevo: number) {
     if (isNaN(nuevo) || nuevo < 0) { await alerta('ERROR','Monto inválido.','error'); return; }
@@ -289,10 +332,19 @@ export default function CeoPage() {
   const pagPend    = pagosAR.length + pagosBN.length;
 
   const jFiltrados = jugadores.filter(j => {
-    if (!busqueda) return true;
+    if (!busqueda) {
+      if (filtroU === 'activos')  return !j.baneado && j.rol !== 'bot';
+      if (filtroU === 'baneados') return !!j.baneado;
+      if (filtroU === 'bots')     return j.rol === 'bot';
+      return true;
+    }
     const q = busqueda.toLowerCase();
-    return (j.nombre||'').toLowerCase().includes(q) || (j.email||'').toLowerCase().includes(q) ||
-           (j.ip||'').includes(q) || (j.canvas_hash||'').includes(q);
+    const match = (j.nombre||'').toLowerCase().includes(q) || (j.email||'').toLowerCase().includes(q) ||
+      (j.ip||'').includes(q) || (j.ip_conexion||'').includes(q) || (j.canvas_hash||'').includes(q);
+    if (filtroU === 'activos')  return match && !j.baneado && j.rol !== 'bot';
+    if (filtroU === 'baneados') return match && !!j.baneado;
+    if (filtroU === 'bots')     return match && j.rol === 'bot';
+    return match;
   });
 
   /* ═══ LOADING ═══════════════════════════════════════════════ */
@@ -405,57 +457,126 @@ export default function CeoPage() {
 
           {/* ══ USUARIOS ════════════════════════════════════ */}
           {tab === 'usuarios' && <>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:10 }}>
-              <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:0, fontSize:'0.9rem' }}>👥 RADAR ANTI-SMURF & GESTIÓN</h2>
-              <span style={{ color:'#8b949e', fontSize:'0.78rem' }}>{jFiltrados.length}/{jugadores.length} usuarios</span>
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12, flexWrap:'wrap', gap:10 }}>
+              <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:0, fontSize:'0.9rem' }}>👥 RADAR ANTI-SMURF &amp; CONTROL</h2>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <button style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={limpiarBots}>🤖 Limpiar bots</button>
+                <button style={sm('rgba(255,215,0,0.15)','#ffd700')} onClick={async () => {
+                  const p = await modal.current!.pedirDato('PREFIJO A ELIMINAR','Nick que empieza con... (ej: PRUEBA, TEST)');
+                  if (p) limpiarPorPrefijo(p);
+                }}>🧹 Limpiar por nick</button>
+              </div>
             </div>
-            <input value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ ...inp, marginBottom:14 }} placeholder="🔍 Buscar por Nick, Email, IP o Canvas Hash..." />
+
+            {/* Filtros */}
+            <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+              {([
+                { k:'todos',    l:`🌐 Todos (${jugadores.length})` },
+                { k:'activos',  l:`✅ Activos (${jugadores.filter(j=>!j.baneado&&j.rol!=='bot').length})` },
+                { k:'baneados', l:`🚫 Baneados (${jugadores.filter(j=>j.baneado).length})` },
+                { k:'bots',     l:`🤖 Bots (${jugadores.filter(j=>j.rol==='bot').length})` },
+              ] as { k:'todos'|'activos'|'baneados'|'bots'; l:string }[]).map(f => (
+                <button key={f.k} onClick={() => setFiltroU(f.k)} style={{
+                  background: filtroU===f.k ? 'rgba(0,255,136,0.1)' : 'transparent',
+                  border: `1px solid ${filtroU===f.k ? '#00ff88' : '#30363d'}`,
+                  color: filtroU===f.k ? '#00ff88' : '#8b949e',
+                  padding:'5px 12px', borderRadius:20, cursor:'pointer',
+                  fontFamily:"'Orbitron',sans-serif", fontSize:'0.67rem', fontWeight:700,
+                }}>
+                  {f.l}
+                </button>
+              ))}
+              <span style={{ color:'#8b949e', fontSize:'0.72rem', alignSelf:'center', marginLeft:4 }}>{jFiltrados.length} mostrando</span>
+            </div>
+
+            <input value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ ...inp, marginBottom:12 }} placeholder="🔍 Buscar por Nick, Email, IP o Canvas Hash..." />
+
+            {cleanupLog && <div style={{ background:'rgba(0,255,136,0.07)', border:'1px solid #00ff88', borderRadius:8, padding:'9px 14px', marginBottom:12, color:'#00ff88', fontSize:'0.78rem' }}>{cleanupLog}</div>}
 
             <div style={{ ...card, overflowX:'auto', padding:0 }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:760 }}>
-                <thead><tr>{['JUGADOR','EMAIL / REGIÓN','HARDWARE','SALDO','FP%','ESTADO','ACCIONES'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:820 }}>
+                <thead><tr>{['JUGADOR','EMAIL / REGIÓN','IP / PAÍS','HARDWARE','SALDO','FP%','ESTADO','ACCIONES'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {jFiltrados.slice(0,100).map(j => (
-                    <tr key={j.id} className="crow">
-                      <td style={td}>
-                        <div style={{ fontWeight:700, color:j.baneado ? '#ff4757' : 'white' }}>{j.nombre||'—'}</div>
-                        <div style={{ color:'#8b949e', fontSize:'0.68rem', cursor:'pointer' }} onClick={() => navigator.clipboard?.writeText(j.id)} title="Click → copiar UID">UID: {j.id.slice(0,10)}…</div>
-                        {j.rol && j.rol !== 'jugador' && <span style={{ background:'rgba(145,70,255,0.15)', color:'#9146FF', padding:'1px 6px', borderRadius:4, fontSize:'0.62rem', fontWeight:700 }}>{j.rol.toUpperCase()}</span>}
-                      </td>
-                      <td style={td}>
-                        <div style={{ fontSize:'0.73rem' }}>{j.email||'—'}</div>
-                        <div style={{ color:'#8b949e', fontSize:'0.67rem' }}>{j.ip||'—'} · {j.region||'—'}</div>
-                      </td>
-                      <td style={td}>
-                        <div style={{ color:'#ffd700', fontSize:'0.68rem', fontFamily:'monospace' }}>{(j.canvas_hash||'—').slice(0,14)}</div>
-                        <div style={{ color:'#8b949e', fontSize:'0.65rem' }}>{j.sistema||'—'}</div>
-                      </td>
-                      <td style={{ ...td, color:'#00ff88', fontWeight:700 }}>🪙 {(j.number||0).toLocaleString()}</td>
-                      <td style={{ ...td, color:(j.fair_play??100)>=80 ? '#00ff88' : (j.fair_play??100)>=50 ? '#ffd700' : '#ff4757', fontWeight:700 }}>
-                        {j.fair_play??100}%
-                      </td>
-                      <td style={td}>
-                        <span style={{ color:j.baneado ? '#ff4757' : '#00ff88', fontWeight:700, fontSize:'0.7rem' }}>
-                          {j.baneado ? '🚫 BAN' : '✅ OK'}
-                        </span>
-                      </td>
-                      <td style={{ ...td, minWidth:145 }}>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                          {!j.baneado
-                            ? <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => setBanModal({ uid:j.id, nombre:j.nombre||j.id, horas:24 })}>🚫 BAN</button>
-                            : <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => desbanear(j.id, j.nombre||j.id)}>✅ QUITAR</button>
-                          }
-                          <button className="cact" style={sm('rgba(255,215,0,0.15)','#ffd700')} onClick={() => setCoinsM({ uid:j.id, nombre:j.nombre||j.id, actual:j.number||0, nuevo:String(j.number||0) })}>🪙</button>
-                          <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => setExpM(j)}>🕵️</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {jFiltrados.slice(0,120).map(j => {
+                    const ipMostrada = j.ip && j.ip.length > 4 ? j.ip : (j.ip_conexion||'—');
+                    const ipBloqueada = ipBlacklist.includes(j.ip||'') || ipBlacklist.includes(j.ip_conexion||'');
+                    return (
+                      <tr key={j.id} className="crow" style={{ opacity: j.baneado ? 0.65 : 1 }}>
+                        <td style={td}>
+                          <div style={{ fontWeight:700, color:j.baneado ? '#ff4757' : j.rol==='bot' ? '#9146FF' : 'white' }}>{j.nombre||'—'}</div>
+                          <div style={{ color:'#8b949e', fontSize:'0.68rem', cursor:'pointer' }} onClick={() => navigator.clipboard?.writeText(j.id)} title="Clic → copiar UID">UID: {j.id.slice(0,10)}…</div>
+                          {j.rol && j.rol !== 'jugador' && <span style={{ background:'rgba(145,70,255,0.15)', color:'#9146FF', padding:'1px 6px', borderRadius:4, fontSize:'0.62rem', fontWeight:700 }}>{j.rol.toUpperCase()}</span>}
+                        </td>
+                        <td style={td}>
+                          <div style={{ fontSize:'0.73rem' }}>{j.email||'—'}</div>
+                          <div style={{ color:'#8b949e', fontSize:'0.67rem' }}>{j.region||'—'}</div>
+                        </td>
+                        <td style={td}>
+                          <div style={{ fontFamily:'monospace', fontSize:'0.72rem', color: ipBloqueada ? '#ff4757' : '#e6edf3' }}>
+                            {ipBloqueada && '🚫 '}{ipMostrada}
+                          </div>
+                          <div style={{ color:'#8b949e', fontSize:'0.64rem' }}>{j.pais_codigo||j.ip_conexion||'—'}</div>
+                        </td>
+                        <td style={td}>
+                          <div style={{ color:'#ffd700', fontSize:'0.68rem', fontFamily:'monospace' }}>{(j.canvas_hash||'—').slice(0,14)}</div>
+                          <div style={{ color:'#8b949e', fontSize:'0.65rem' }}>{j.sistema||'—'}</div>
+                        </td>
+                        <td style={{ ...td, color:'#00ff88', fontWeight:700 }}>🪙 {(j.number||0).toLocaleString()}</td>
+                        <td style={{ ...td, color:(j.fair_play??100)>=80 ? '#00ff88' : (j.fair_play??100)>=50 ? '#ffd700' : '#ff4757', fontWeight:700 }}>
+                          {j.fair_play??100}%
+                        </td>
+                        <td style={td}>
+                          <span style={{ color:j.baneado ? '#ff4757' : '#00ff88', fontWeight:700, fontSize:'0.7rem' }}>
+                            {j.baneado ? '🚫 BAN' : '✅ OK'}
+                          </span>
+                          {j.ban_hasta?.toDate && (
+                            <div style={{ color:'#8b949e', fontSize:'0.6rem' }}>hasta {j.ban_hasta.toDate!().toLocaleDateString('es')}</div>
+                          )}
+                        </td>
+                        <td style={{ ...td, minWidth:160 }}>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                            {!j.baneado
+                              ? <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => setBanModal({ uid:j.id, nombre:j.nombre||j.id, horas:24, ip: j.ip||j.ip_conexion })}>🚫 BAN</button>
+                              : <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => desbanear(j.id, j.nombre||j.id)}>✅ DESBANEAR</button>
+                            }
+                            <button className="cact" style={sm('rgba(255,215,0,0.15)','#ffd700')} onClick={() => setCoinsM({ uid:j.id, nombre:j.nombre||j.id, actual:j.number||0, nuevo:String(j.number||0) })}>🪙</button>
+                            <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => setExpM(j)}>🕵️</button>
+                            {j.rol === 'bot' && <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={async () => { const ok = await alerta('ELIMINAR BOT',`¿Eliminar a ${j.nombre}?`,'error'); if(ok) await deleteDoc(doc(db,'usuarios',j.id)); }}>🗑️</button>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {jFiltrados.length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign:'center', color:'#8b949e', padding:30 }}>Sin resultados para &ldquo;{busqueda}&rdquo;</td></tr>
+                    <tr><td colSpan={8} style={{ textAlign:'center', color:'#8b949e', padding:30 }}>Sin resultados</td></tr>
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* IP Blacklist */}
+            <div style={{ ...card, marginTop:18, borderTop:'3px solid #ff4757' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:0, fontSize:'0.82rem' }}>🚫 IP BLACKLIST ({ipBlacklist.length} IPs bloqueadas)</h3>
+                {ipBlacklist.length > 0 && (
+                  <button style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={async () => {
+                    const ok = await alerta('VACIAR BLACKLIST','¿Desbloquear TODAS las IPs?','error');
+                    if (ok) await setDoc(doc(db,'configuracion','ip_blacklist'),{ ips:[] });
+                  }}>Vaciar todo</button>
+                )}
+              </div>
+              {ipBlacklist.length === 0
+                ? <div style={{ color:'#8b949e', fontSize:'0.78rem' }}>Sin IPs bloqueadas. Al banear un jugador podés activar &ldquo;Bloquear IP también&rdquo;.</div>
+                : <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {ipBlacklist.map(ip => (
+                      <div key={ip} style={{ background:'rgba(255,71,87,0.08)', border:'1px solid #ff475740', borderRadius:6, padding:'3px 10px', fontSize:'0.72rem', fontFamily:'monospace', color:'#ff4757', display:'flex', alignItems:'center', gap:6 }}>
+                        {ip}
+                        <button onClick={() => setDoc(doc(db,'configuracion','ip_blacklist'),{ ips: ipBlacklist.filter(i=>i!==ip) })} style={{ background:'none', border:'none', color:'#ff4757', cursor:'pointer', padding:0, fontWeight:700, fontSize:'0.8rem', lineHeight:1 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+              }
             </div>
           </>}
 
@@ -786,21 +907,26 @@ export default function CeoPage() {
       {/* Ban */}
       {banModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
-          <div style={{ background:'#161b22', border:'2px solid #ff4757', borderRadius:16, padding:28, maxWidth:360, width:'100%', textAlign:'center' }}>
+          <div style={{ background:'#161b22', border:'2px solid #ff4757', borderRadius:16, padding:28, maxWidth:380, width:'100%', textAlign:'center' }}>
             <div style={{ fontSize:'2.5rem', marginBottom:10 }}>⚖️</div>
             <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 6px', fontSize:'1rem' }}>TRIBUNAL LFA</h2>
-            <h3 style={{ margin:'0 0 16px', color:'white' }}>{banModal.nombre}</h3>
+            <h3 style={{ margin:'0 0 4px', color:'white' }}>{banModal.nombre}</h3>
+            {banModal.ip && <div style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:14, fontFamily:'monospace' }}>IP: {banModal.ip}</div>}
             <select onChange={e => setBanModal(prev => prev ? { ...prev, horas:Number(e.target.value) } : null)}
-              style={{ ...inp, borderColor:'#ff4757', textAlign:'center', marginBottom:16 }}>
+              style={{ ...inp, borderColor:'#ff4757', textAlign:'center', marginBottom:10 }}>
               <option value={24}>24 Horas</option>
               <option value={48}>48 Horas</option>
               <option value={72}>72 Horas</option>
               <option value={168}>1 Semana</option>
               <option value={0}>BAN PERMANENTE</option>
             </select>
+            <label style={{ display:'flex', alignItems:'center', gap:10, justifyContent:'center', marginBottom:16, cursor:'pointer' }}>
+              <input type="checkbox" checked={banConIp} onChange={e => setBanConIp(e.target.checked)} style={{ width:16, height:16, cursor:'pointer', accentColor:'#ff4757' }} />
+              <span style={{ color: banConIp ? '#ff4757' : '#8b949e', fontSize:'0.8rem', fontWeight:700 }}>🚫 Bloquear IP también (re-registro)</span>
+            </label>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <button style={btn('#ff4757','white')} onClick={() => ejecutarBan(banModal.uid, banModal.nombre, banModal.horas)}>🚫 APLICAR</button>
-              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => setBanModal(null)}>CANCELAR</button>
+              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => { setBanModal(null); setBanConIp(false); }}>CANCELAR</button>
             </div>
           </div>
         </div>
@@ -841,7 +967,7 @@ export default function CeoPage() {
               {[
                 { l:'UID',         v: expM.id,                                             c: undefined },
                 { l:'ROL',         v: expM.rol||'jugador',                                 c: expM.rol === 'admin' ? '#9146FF' : undefined },
-                { l:'IP CONEXIÓN', v: expM.ip||'—',                                        c: undefined },
+                { l:'IP CONEXIÓN', v: expM.ip || expM.ip_conexion||'—',                      c: undefined },
                 { l:'CANVAS HASH', v: expM.canvas_hash||'—',                               c: '#ffd700' },
                 { l:'SISTEMA',     v: expM.sistema||'—',                                   c: undefined },
                 { l:'PLAT. ID',    v: expM.plataforma_id||'—',                             c: undefined },

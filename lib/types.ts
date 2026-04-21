@@ -6,4 +6,5 @@ export interface RegionDetectionResult {
   city: string;
   isVpn: boolean;
   ip?: string;
+  isBanned?: boolean;
 }

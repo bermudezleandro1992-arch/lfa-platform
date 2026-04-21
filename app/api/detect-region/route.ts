@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { RegionDetectionResult } from '@/lib/types';
+import { adminDb } from '@/lib/firebase-admin';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mapas de regiones — basado en ISO 3166-1 alpha-2
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
       countryName: 'Argentina (local dev)',
       city:        'Local',
       isVpn:       false,
+      isBanned:    false,
       ip:          ip,
     };
     return NextResponse.json(fallback);
@@ -124,13 +126,22 @@ export async function GET(request: NextRequest) {
     const detectedRegion = getRegion(data.country_code);
     const isVpn = detectVpnByOrg(data.org);
 
+    // Check IP blacklist
+    let isBanned = false;
+    try {
+      const blDoc = await adminDb.collection('configuracion').doc('ip_blacklist').get();
+      const bannedIps: string[] = blDoc.exists ? (blDoc.data()?.ips ?? []) : [];
+      isBanned = bannedIps.includes(ip);
+    } catch { /* silencioso — no bloquear por error de lectura */ }
+
     const result: RegionDetectionResult = {
       region:      detectedRegion,
       country:     data.country_code     ?? 'XX',
       countryName: data.country_name     ?? 'Unknown',
       city:        data.city             ?? 'Unknown',
       isVpn,
-      ...(process.env.NODE_ENV === 'development' && { ip }),
+      ip,
+      isBanned,
     };
 
     return NextResponse.json(result, {

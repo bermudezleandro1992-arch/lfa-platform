@@ -47,7 +47,7 @@ async function analizarRed(): Promise<RegionDetectionResult> {
     if (!res.ok) throw new Error();
     return await res.json();
   } catch {
-    return { region: 'GLOBAL', country: 'XX', countryName: 'Unknown', city: 'Unknown', isVpn: false };
+    return { region: 'AMERICA' as const, country: 'XX', countryName: 'Unknown', city: 'Unknown', isVpn: false };
   }
 }
 
@@ -113,6 +113,11 @@ export default function LoginBox({ t }: LoginBoxProps) {
       await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
       return;
     }
+    if (datosRed.isBanned) {
+      setLoading(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
+      return;
+    }
 
     const hw = obtenerHardware();
 
@@ -128,7 +133,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
 
       let updateData: Record<string, unknown> = {
         ip_conexion: datosRed.country, hw_avanzado: hw,
-        pais_codigo: datosRed.country, terminos_aceptados: true,
+        ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
       };
       if (platId.trim()) updateData.plataforma_id = sanitizarInput(platId);
       await setDoc(doc(db, 'usuarios', cred.user.uid), updateData, { merge: true });
@@ -181,6 +186,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
             plataforma_id:      id,
             titulos:            0,
             ip_conexion:        datosRed.country,
+            ip:                 datosRed.ip ?? '',
             hw_avanzado:        hw,
             pais_codigo:        datosRed.country,
             region:             datosRed.region,
@@ -222,6 +228,11 @@ export default function LoginBox({ t }: LoginBoxProps) {
       await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
       return;
     }
+    if (datosRed.isBanned) {
+      setLoadingGoog(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
+      return;
+    }
 
     const hw = obtenerHardware();
 
@@ -253,6 +264,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
           titulos:            0,
           plataforma_id:      id,
           ip_conexion:        datosRed.country,
+          ip:                 datosRed.ip ?? '',
           hw_avanzado:        hw,
           pais_codigo:        datosRed.country,
           region:             datosRed.region,
@@ -261,7 +273,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
-          pais_codigo: datosRed.country, terminos_aceptados: true,
+          ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
@@ -290,6 +302,11 @@ export default function LoginBox({ t }: LoginBoxProps) {
     if (datosRed.isVpn) {
       setLoadingFb(false);
       await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
+      return;
+    }
+    if (datosRed.isBanned) {
+      setLoadingFb(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
       return;
     }
 
@@ -323,6 +340,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
           titulos:            0,
           plataforma_id:      id,
           ip_conexion:        datosRed.country,
+          ip:                 datosRed.ip ?? '',
           hw_avanzado:        hw,
           pais_codigo:        datosRed.country,
           region:             datosRed.region,
@@ -331,7 +349,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
-          pais_codigo: datosRed.country, terminos_aceptados: true,
+          ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
