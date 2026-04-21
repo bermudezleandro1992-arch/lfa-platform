@@ -1362,31 +1362,52 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
 // ============================================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-const TIER_CONFIGS_SPAWN = {
-    FREE:        { entry_fee: 0,     prize_pool: 0,     free: true,  prizes: [{ place: 1, label: "🥇 1°", percentage: 100, coins: 0 }] },
-    RECREATIVO:  { entry_fee: 500,   prize_pool: 3500,  free: false, prizes: [{ place: 1, label: "🥇 1°", percentage: 70, coins: 2450 }, { place: 2, label: "🥈 2°", percentage: 30, coins: 1050 }] },
-    COMPETITIVO: { entry_fee: 1000,  prize_pool: 7000,  free: false, prizes: [{ place: 1, label: "🥇 1°", percentage: 70, coins: 4900 }, { place: 2, label: "🥈 2°", percentage: 30, coins: 2100 }] },
-    ELITE:       { entry_fee: 10000, prize_pool: 70000, free: false, prizes: [{ place: 1, label: "🥇 1°", percentage: 70, coins: 49000 }, { place: 2, label: "🥈 2°", percentage: 30, coins: 21000 }] },
-};
-
-// Plantillas: 2 salas de cada combinación se mantendrán abiertas
-// Formato: game × mode × tier × region (3 regiones × 2 modos × 2 juegos × 3 tiers = 36 plantillas)
-const _GAMES = [
-    { game: "FC26",      modes: ["GENERAL_95", "ULTIMATE"]               },
-    { game: "EFOOTBALL", modes: ["DREAM_TEAM", "GENUINOS"]               },
+// 14 slots × 2 juegos × 2 modos × 3 regiones = 168 plantillas
+const SALA_SLOTS_SPAWN = [
+    // [capacity, entry_fee]
+    [2, 500],  [2, 2000],
+    [4, 0],    [4, 500],
+    [6, 0],    [6, 500],  [6, 2000],
+    [8, 0],    [8, 500],  [8, 2000],
+    [12, 500], [12, 2000],
+    [16, 0],   [16, 10000],
 ];
-const _TIERS   = ["FREE", "RECREATIVO", "COMPETITIVO"];
-const _REGIONS = ["LATAM_SUR", "LATAM_NORTE", "GLOBAL"];
-const _CAPACITY = { FREE: 8, RECREATIVO: 8, COMPETITIVO: 16, ELITE: 32 };
+
+const _SPAWN_GAMES = [
+    { game: "FC26",      modes: ["GENERAL_95", "ULTIMATE"] },
+    { game: "EFOOTBALL", modes: ["DREAM_TEAM", "GENUINOS"] },
+];
+const _SPAWN_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA"];
+
+function getTierFromFee(entry_fee) {
+    if (entry_fee === 0)    return "FREE";
+    if (entry_fee < 1000)  return "RECREATIVO";
+    if (entry_fee < 10000) return "COMPETITIVO";
+    return "ELITE";
+}
+
+function calcPrizePool(capacity, entry_fee) {
+    return Math.floor(capacity * entry_fee * 0.9);
+}
+
+function calcPrizes(capacity, entry_fee) {
+    if (entry_fee === 0) return [{ place: 1, label: "🥇 1°", percentage: 100, coins: 0 }];
+    const pot = calcPrizePool(capacity, entry_fee);
+    if (capacity <= 8) return [{ place: 1, label: "🥇 1°", percentage: 100, coins: pot }];
+    return [
+        { place: 1, label: "🥇 1°", percentage: 70, coins: Math.floor(pot * 0.70) },
+        { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pot * 0.30) },
+    ];
+}
 
 const SPAWN_TEMPLATES = [];
-for (const g of _GAMES) {
+for (const g of _SPAWN_GAMES) {
     for (const mode of g.modes) {
-        for (const tier of _TIERS) {
-            for (const region of _REGIONS) {
+        for (const [capacity, entry_fee] of SALA_SLOTS_SPAWN) {
+            for (const region of _SPAWN_REGIONS) {
                 SPAWN_TEMPLATES.push({
-                    game: g.game, mode, tier, region,
-                    capacity: _CAPACITY[tier] || 8,
+                    game: g.game, mode, region, capacity, entry_fee,
+                    tier: getTierFromFee(entry_fee),
                 });
             }
         }
@@ -1403,17 +1424,17 @@ async function runSpawnCycle() {
     let created = 0;
     for (const tpl of SPAWN_TEMPLATES) {
         const snap = await db.collection("tournaments")
-            .where("game",   "==", tpl.game)
-            .where("mode",   "==", tpl.mode)
-            .where("tier",   "==", tpl.tier)
-            .where("region", "==", tpl.region)
-            .where("status", "==", "OPEN")
+            .where("game",      "==", tpl.game)
+            .where("mode",      "==", tpl.mode)
+            .where("entry_fee", "==", tpl.entry_fee)
+            .where("capacity",  "==", tpl.capacity)
+            .where("region",    "==", tpl.region)
+            .where("status",    "==", "OPEN")
             .get();
 
         const needed = Math.max(0, 2 - snap.size);
         if (needed === 0) continue;
 
-        const tc = TIER_CONFIGS_SPAWN[tpl.tier];
         const batch = db.batch();
         for (let i = 0; i < needed; i++) {
             const ref = db.collection("tournaments").doc();
@@ -1422,10 +1443,10 @@ async function runSpawnCycle() {
                 mode:       tpl.mode,
                 region:     tpl.region,
                 tier:       tpl.tier,
-                free:       tc.free,
-                entry_fee:  tc.entry_fee,
-                prize_pool: tc.prize_pool,
-                prizes:     tc.prizes,
+                free:       tpl.entry_fee === 0,
+                entry_fee:  tpl.entry_fee,
+                prize_pool: calcPrizePool(tpl.capacity, tpl.entry_fee),
+                prizes:     calcPrizes(tpl.capacity, tpl.entry_fee),
                 capacity:   tpl.capacity,
                 players:    [],
                 status:     "OPEN",
@@ -1466,33 +1487,43 @@ exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) =
 
     try {
         const tpl = SPAWN_TEMPLATES.find(t =>
-            t.game   === despues.game   &&
-            t.mode   === despues.mode   &&
-            t.tier   === despues.tier   &&
-            t.region === despues.region
+            t.game      === despues.game      &&
+            t.mode      === despues.mode      &&
+            t.entry_fee === despues.entry_fee &&
+            t.capacity  === despues.capacity  &&
+            t.region    === despues.region
         );
         if (!tpl) return;
 
         const snap = await db.collection("tournaments")
-            .where("game",   "==", tpl.game)
-            .where("mode",   "==", tpl.mode)
-            .where("tier",   "==", tpl.tier)
-            .where("region", "==", tpl.region)
-            .where("status", "==", "OPEN")
+            .where("game",      "==", tpl.game)
+            .where("mode",      "==", tpl.mode)
+            .where("entry_fee", "==", tpl.entry_fee)
+            .where("capacity",  "==", tpl.capacity)
+            .where("region",    "==", tpl.region)
+            .where("status",    "==", "OPEN")
             .get();
 
         const needed = Math.max(0, 2 - snap.size);
         if (needed === 0) return;
 
-        const tc = TIER_CONFIGS_SPAWN[tpl.tier];
         const batch = db.batch();
         for (let i = 0; i < needed; i++) {
             const ref = db.collection("tournaments").doc();
             batch.set(ref, {
-                game: tpl.game, mode: tpl.mode, region: tpl.region, tier: tpl.tier,
-                free: tc.free, entry_fee: tc.entry_fee, prize_pool: tc.prize_pool,
-                prizes: tc.prizes, capacity: tpl.capacity, players: [], status: "OPEN",
-                spawned: true, created_at: admin.firestore.FieldValue.serverTimestamp(),
+                game:       tpl.game,
+                mode:       tpl.mode,
+                region:     tpl.region,
+                tier:       tpl.tier,
+                free:       tpl.entry_fee === 0,
+                entry_fee:  tpl.entry_fee,
+                prize_pool: calcPrizePool(tpl.capacity, tpl.entry_fee),
+                prizes:     calcPrizes(tpl.capacity, tpl.entry_fee),
+                capacity:   tpl.capacity,
+                players:    [],
+                status:     "OPEN",
+                spawned:    true,
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
         await batch.commit();

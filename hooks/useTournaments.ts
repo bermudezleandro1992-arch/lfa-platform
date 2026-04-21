@@ -40,7 +40,7 @@ export function useTournaments(filters: Filters) {
     setLoading(true);
     setError(null);
     const constraints: QueryConstraint[] = [
-      where("status", "in", ["OPEN", "ACTIVE"]),
+      where("status", "==", "OPEN"),
     ];
     if (filters.game)   constraints.push(where("game",   "==", filters.game));
     if (filters.region) constraints.push(where("region", "==", filters.region));

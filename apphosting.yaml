@@ -28,6 +28,10 @@ env:
   - variable: IP_API_BASE_URL
     value: https://ipapi.co
 
+  # Bot secret — reemplazar con el valor real en Firebase Console → App Hosting → Secrets
+  - variable: BOT_SECRET
+    secret: BOT_SECRET
+
   # Firebase Admin SDK (secretos, van con secret:)
   - variable: FIREBASE_ADMIN_PROJECT_ID
     value: lfaofficial
