@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged }  from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -15,6 +15,14 @@ const LiveMatches      = dynamic(() => import('@/app/_components/dashboard/LiveM
 const RecentChampions  = dynamic(() => import('@/app/_components/dashboard/RecentChampions'),  { ssr: false });
 
 export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);

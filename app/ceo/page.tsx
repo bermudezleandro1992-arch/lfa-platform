@@ -229,7 +229,7 @@ export default function CeoPage() {
     const banHasta = horas === 0 ? null : new Date(Date.now() + horas * 3_600_000);
     await updateDoc(doc(db,'usuarios',uid), { baneado: true, ban_hasta: banHasta });
     if (banConIp && banModal?.ip && banModal.ip.length > 4) {
-      const newList = [...new Set([...ipBlacklist, banModal.ip])];
+      const newList = Array.from(new Set([...ipBlacklist, banModal.ip]));
       const blRef = doc(db,'configuracion','ip_blacklist');
       await updateDoc(blRef, { ips: newList }).catch(() =>
         setDoc(blRef, { ips: newList })
