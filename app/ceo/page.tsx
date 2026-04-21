@@ -287,19 +287,37 @@ export default function CeoPage() {
     if (!ok) return; await deleteDoc(doc(db,'tournaments',id));
   }
   async function crearSalaManual() {
-    const tc: Record<string, { entry_fee:number; prize_pool:number; free:boolean; prizes:object[] }> = {
-      FREE:        { entry_fee:0,     prize_pool:0,     free:true,  prizes:[{ place:1, label:'🥇 1°', percentage:100, coins:0 }] },
-      RECREATIVO:  { entry_fee:500,   prize_pool:3500,  free:false, prizes:[{ place:1, label:'🥇 1°', percentage:70, coins:2450 },{ place:2, label:'🥈 2°', percentage:30, coins:1050 }] },
-      COMPETITIVO: { entry_fee:1000,  prize_pool:7000,  free:false, prizes:[{ place:1, label:'🥇 1°', percentage:70, coins:4900 },{ place:2, label:'🥈 2°', percentage:30, coins:2100 }] },
-      ELITE:       { entry_fee:10000, prize_pool:70000, free:false, prizes:[{ place:1, label:'🥇 1°', percentage:70, coins:49000 },{ place:2, label:'🥈 2°', percentage:30, coins:21000 }] },
-    };
-    const t = tc[crTier];
+    const FEES: Record<string, number> = { FREE:0, RECREATIVO:500, COMPETITIVO:1000, ELITE:10000 };
+    const cap      = parseInt(crCap);
+    const fee      = FEES[crTier] ?? 0;
+    const pool     = cap * fee * 0.9;
+    const isFree   = fee === 0;
+    function mkPrizes() {
+      if (isFree) return [{ place:1, label:'🥇 1°', percentage:100, coins:0 }];
+      if (cap <= 6)  return [{ place:1, label:'🥇 1°', percentage:100, coins:pool }];
+      if (cap <= 16) return [
+        { place:1, label:'🥇 1°', percentage:70, coins:Math.floor(pool*0.70) },
+        { place:2, label:'🥈 2°', percentage:30, coins:Math.floor(pool*0.30) },
+      ];
+      if (cap <= 32) return [
+        { place:1, label:'🥇 1°', percentage:50, coins:Math.floor(pool*0.50) },
+        { place:2, label:'🥈 2°', percentage:25, coins:Math.floor(pool*0.25) },
+        { place:3, label:'🥉 3°', percentage:15, coins:Math.floor(pool*0.15) },
+        { place:4, label:'4°',    percentage:10, coins:Math.floor(pool*0.10) },
+      ];
+      return [
+        { place:1, label:'🥇 1°', percentage:45, coins:Math.floor(pool*0.45) },
+        { place:2, label:'🥈 2°', percentage:25, coins:Math.floor(pool*0.25) },
+        { place:3, label:'🥉 3°', percentage:18, coins:Math.floor(pool*0.18) },
+        { place:4, label:'4°',    percentage:12, coins:Math.floor(pool*0.12) },
+      ];
+    }
     await addDoc(collection(db,'tournaments'), {
-      game:crGame, mode:crMode, region:crRegion, tier:crTier, free:t.free,
-      entry_fee:t.entry_fee, prize_pool:t.prize_pool, prizes:t.prizes,
-      capacity:parseInt(crCap), players:[], status:'OPEN', spawned:false, created_at:serverTimestamp(),
+      game:crGame, mode:crMode, region:crRegion, tier:crTier, free:isFree,
+      entry_fee:fee, prize_pool:pool, prizes:mkPrizes(),
+      capacity:cap, players:[], status:'OPEN', spawned:false, created_at:serverTimestamp(),
     });
-    await alerta('SALA CREADA', `${GL[crGame]} · ${ML[crMode]} · ${crTier}`, 'exito');
+    await alerta('SALA CREADA', `${GL[crGame]} · ${ML[crMode]} · ${crTier} · ${cap}j · ${mkPrizes().length} premios`, 'exito');
   }
 
   /* ── Spawner manual ──────────────────────────────────────── */
@@ -617,8 +635,10 @@ export default function CeoPage() {
                   <select style={{ ...inp, gridColumn:'1/-1' }} value={crCap} onChange={e => setCrCap(e.target.value)}>
                     <option value="4">4 cupos</option>
                     <option value="8">8 cupos</option>
+                    <option value="12">12 cupos</option>
                     <option value="16">16 cupos</option>
                     <option value="32">32 cupos</option>
+                    <option value="64">64 cupos</option>
                   </select>
                 </div>
                 <button style={{ ...btn('#00ff88'), width:'100%', marginTop:2 }} onClick={crearSalaManual}>🚀 PUBLICAR SALA</button>

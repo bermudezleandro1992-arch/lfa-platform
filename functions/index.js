@@ -1393,10 +1393,28 @@ function calcPrizePool(capacity, entry_fee) {
 function calcPrizes(capacity, entry_fee) {
     if (entry_fee === 0) return [{ place: 1, label: "🥇 1°", percentage: 100, coins: 0 }];
     const pot = calcPrizePool(capacity, entry_fee);
-    if (capacity <= 8) return [{ place: 1, label: "🥇 1°", percentage: 100, coins: pot }];
-    return [
+    // 2–6 jugadores → ganador único
+    if (capacity <= 6) return [
+        { place: 1, label: "🥇 1°", percentage: 100, coins: pot },
+    ];
+    // 8–16 jugadores → top 2
+    if (capacity <= 16) return [
         { place: 1, label: "🥇 1°", percentage: 70, coins: Math.floor(pot * 0.70) },
         { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pot * 0.30) },
+    ];
+    // 32 jugadores → top 4
+    if (capacity <= 32) return [
+        { place: 1, label: "🥇 1°", percentage: 50, coins: Math.floor(pot * 0.50) },
+        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
+        { place: 3, label: "🥉 3°", percentage: 15, coins: Math.floor(pot * 0.15) },
+        { place: 4, label: "4°",    percentage: 10, coins: Math.floor(pot * 0.10) },
+    ];
+    // 64+ jugadores → top 4
+    return [
+        { place: 1, label: "🥇 1°", percentage: 45, coins: Math.floor(pot * 0.45) },
+        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
+        { place: 3, label: "🥉 3°", percentage: 18, coins: Math.floor(pot * 0.18) },
+        { place: 4, label: "4°",    percentage: 12, coins: Math.floor(pot * 0.12) },
     ];
 }
 
