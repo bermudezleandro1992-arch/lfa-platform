@@ -13,20 +13,10 @@ interface Jugador {
   partidos_jugados?: number; victorias?: number; baneado?: boolean; country?: string;
 }
 
-function FlagImg({ code, size = 16 }: { code?: string; size?: number }) {
-  if (!code || code.length !== 2) return null;
-  const c = code.toLowerCase();
-  return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${c}.png`}
-      srcSet={`https://flagcdn.com/w${size * 2}/${c}.png 2x`}
-      width={size}
-      height={Math.round(size * 0.67)}
-      alt={code.toUpperCase()}
-      title={code.toUpperCase()}
-      style={{ display: 'inline-block', borderRadius: 2, objectFit: 'cover', verticalAlign: 'middle', flexShrink: 0 }}
-    />
-  );
+function countryFlag(code = '') {
+  if (!code || code.length !== 2) return '';
+  const o = 0x1F1E6 - 65;
+  return String.fromCodePoint(code.toUpperCase().charCodeAt(0)+o, code.toUpperCase().charCodeAt(1)+o);
 }
 const RL: Record<string, string> = {
   LATAM_SUR: 'LATAM Sur', LATAM_NORTE: 'LATAM Norte',
@@ -83,7 +73,13 @@ export default function RankingInline() {
     const unsub = onSnapshot(query(collection(db, 'usuarios'), limit(500)), (snap) => {
       const list: Jugador[] = [];
       snap.forEach(d => {
-        const j = { id: d.id, ...d.data() } as Jugador;
+        const data = d.data();
+        const j = {
+          id: d.id,
+          ...data,
+          // Mapear pais_codigo → country para mostrar bandera
+          country: data.country || data.pais_codigo,
+        } as Jugador;
         if (!j.baneado) list.push(j);
       });
       setJugadores(list);
@@ -179,7 +175,7 @@ export default function RankingInline() {
                       </div>
                       <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.68rem', fontWeight: 900, color: j.id === uid ? '#00ff88' : 'white', lineHeight: 1.2 }}>
                         <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                          {j.country && <FlagImg code={j.country} size={14} />}
+                          {j.country && <span style={{ marginRight: 3 }}>{countryFlag(j.country)}</span>}
                           {(j.nombre||'ANÓNIMO').toUpperCase()}
                         </Link>
                         {j.id === uid && <div style={{ color: '#00ff88', fontSize: '0.55rem' }}>← TÚ</div>}
@@ -222,7 +218,7 @@ export default function RankingInline() {
                             <div>
                               <div style={{ fontWeight: 700, color: esYo ? '#00ff88' : 'white', fontSize: '0.78rem' }}>
                                 <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                                  {j.country && <FlagImg code={j.country} size={14} />}
+                                  {j.country && <span style={{ marginRight: 3 }}>{countryFlag(j.country)}</span>}
                                   {(j.nombre||'ANÓNIMO').toUpperCase()}
                                 </Link>
                                 {esYo && <span style={{ marginLeft: 6, color: '#00ff88', fontSize: '0.58rem' }}>← TÚ</span>}

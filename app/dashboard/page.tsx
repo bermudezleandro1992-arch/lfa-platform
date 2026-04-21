@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter }           from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged }  from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db }            from '@/lib/firebase';
 import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
-import MiSalaActiva            from '@/app/_components/dashboard/MiSalaActiva';
 import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
 
@@ -14,10 +13,20 @@ const RankingInline = dynamic(() => import('@/app/_components/dashboard/RankingI
 const LfaTV         = dynamic(() => import('@/app/_components/dashboard/LfaTV'),         { ssr: false });
 
 export default function DashboardPage() {
-  const router  = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
-  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'>('arena');
+  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'>(() => {
+    // Se inicializa con 'arena'; el useEffect lo ajusta según ?tab=
+    return 'arena';
+  });
+
+  // Leer ?tab= de la URL al montar
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'ranking' || t === 'tv') setTab(t);
+  }, [searchParams]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -82,7 +91,6 @@ export default function DashboardPage() {
 
       {tab === 'arena'   && (
         <>
-          <MiSalaActiva uid={uid} />
           <BuscarSala />
           <DashboardFooter />
         </>

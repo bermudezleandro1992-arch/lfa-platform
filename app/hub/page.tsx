@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import HubLfaTV from '@/app/_components/HubLfaTV';
 
 /* ─── Tipos ───────────────────────────────────────────── */
 interface UserData {
@@ -132,13 +131,6 @@ export default function HubPage() {
                 ⚙️ CEO
               </a>
             )}
-            {/* Billetera + Recargar */}
-            <a href="/recargar" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#f3ba2f', border: '1px solid rgba(243,186,47,0.5)', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(243,186,47,0.1)', fontWeight: 900 }}>
-              ⚡ RECARGAR
-            </a>
-            <a href="/billetera" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#f3ba2f', border: '1px solid rgba(243,186,47,0.4)', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(243,186,47,0.07)', fontWeight: 700 }}>
-              💰 BILLETERA
-            </a>
             {/* Perfil + coins + logout */}
             <a href="/perfil" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: '7px 14px', borderRadius: 30, border: '1px solid #30363d', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid #00ff88', overflow: 'hidden', background: '#1c2028', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -163,8 +155,29 @@ export default function HubPage() {
         {/* ── CONTENIDO ────────────────────────────────── */}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 16px 60px' }}>
 
-          {/* LFA TV */}
-          <HubLfaTV />
+          {/* Accesos rápidos → Dashboard */}
+          <div style={{ marginBottom: 40, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+            <button
+              onClick={() => router.push('/dashboard?tab=tv')}
+              style={{ background: '#161b22', border: '2px solid #ff475740', borderRadius: 14, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff4757'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #ff475730'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff475740'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📺</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 900, color: '#ff4757', marginBottom: 6 }}>LFA TV</div>
+              <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Stream en vivo oficial</div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=ranking')}
+              style={{ background: '#161b22', border: '2px solid #ffd70040', borderRadius: 14, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s', color: 'white' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd700'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px #ffd70030'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#ffd70040'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🏆</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.95rem', fontWeight: 900, color: '#ffd700', marginBottom: 6 }}>RANKING</div>
+              <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Top jugadores globales</div>
+            </button>
+          </div>
 
           {/* MODOS */}
           <h2 style={{ fontFamily: "'Orbitron',sans-serif", color: 'white', margin: '0 0 20px', fontSize: 'clamp(1rem, 3vw, 1.3rem)' }}>
