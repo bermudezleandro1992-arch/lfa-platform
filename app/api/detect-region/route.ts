@@ -15,14 +15,14 @@ const LATAM_NORTE = new Set([
 
 const AMERICA = new Set(['US', 'CA']);
 
-type Region = 'LATAM_SUR' | 'LATAM_NORTE' | 'AMERICA' | 'GLOBAL';
+type Region = 'LATAM_SUR' | 'LATAM_NORTE' | 'AMERICA';
 
 function getRegion(countryCode: string | undefined): Region {
-  if (!countryCode) return 'GLOBAL';
+  if (!countryCode) return 'AMERICA';
   if (LATAM_SUR.has(countryCode))   return 'LATAM_SUR';
   if (LATAM_NORTE.has(countryCode)) return 'LATAM_NORTE';
   if (AMERICA.has(countryCode))     return 'AMERICA';
-  return 'GLOBAL';
+  return 'AMERICA';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4,26 +4,20 @@
 export const REGIONS = [
   {
     value: "LATAM_SUR",
-    label: "🌎 LATAM Sur",
-    description: "Perú, Argentina, Chile, Brasil, Uruguay, Bolivia, Paraguay",
-    countries: ["PE", "AR", "CL", "BR", "UY", "BO", "PY"],
+    label: "🌎 Región Sur",
+    description: "Argentina, Uruguay, Chile, Perú, Brasil, Bolivia, Paraguay",
+    countries: ["AR", "UY", "CL", "PE", "BR", "BO", "PY"],
   },
   {
     value: "LATAM_NORTE",
-    label: "🌎 LATAM Norte",
-    description: "México, Colombia, Venezuela, Ecuador, Rep. Dominicana, Costa Rica, Panamá, Miami (USA)",
+    label: "🌎 Región Norte",
+    description: "México, Colombia, Venezuela, Ecuador, Rep. Dominicana, Costa Rica, Panamá y más",
     countries: ["MX", "CO", "VE", "EC", "DO", "CR", "PA", "GT", "HN", "SV", "NI", "US"],
   },
   {
     value: "AMERICA",
-    label: "🌍 América (SUR + NORTE)",
-    description: "Toda Latinoamérica unificada",
-    countries: [],
-  },
-  {
-    value: "GLOBAL",
-    label: "🌐 Global",
-    description: "Mundial — España, USA, Europa y más",
+    label: "🌍 Región América",
+    description: "Toda Latinoamérica unificada — Norte + Sur",
     countries: [],
   },
 ] as const;
@@ -72,14 +66,14 @@ export const PLATFORMS = [
 export const ROOM_TIERS = {
   FREE:        { label: "GRATIS",      color: "cyan",   minCoins: 0,     maxCoins: 0,     coinLabel: "Gratis",              usdLabel: "Premio por Staff" },
   RECREATIVO:  { label: "RECREATIVO",  color: "green",  minCoins: 500,   maxCoins: 999,   coinLabel: "500 – 999 LFC",       usdLabel: "~$0.50–$0.99" },
-  COMPETITIVO: { label: "COMPETITIVO", color: "yellow", minCoins: 1000,  maxCoins: 4999,  coinLabel: "1.000 – 4.999 LFC",  usdLabel: "$1 – $4.99" },
-  ELITE:       { label: "ELITE",       color: "red",    minCoins: 5000,  maxCoins: 20000, coinLabel: "5.000 – 20.000 LFC", usdLabel: "$5 – $20" },
+  COMPETITIVO: { label: "COMPETITIVO", color: "yellow", minCoins: 1000,  maxCoins: 9999,  coinLabel: "1.000 – 9.999 LFC",   usdLabel: "$1 – $9.99" },
+  ELITE:       { label: "ELITE",       color: "red",    minCoins: 10000, maxCoins: 20000, coinLabel: "10.000 – 20.000 LFC", usdLabel: "$10 – $20" },
 } as const;
 
 export function getRoomTier(entryFee: number) {
   if (entryFee === 0)    return ROOM_TIERS.FREE;
   if (entryFee < 1000)   return ROOM_TIERS.RECREATIVO;
-  if (entryFee < 5000)  return ROOM_TIERS.COMPETITIVO;
+  if (entryFee < 10000)  return ROOM_TIERS.COMPETITIVO;
   return ROOM_TIERS.ELITE;
 }
 
@@ -96,18 +90,22 @@ export interface PrizeSlot {
 export interface TournamentTemplate {
   id:           string;
   name:         string;
-  capacity:     2 | 8 | 16 | 32 | 64;
+  capacity:     2 | 4 | 6 | 8 | 12 | 16 | 32 | 64;
   entry_fee:    number;
   prize_pool:   number;
   platform_fee: number;
   prizes:       PrizeSlot[];
   tier:         keyof typeof ROOM_TIERS;
   free:         boolean;
+  special?:     boolean; // true = solo sábado/domingo
 }
 
 const DISTRIBUTIONS: Record<number, { label: string; pct: number }[]> = {
   2:  [{ label: "🥇 1°", pct: 100 }],
+  4:  [{ label: "🥇 1°", pct: 70  }, { label: "🥈 2°", pct: 30 }],
+  6:  [{ label: "🥇 1°", pct: 70  }, { label: "🥈 2°", pct: 30 }],
   8:  [{ label: "🥇 1°", pct: 70  }, { label: "🥈 2°", pct: 30 }],
+  12: [{ label: "🥇 1°", pct: 60  }, { label: "🥈 2°", pct: 30 }, { label: "🥉 3°", pct: 10 }],
   16: [{ label: "🥇 1°", pct: 70  }, { label: "🥈 2°", pct: 30 }],
   32: [{ label: "🥇 1°", pct: 60  }, { label: "🥈 2°", pct: 30 }, { label: "🥉 3°", pct: 10 }],
   64: [{ label: "🥇 1°", pct: 50  }, { label: "🥈 2°", pct: 30 }, { label: "🥉 3°", pct: 15 }, { label: "4°", pct: 5 }],
@@ -115,9 +113,10 @@ const DISTRIBUTIONS: Record<number, { label: string; pct: number }[]> = {
 
 function buildTemplate(
   id: string, name: string,
-  capacity: 2 | 8 | 16 | 32 | 64,
+  capacity: 2 | 4 | 6 | 8 | 12 | 16 | 32 | 64,
   entry_fee: number,
-  free = false
+  free = false,
+  special = false,
 ): TournamentTemplate {
   const total        = entry_fee * capacity;
   const platform_fee = Math.floor(total * 0.1);
@@ -130,37 +129,42 @@ function buildTemplate(
     coins:      Math.floor((prize_pool * d.pct) / 100),
   }));
   const tier: keyof typeof ROOM_TIERS =
-    entry_fee === 0 ? "RECREATIVO" : entry_fee < 3000 ? "COMPETITIVO" : "ELITE";
-  return { id, name, capacity, entry_fee, prize_pool, platform_fee, prizes, tier, free };
+    entry_fee === 0 ? "FREE" : entry_fee < 1000 ? "RECREATIVO" : entry_fee < 10000 ? "COMPETITIVO" : "ELITE";
+  return { id, name, capacity, entry_fee, prize_pool, platform_fee, prizes, tier, free, special };
 }
 
 export const TOURNAMENT_TEMPLATES: TournamentTemplate[] = [
-  // FREE
-  buildTemplate("FREE_8",    "Sala Free 8",    8,  0,     true),
-  buildTemplate("FREE_16",   "Sala Free 16",   16, 0,     true),
-  buildTemplate("FREE_32",   "Sala Free 32",   32, 0,     true),
-  // DUELOS 1vs1
-  buildTemplate("DUEL_LOW",  "Duelo Express",  2,  1_000),
-  buildTemplate("DUEL_PRO",  "Duelo Pro",      2,  5_000),
-  // 8 JUGADORES
-  buildTemplate("R8_LOW",    "Relámpago Low",  8,  500),
-  buildTemplate("R8_VIP",    "Relámpago VIP",  8,  5_000),
-  // 16 JUGADORES
-  buildTemplate("S16_STD",   "Standard 16",    16, 1_000),
-  buildTemplate("S16_PRO",   "Standard Pro",   16, 3_000),
-  // 32 JUGADORES
-  buildTemplate("SP32_STD",  "Semi-Pro 32",    32, 1_000),
-  buildTemplate("SP32_VIP",  "Semi-Pro VIP",   32, 5_000),
-  // 64 JUGADORES
-  buildTemplate("GL64_LOW",  "Gran LFA 64",    64, 500),
-  buildTemplate("GL64_PRO",  "Gran LFA Pro",   64, 2_000),
+  // ── DUELOS 1v1 ─────────────────────────────────────────────────
+  buildTemplate("DUEL_REC",   "Duelo Express",       2,       500),
+  buildTemplate("DUEL_COM",   "Duelo Competitivo",   2,     2_000),
+  // ── 4 JUGADORES ────────────────────────────────────────────────
+  buildTemplate("S4_FREE",    "Copa 4 Free",          4,       0, true),
+  buildTemplate("S4_REC",     "Copa 4 Express",       4,     500),
+  // ── 6 JUGADORES ────────────────────────────────────────────────
+  buildTemplate("S6_FREE",    "Copa 6 Free",          6,       0, true),
+  buildTemplate("S6_REC",     "Copa 6 Express",       6,     500),
+  buildTemplate("S6_COM",     "Copa 6 Pro",           6,     2_000),
+  // ── 8 JUGADORES ────────────────────────────────────────────────
+  buildTemplate("S8_FREE",    "Copa 8 Free",          8,       0, true),
+  buildTemplate("S8_REC",     "Copa 8 Express",       8,     500),
+  buildTemplate("S8_COM",     "Copa 8 Pro",           8,     2_000),
+  // ── 12 JUGADORES ───────────────────────────────────────────────
+  buildTemplate("S12_REC",    "Copa 12 Express",     12,     500),
+  buildTemplate("S12_COM",    "Copa 12 Pro",         12,     2_000),
+  // ── 16 JUGADORES ───────────────────────────────────────────────
+  buildTemplate("S16_FREE",   "Copa 16 Free",        16,       0, true),
+  buildTemplate("S16_ELT",    "Copa 16 Elite",       16,    10_000),
+  // ── 32 JUGADORES — ESPECIALES SÁB/DOM ─────────────────────────
+  buildTemplate("SP32_COM",   "Gran Copa 32 Pro",    32,     2_000, false, true),
+  buildTemplate("SP32_ELT",   "Gran Copa 32 Elite",  32,    10_000, false, true),
 ];
 
 // Premios fijos para salas FREE (fondo de marketing)
 export const FREE_PRIZE_OVERRIDES: Record<string, number[]> = {
-  FREE_8:  [300, 100],
-  FREE_16: [450, 150],
-  FREE_32: [600, 300, 100],
+  S4_FREE:  [200, 50],
+  S6_FREE:  [250, 100],
+  S8_FREE:  [300, 100],
+  S16_FREE: [450, 150],
 };
 
 export const COINS_PER_USDT      = 1_000;

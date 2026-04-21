@@ -2,7 +2,7 @@ import { NextResponse }  from 'next/server';
 import { adminDb }       from '@/lib/firebase-admin';
 import { FieldValue }    from 'firebase-admin/firestore';
 
-// ⚠️  Solo disponible en desarrollo
+// ⚠️  Solo disponible en desarrollo — genera 168 salas (28 por juego por región × 3 regiones × 2 juegos)
 export async function POST() {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'No disponible en producción.' }, { status: 403 });
@@ -10,135 +10,102 @@ export async function POST() {
 
   const now = FieldValue.serverTimestamp();
 
-  const seeds = [
-    // ── GRATIS FC26 — 2 jugadores ────────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 2, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── GRATIS FC26 — 4 jugadores ────────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 4, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── GRATIS FC26 — 6 jugadores ────────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 6, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── GRATIS FC26 — 8 jugadores ────────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 8, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── GRATIS FC26 — 12 jugadores ───────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_NORTE',
-      capacity: 12, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── RECREATIVO FC26 — 16 jugadores ───────────────
-    {
-      game: 'FC26', mode: 'ULTIMATE', region: 'LATAM_SUR',
-      capacity: 16, entry_fee: 500, prize_pool: 7000, tier: 'RECREATIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 70, coins: 4900 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 2100 },
-      ],
-    },
-    // ── RECREATIVO FC26 — 8 jugadores ────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 8, entry_fee: 500, prize_pool: 3500, tier: 'RECREATIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 70, coins: 2450 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 1050 },
-      ],
-    },
-    // ── COMPETITIVO FC26 — 8 jugadores ───────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'LATAM_SUR',
-      capacity: 8, entry_fee: 1000, prize_pool: 7000, tier: 'COMPETITIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 70, coins: 4900 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 2100 },
-      ],
-    },
-    // ── COMPETITIVO FC26 — 32 jugadores ──────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'AMERICA',
-      capacity: 32, entry_fee: 3000, prize_pool: 84000, tier: 'COMPETITIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 60, coins: 50400 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 25200 },
-        { place: 3, label: '🥉 3°', percentage: 10, coins: 8400  },
-      ],
-    },
-    // ── COMPETITIVO FC26 — 64 jugadores ──────────────
-    {
-      game: 'FC26', mode: 'DREAM_TEAM', region: 'AMERICA',
-      capacity: 64, entry_fee: 2000, prize_pool: 112000, tier: 'COMPETITIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 60, coins: 67200 },
-        { place: 2, label: '🥈 2°', percentage: 25, coins: 28000 },
-        { place: 3, label: '🥉 3°', percentage: 15, coins: 16800 },
-      ],
-    },
-    // ── ELITE FC26 — 8 jugadores ─────────────────────
-    {
-      game: 'FC26', mode: 'GENERAL_95', region: 'GLOBAL',
-      capacity: 8, entry_fee: 10000, prize_pool: 70000, tier: 'ELITE',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 70, coins: 49000 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 21000 },
-      ],
-    },
-    // ── EFOOTBALL — 2 jugadores ───────────────────────
-    {
-      game: 'EFOOTBALL', mode: 'DREAM_TEAM', region: 'LATAM_SUR',
-      capacity: 2, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── EFOOTBALL — 8 jugadores ───────────────────────
-    {
-      game: 'EFOOTBALL', mode: 'DREAM_TEAM', region: 'LATAM_SUR',
-      capacity: 8, entry_fee: 0, prize_pool: 0, tier: 'FREE',
-      status: 'OPEN', players: [], free: true, created_at: now,
-      prizes: [{ place: 1, label: '🥇 1°', percentage: 100, coins: 0 }],
-    },
-    // ── EFOOTBALL — 16 jugadores ──────────────────────
-    {
-      game: 'EFOOTBALL', mode: 'GENUINOS', region: 'LATAM_NORTE',
-      capacity: 16, entry_fee: 1000, prize_pool: 14000, tier: 'COMPETITIVO',
-      status: 'OPEN', players: [], free: false, created_at: now,
-      prizes: [
-        { place: 1, label: '🥇 1°', percentage: 70, coins: 9800 },
-        { place: 2, label: '🥈 2°', percentage: 30, coins: 4200 },
-      ],
-    },
+  // ─── Distribución de premios ──────────────────────────────────────────────
+  type Dist = { label: string; pct: number };
+  const DIST: Record<number, Dist[]> = {
+    2:  [{ label: '🥇 1°', pct: 100 }],
+    4:  [{ label: '🥇 1°', pct: 70 }, { label: '🥈 2°', pct: 30 }],
+    6:  [{ label: '🥇 1°', pct: 70 }, { label: '🥈 2°', pct: 30 }],
+    8:  [{ label: '🥇 1°', pct: 70 }, { label: '🥈 2°', pct: 30 }],
+    12: [{ label: '🥇 1°', pct: 60 }, { label: '🥈 2°', pct: 30 }, { label: '🥉 3°', pct: 10 }],
+    16: [{ label: '🥇 1°', pct: 70 }, { label: '🥈 2°', pct: 30 }],
+  };
+
+  function makePrizes(cap: number, entry: number) {
+    const total = entry * cap;
+    const fee   = Math.floor(total * 0.1);
+    const pool  = total - fee;
+    const dist  = DIST[cap] ?? DIST[2];
+    return {
+      prize_pool:   pool,
+      platform_fee: fee,
+      prizes: dist.map((d, i) => ({
+        place:      i + 1,
+        label:      d.label,
+        percentage: d.pct,
+        coins:      Math.floor((pool * d.pct) / 100),
+      })),
+    };
+  }
+
+  function getTier(entry: number) {
+    if (entry === 0)   return 'FREE';
+    if (entry < 1000)  return 'RECREATIVO';
+    if (entry < 10000) return 'COMPETITIVO';
+    return 'ELITE';
+  }
+
+  function makeSala(
+    game: string, mode: string, region: string,
+    capacity: number, entry_fee: number,
+  ) {
+    const { prize_pool, platform_fee, prizes } = makePrizes(capacity, entry_fee);
+    return {
+      game, mode, region, capacity, entry_fee,
+      prize_pool, platform_fee, prizes,
+      tier: getTier(entry_fee),
+      free: entry_fee === 0,
+      status: 'OPEN',
+      players: [],
+      created_at: now,
+    };
+  }
+
+  // ─── 14 salas por modo por región ─────────────────────────────────────────
+  //  2p  REC  (500)       │  6p  FREE  (0)    │  8p  COM  (2000)
+  //  2p  COM  (2000)      │  6p  REC   (500)  │ 12p  REC  (500)
+  //  4p  FREE (0)         │  6p  COM   (2000) │ 12p  COM  (2000)
+  //  4p  REC  (500)       │  8p  FREE  (0)    │ 16p  FREE (0)
+  //                       │  8p  REC   (500)  │ 16p  ELT  (10000)
+  // ─────────────────────────────────────────────────────────────────────────
+  const SALA_SLOTS: [number, number][] = [
+    [2,  500],   [2,  2000],
+    [4,  0],     [4,  500],
+    [6,  0],     [6,  500],   [6,  2000],
+    [8,  0],     [8,  500],   [8,  2000],
+    [12, 500],   [12, 2000],
+    [16, 0],     [16, 10000],
   ];
 
+  const REGIONS     = ['LATAM_SUR', 'LATAM_NORTE', 'AMERICA'];
+  const FC26_MODES  = ['GENERAL_95', 'ULTIMATE'];
+  const EFB_MODES   = ['DREAM_TEAM', 'GENUINOS'];
+
+  const seeds: ReturnType<typeof makeSala>[] = [];
+
+  for (const region of REGIONS) {
+    for (const mode of FC26_MODES) {
+      for (const [cap, entry] of SALA_SLOTS) {
+        seeds.push(makeSala('FC26', mode, region, cap, entry));
+      }
+    }
+    for (const mode of EFB_MODES) {
+      for (const [cap, entry] of SALA_SLOTS) {
+        seeds.push(makeSala('EFOOTBALL', mode, region, cap, entry));
+      }
+    }
+  }
+
+  // Firestore batch max = 500 escrituras; 168 < 500
   const batch = adminDb.batch();
   for (const data of seeds) {
     batch.set(adminDb.collection('tournaments').doc(), data);
   }
   await batch.commit();
 
-  return NextResponse.json({ ok: true, created: seeds.length });
+  return NextResponse.json({
+    ok: true,
+    created: seeds.length,
+    breakdown: `${REGIONS.length} regiones × 2 juegos × 2 modos × 14 salas = ${seeds.length}`,
+  });
 }
