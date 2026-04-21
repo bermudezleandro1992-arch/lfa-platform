@@ -11,7 +11,7 @@ env:
     value: AIzaSyA_yFNkLI4bLrmBznnm0xk02z3LCqPoG8I
 
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: lfaofficial.firebaseapp.com
+    value: somoslfa.com
 
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: lfaofficial
