@@ -435,8 +435,21 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
         const batch = db.batch();
 
         if (feeOrg > 0) {
-            const orgRef = db.collection('usuarios').doc("2bOrFxTAcPgFPoHKJHQfYxoQJpw1");
-            batch.update(orgRef, { number: admin.firestore.FieldValue.increment(feeOrg) });
+            // ── Tesorería LFA: el 10% va a un doc separado, NO a la billetera personal del CEO ──
+            const treasuryRef = db.collection('lfa_config').doc('treasury');
+            batch.set(treasuryRef, {
+                balance_coins:    admin.firestore.FieldValue.increment(feeOrg),
+                total_acumulado:  admin.firestore.FieldValue.increment(feeOrg),
+                ultimo_ingreso:   admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            // Log de auditoría de cada ingreso
+            batch.set(db.collection('treasury_log').doc(), {
+                torneoId,
+                pozoBruto,
+                feeOrg,
+                fecha: admin.firestore.FieldValue.serverTimestamp(),
+                tipo: 'FEE_TORNEO',
+            });
         }
 
         if (ganador1Id && premioG1 > 0) {

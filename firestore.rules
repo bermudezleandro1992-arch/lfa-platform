@@ -204,6 +204,18 @@ service cloud.firestore {
       allow update, delete: if esAdmin();
     }
 
+    // Tesorería LFA (10% fee de torneos) — solo lectura/escritura por servidor
+    match /lfa_config/treasury {
+      allow read: if esAdmin();
+      allow write: if false; // solo el servidor Admin SDK puede modificar
+    }
+
+    // Log de movimientos de tesorería
+    match /treasury_log/{docId} {
+      allow read: if esAdmin();
+      allow write: if false; // solo el servidor
+    }
+
     // Reservas de cupo para torneos (15 min TTL, creadas por el servidor)
     match /reservas_torneo/{reservaId} {
       // El jugador puede leer su propia reserva

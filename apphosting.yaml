@@ -59,3 +59,12 @@ env:
   # Proxy con IP estática para cumplir whitelist de Binance (usefixie.com)
   - variable: FIXIE_URL
     secret: FIXIE_URL
+
+  # ── Wallet fría de la tesorería LFA (ingresos del 10%) ─────────────────────
+  # Crear una wallet Binance SEPARADA solo para acumular el fee organizacional
+  # Agregar en Firebase Console → Secret Manager
+  - variable: LFA_TREASURY_WALLET
+    secret: LFA_TREASURY_WALLET
+
+  - variable: LFA_TREASURY_NETWORK
+    secret: LFA_TREASURY_NETWORK
