@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   doc, onSnapshot, collection, addDoc,
@@ -53,6 +53,46 @@ function Spinner() {
 }
 
 /* ═══════════════════════════════════════════════════════ */
+/* ─── Reserva de cupo: banner con countdown ──────────── */
+function ReservaBanner() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const torneo  = params.get('torneo');
+  const falta   = Number(params.get('falta') ?? 0);
+  const expira  = params.get('expira');
+  const [secsLeft, setSecsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!expira) return;
+    const calc = () => Math.max(0, Math.floor((new Date(expira).getTime() - Date.now()) / 1000));
+    setSecsLeft(calc());
+    const id = setInterval(() => setSecsLeft(calc()), 1000);
+    return () => clearInterval(id);
+  }, [expira]);
+
+  if (!torneo || secsLeft <= 0) return null;
+  const mins = Math.floor(secsLeft / 60);
+  const secs = secsLeft % 60;
+  return (
+    <div style={{ background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.4)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div>
+        <p style={{ color: '#ffa500', fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 2, margin: 0 }}>⏱ CUPO RESERVADO</p>
+        <p style={{ color: '#ccc', fontSize: '0.8rem', margin: '4px 0 0' }}>
+          Torneo: <strong style={{ color: 'white' }}>{torneo}</strong> — Te faltan <strong style={{ color: 'white' }}>{falta.toLocaleString()} LFC</strong>
+        </p>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ color: secsLeft < 60 ? '#ff4757' : '#ffa500', fontWeight: 900, fontSize: '1.2rem', fontVariantNumeric: 'tabular-nums' }}>
+          {mins}:{String(secs).padStart(2, '0')}
+        </span>
+        <button onClick={() => router.back()} style={{ background: '#ffa500', color: '#0b0e14', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 900, fontSize: '0.75rem', cursor: 'pointer', textTransform: 'uppercase' }}>
+          ← VOLVER AL TORNEO
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BilleteraPage() {
   const router = useRouter();
 
@@ -231,6 +271,11 @@ export default function BilleteraPage() {
         </header>
 
         <div style={{ maxWidth: 680, margin: '0 auto', padding: 'clamp(20px,4vw,36px) clamp(14px,4vw,24px) 80px' }}>
+
+          {/* ── BANNER CUPO RESERVADO ─────────────────── */}
+          <Suspense fallback={null}>
+            <ReservaBanner />
+          </Suspense>
 
           {/* ── BALANCE CARD ──────────────────────────── */}
           <div style={{ background: 'linear-gradient(135deg,#161b22,#0d1117)', border: '2px solid rgba(255,215,0,0.3)', borderRadius: 20, padding: 'clamp(20px,4vw,32px)', marginBottom: 18, textAlign: 'center', position: 'relative', overflow: 'hidden', animation: 'fadeUp .35s ease' }}>

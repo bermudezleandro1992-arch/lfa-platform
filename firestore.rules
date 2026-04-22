@@ -204,6 +204,21 @@ service cloud.firestore {
       allow update, delete: if esAdmin();
     }
 
+    // Reservas de cupo para torneos (15 min TTL, creadas por el servidor)
+    match /reservas_torneo/{reservaId} {
+      // El jugador puede leer su propia reserva
+      allow read: if authExists() && (request.auth.uid == resource.data.uid || esAdmin());
+      // Solo el servidor puede crear/actualizar (via Admin SDK)
+      allow create, update, delete: if false;
+    }
+
+    // Alertas internas para el CEO (solo server puede crear)
+    match /alertas_ceo/{docId} {
+      allow read: if esAdmin();
+      allow update: if esAdmin(); // para marcar revisado
+      allow create, delete: if false; // solo el servidor crea
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

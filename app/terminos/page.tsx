@@ -30,18 +30,21 @@ export default function TerminosPage() {
 
       <h2 className="legal-h2">5. RETIROS DE FONDOS</h2>
       <ul className="legal-ul">
-        <li>El <strong>monto mínimo de retiro</strong> es de <strong>15 LFA Coins</strong>.</li>
-        <li>Todo retiro está sujeto a una <strong>auditoría de seguridad</strong> destinada a verificar la legitimidad de las ganancias y la ausencia de fraude, colusión, uso de VPN o cualquier otra infracción al Reglamento.</li>
-        <li>Los retiros aprobados se procesan vía CBU/CVU, billeteras virtuales (Mercado Pago, etc.) o Binance, en un plazo de <strong>24 a 72 horas hábiles</strong> tras la aprobación de la auditoría.</li>
-        <li>LFA deducirá del monto a retirar las comisiones correspondientes a impuestos, costos bancarios o tarifas de red blockchain aplicables.</li>
-        <li>LFA se reserva el derecho de <strong>suspender o denegar un retiro</strong> si se detectan indicios de actividad fraudulenta, hasta que se resuelva la investigación interna.</li>
+        <li>El <strong>monto mínimo de retiro</strong> es de <strong>10,000 LFA Coins (equivalente a $10 USDT)</strong>.</li>
+        <li>El <strong>límite máximo de retiro automático</strong> es de <strong>$200 USDT por transacción</strong> y <strong>$500 USDT por día calendario</strong>. Montos superiores a $200 USDT requieren aprobación manual del equipo LFA en un plazo de 24 a 72 horas.</li>
+        <li>Se permite <strong>un único retiro cada 24 horas</strong> por cuenta de usuario, como medida de seguridad antifraude.</li>
+        <li>Los retiros automáticos se procesan <strong>instantáneamente</strong> a la dirección Binance USDT (TRC20/BEP20) registrada por el usuario, una vez superadas todas las validaciones de seguridad.</li>
+        <li>Todo retiro está sujeto a una <strong>auditoría automática</strong> que verifica saldo real, Fair Play mínimo (15%), ausencia de cousión, uso de VPN u otras infracciones al Reglamento.</li>
+        <li>LFA deducirá del monto a retirar las comisiones de red blockchain (gas fees) aplicables.</li>
+        <li>LFA se reserva el derecho de <strong>suspender o denegar un retiro</strong> si se detectan indicios de actividad fraudulenta, hasta que se resuelva la investigación interna. <strong>La decisión del sistema y/o del equipo administrativo de LFA es definitiva e inapelable.</strong></li>
       </ul>
 
       <h2 className="legal-h2">6. PROPIEDAD INTELECTUAL</h2>
       <p className="legal-p">Todos los contenidos, marcas, logos, diseños, código fuente, nombre comercial &quot;LFA&quot;, &quot;SomosLFA&quot; y cualquier otro elemento de la Plataforma son de propiedad exclusiva de LFA o de sus licenciantes, y están protegidos por la legislación de propiedad intelectual aplicable. Queda prohibida su reproducción, distribución o uso sin autorización escrita expresa. LFA no es titular de los derechos de los videojuegos EA SPORTS FC 26 ni eFootball; es responsabilidad del usuario cumplir con los términos de servicio de cada desarrollador de videojuegos.</p>
 
-      <h2 className="legal-h2">7. LIMITACIÓN DE RESPONSABILIDAD</h2>
+      <h2 className="legal-h2">7. LIMITACIÓN DE RESPONSABILIDAD Y CARÁCTER INAPELABLE DE DECISIONES</h2>
       <p className="legal-p">LFA no será responsable por: (i) pérdidas económicas indirectas, lucro cesante o daños consecuentes derivados del uso de la Plataforma; (ii) interrupciones del servicio por causas de fuerza mayor, fallos de terceros proveedores o ataques cibernéticos; (iii) decisiones tomadas por el sistema VAR basado en IA, las cuales son ejecutadas de manera automática y tienen carácter vinculante; (iv) pérdidas derivadas del incumplimiento por parte del usuario de las normas del Reglamento Oficial. La responsabilidad total acumulada de LFA frente al usuario no podrá superar el saldo en LFA Coins que el usuario tenga en su billetera al momento del reclamo.</p>
+      <p className="legal-p" style={{ marginTop: 12, padding: '12px 16px', background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 10 }}><strong style={{ color: '#ffd700' }}>⚠️ DECISIÓN DEFINITIVA E INAPELABLE:</strong> Toda resolución emitida por el sistema automático de LFA (incluyendo el sistema VAR-IA, el motor de detección de fraude, el motor de retiros y el motor de sanciones) y/o por el equipo administrativo de LFA ante cualquier disputa, reclamo o situación extraordinaria, es <strong>definitiva, vinculante e inapelable</strong>. El usuario acepta expresamente esta condición al registrarse en la Plataforma y no podrá iniciar acciones legales por decisiones tomadas dentro del marco operativo establecido en estos Términos y el Reglamento Oficial.</p>
 
       <h2 className="legal-h2">8. CONDUCTAS PROHIBIDAS</h2>
       <ul className="legal-ul">

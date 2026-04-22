@@ -27,12 +27,13 @@ import { binanceWithdraw }           from '@/lib/binance';
 import type { BinanceNetwork }       from '@/lib/binance';
 
 /* ─── Constantes ──────────────────────────────────── */
-const RATE         = 1_000;          // 1000 LFA Coins = 1 USDT
-const MIN_COINS    = 10_000;         // Mínimo de retiro: 10 USDT
-const MAX_USDT_AUTO = 200;           // Arriba de 200 USDT → aprobación manual CEO
-const COOLDOWN_MS  = 24 * 60 * 60 * 1000; // 1 retiro por 24 h
-const FP_MINIMO    = 15;             // Fair Play mínimo para retirar
-const CEO_UID      = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
+const RATE            = 1_000;      // 1000 LFA Coins = 1 USDT
+const MIN_COINS       = 10_000;     // Mínimo de retiro: 10 USDT
+const MAX_USDT_AUTO   = 200;        // Arriba de 200 USDT → aprobación manual CEO
+const DAILY_LIMIT_USDT = 500;       // Máximo 500 USDT por usuario por día
+const COOLDOWN_MS     = 24 * 60 * 60 * 1000; // 1 retiro cada 24 h
+const FP_MINIMO       = 15;         // Fair Play mínimo para retirar
+const CEO_UID         = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 
 /* ─── Redes permitidas ────────────────────────────── */
 const REDES_PERMITIDAS: BinanceNetwork[] = ['TRX', 'BSC'];
@@ -112,6 +113,19 @@ export async function POST(req: NextRequest) {
           const horasRestantes = Math.ceil((COOLDOWN_MS - (Date.now() - lastDate.getTime())) / 3_600_000);
           throw new Error(`Ya hiciste un retiro hoy. Podés hacer otro en ${horasRestantes} h.`);
         }
+      }
+
+      // Límite diario acumulado: 500 USDT/día
+      const dayAgo = new Date(Date.now() - COOLDOWN_MS);
+      const dailySnap = await adminDb.collection('retiros')
+        .where('uid', '==', uid)
+        .where('estado', 'in', ['procesando', 'completado', 'aprobacion_manual'])
+        .where('fecha', '>=', dayAgo)
+        .get();
+      const dailyUSD = dailySnap.docs.reduce((s, d) => s + ((d.data().usd as number) ?? 0), 0);
+      if (dailyUSD + montoUSDT > DAILY_LIMIT_USDT) {
+        const restante = Math.max(0, DAILY_LIMIT_USDT - dailyUSD);
+        throw new Error(`Límite diario de $${DAILY_LIMIT_USDT} USDT alcanzado. Podés retirar hasta $${restante.toFixed(2)} USDT más hoy.`);
       }
 
       // Descontar coins
