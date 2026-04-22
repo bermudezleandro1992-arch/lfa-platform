@@ -144,7 +144,6 @@ export default function HubLfaTV() {
           </div>
         </div>
       )}
-      `}</style>
 
       <div style={{ marginBottom: 40 }}>
 
