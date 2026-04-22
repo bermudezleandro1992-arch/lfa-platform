@@ -178,9 +178,9 @@ export default function CantinaChat({ uid }: { uid: string }) {
       const list: Presence[] = [];
       snap.forEach(d => {
         const data = d.data() as Presence;
-        // Usar ping_ms (Date.now) primero; fallback a serverTimestamp viejo
-        const lastPing = data.ping_ms ?? data.ultimo_ping?.toDate?.()?.getTime() ?? 0;
-        if (lastPing === 0 || now - lastPing < PRESENCE_TIMEOUT) {
+        // Incluir siempre; solo filtrar docs muy viejos (sin actividad en 3 min)
+        const lastPing = data.ping_ms ?? data.ultimo_ping?.toDate?.()?.getTime?.() ?? now;
+        if (now - lastPing < 180_000) {
           list.push({ ...data, uid: d.id });
         }
       });
