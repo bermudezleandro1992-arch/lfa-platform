@@ -101,7 +101,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -114,6 +114,7 @@ export default function CeoPage() {
   const [spawnerCfg, setSpawnerCfg] = useState<SpawnerConfig>({});
   const [ganancias,  setGanancias]  = useState(0);
   const [visitas,    setVisitas]    = useState(0);
+  const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
 
   /* ── UI State ────────────────────────────────────────────── */
   const [busqueda,  setBusqueda]  = useState('');
@@ -198,6 +199,12 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(doc(db,'estadisticas','globales'), d => {
       if (d.exists()) setVisitas((d.data() as { visitas_totales?: number }).visitas_totales || 0);
+    }));
+
+    subs.push(onSnapshot(query(collection(db,'leads_streamers'), orderBy('fecha','desc'), limit(100)), snap => {
+      const l: typeof leads = [];
+      snap.forEach(d => l.push({ id: d.id, ...d.data() } as typeof leads[number]));
+      setLeads(l);
     }));
 
     return () => subs.forEach(u => u());
@@ -401,7 +408,7 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
@@ -409,6 +416,7 @@ export default function CeoPage() {
     { id:'finanzas',  label:'💰 Finanzas',  badge: retPend + pagPend },
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
+    { id:'leads',     label:'🎙️ Streamers', badge: leads.length },
   ];
 
   /* ═══ RENDER ════════════════════════════════════════════════ */
@@ -950,6 +958,64 @@ export default function CeoPage() {
                   </div>
               }
             </div>
+          </>}
+
+          {tab === 'leads' && <>
+            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#53FC18', margin:'0 0 18px', fontSize:'0.9rem' }}>🎙️ SOLICITUDES DE STREAMERS ({leads.length})</h2>
+
+            {leads.length === 0 ? (
+              <div style={{ ...card, textAlign:'center', padding:40, color:'#4a5568' }}>
+                <div style={{ fontSize:'2rem', marginBottom:8 }}>📭</div>
+                <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.78rem' }}>No hay solicitudes todavía</div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                {leads.map(l => {
+                  const fecha = l.fecha?.toDate?.()?.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) ?? '—';
+                  const juegoClr: Record<string,string> = { FC26:'#ffd700', EFOOTBALL:'#009ee3', AMBOS:'#53FC18' };
+                  const juegoLabel: Record<string,string> = { FC26:'FC 26', EFOOTBALL:'eFootball', AMBOS:'Ambos' };
+                  return (
+                    <div key={l.id} style={{ ...card, borderLeft:`3px solid ${juegoClr[l.juego||'FC26'] ?? '#53FC18'}`, display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
+                      <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:4 }}>
+                        <span style={{ fontFamily:"'Orbitron',sans-serif", color:'white', fontSize:'0.82rem', fontWeight:900 }}>{l.nombre || '—'}</span>
+                        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                          <span style={{ background:`${juegoClr[l.juego||''] ?? '#53FC18'}22`, color: juegoClr[l.juego||''] ?? '#53FC18', border:`1px solid ${juegoClr[l.juego||''] ?? '#53FC18'}44`, borderRadius:8, padding:'2px 10px', fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif", fontWeight:700 }}>{juegoLabel[l.juego||''] ?? l.juego ?? '—'}</span>
+                          <span style={{ color:'#4a5568', fontSize:'0.65rem' }}>{fecha}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color:'#8b949e', fontSize:'0.65rem', marginBottom:3 }}>EMAIL</div>
+                        <a href={`mailto:${l.email}`} style={{ color:'#53FC18', fontSize:'0.82rem', textDecoration:'none' }}>{l.email || '—'}</a>
+                      </div>
+
+                      <div>
+                        <div style={{ color:'#8b949e', fontSize:'0.65rem', marginBottom:3 }}>CELULAR / WHATSAPP</div>
+                        {l.celular
+                          ? <a href={`https://wa.me/${l.celular.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer" style={{ color:'#25d366', fontSize:'0.82rem', textDecoration:'none' }}>📲 {l.celular}</a>
+                          : <span style={{ color:'#4a5568', fontSize:'0.82rem' }}>—</span>
+                        }
+                      </div>
+
+                      {l.mensaje && (
+                        <div style={{ gridColumn:'1/-1' }}>
+                          <div style={{ color:'#8b949e', fontSize:'0.65rem', marginBottom:3 }}>MENSAJE</div>
+                          <div style={{ color:'#cdd9e5', fontSize:'0.8rem', background:'#0b0e14', padding:'8px 12px', borderRadius:6, lineHeight:1.5 }}>{l.mensaje}</div>
+                        </div>
+                      )}
+
+                      <div style={{ gridColumn:'1/-1', display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }}>
+                        <a href={`mailto:${l.email}`} style={{ ...sm('rgba(83,252,24,0.12)','#53FC18'), textDecoration:'none', border:'1px solid rgba(83,252,24,0.25)' }}>✉️ EMAIL</a>
+                        {l.celular && (
+                          <a href={`https://wa.me/${l.celular.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer" style={{ ...sm('rgba(37,211,102,0.12)','#25d366'), textDecoration:'none', border:'1px solid rgba(37,211,102,0.25)' }}>💬 WHATSAPP</a>
+                        )}
+                        <button style={{ ...sm('rgba(255,71,87,0.1)','#ff4757'), border:'1px solid rgba(255,71,87,0.25)', marginLeft:'auto' }} onClick={async () => { if (confirm('¿Eliminar esta solicitud?')) await deleteDoc(doc(db,'leads_streamers',l.id)); }}>🗑️</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>}
 
         </main>
