@@ -10,9 +10,11 @@
  *  - Keys leídas exclusivamente desde variables de entorno
  *  - Timeout de 10 s en cada llamada
  *  - recvWindow de 5 000 ms para prevenir replay attacks
+ *  - Proxy Fixie (IP estática) para cumplir whitelist de Binance
  */
 
 import crypto from 'crypto';
+import { ProxyAgent } from 'undici';
 
 const BASE_URL   = 'https://api.binance.com';
 const RECV_WINDOW = 5_000;   // ms — ventana anti-replay
@@ -80,6 +82,11 @@ export async function binanceWithdraw(params: {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+  // Proxy con IP estática (Fixie) — requerido por Binance whitelist
+  const dispatcher = process.env.FIXIE_URL
+    ? new ProxyAgent(process.env.FIXIE_URL)
+    : undefined;
+
   try {
     const res = await fetch(`${BASE_URL}/sapi/v1/capital/withdraw/apply?${fullQuery}`, {
       method:  'POST',
@@ -88,6 +95,8 @@ export async function binanceWithdraw(params: {
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
+      // @ts-expect-error — undici dispatcher compatible con Node.js fetch
+      dispatcher,
     });
 
     const data = await res.json() as { id?: string; code?: number; msg?: string };
@@ -131,10 +140,20 @@ export async function binanceWithdrawStatus(withdrawId: string): Promise<{
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  const dispatcher = process.env.FIXIE_URL
+    ? new ProxyAgent(process.env.FIXIE_URL)
+    : undefined;
+
   try {
     const res = await fetch(
       `${BASE_URL}/sapi/v1/capital/withdraw/history?${queryString}&signature=${signature}`,
-      { headers: { 'X-MBX-APIKEY': apiKey }, signal: controller.signal },
+      {
+        headers: { 'X-MBX-APIKEY': apiKey },
+        signal:  controller.signal,
+        // @ts-expect-error — undici dispatcher compatible con Node.js fetch
+        dispatcher,
+      },
     );
     const data = await res.json() as Array<{ status?: number; txId?: string }>;
     if (Array.isArray(data) && data.length > 0) {

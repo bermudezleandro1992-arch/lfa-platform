@@ -55,3 +55,7 @@ env:
 
   - variable: BINANCE_API_SECRET
     secret: BINANCE_API_SECRET
+
+  # Proxy con IP estática para cumplir whitelist de Binance (usefixie.com)
+  - variable: FIXIE_URL
+    secret: FIXIE_URL
