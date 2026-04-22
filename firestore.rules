@@ -121,7 +121,13 @@ service cloud.firestore {
     }
 
     match /configuracion/{docId} {
-      allow read, write: if esAdmin();
+      allow read: if docId == 'stats_publicos' || esAdmin();
+      allow write: if esAdmin();
+    }
+
+    match /estadisticas/{docId} {
+      allow read: if true;
+      allow write: if esAdmin();
     }
 
     match /chat_global/{msgId} {

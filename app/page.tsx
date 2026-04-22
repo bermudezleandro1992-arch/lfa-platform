@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, getCountFromServer, collection } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 import IntroOverlay  from '@/app/_components/IntroOverlay';
@@ -29,7 +29,21 @@ export default function HomePage() {
   const { lang, setLang, t } = useLang();
   const [showIntro,    setShowIntro]   = useState(true);
   const [authChecked,  setAuthChecked] = useState(false);
+  const [stats, setStats] = useState({ jugadores: 0, torneos: 0 });
   const loginRef = useRef<HTMLDivElement>(null);
+
+  // Cargar stats públicos (sin auth)
+  useEffect(() => {
+    Promise.all([
+      getCountFromServer(collection(db, 'usuarios')).catch(() => null),
+      getCountFromServer(collection(db, 'tournaments')).catch(() => null),
+    ]).then(([u, t]) => {
+      setStats({
+        jugadores: u?.data().count ?? 0,
+        torneos:   t?.data().count ?? 0,
+      });
+    });
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -96,8 +110,8 @@ export default function HomePage() {
           {/* Stats bar */}
           <div style={{ display: 'flex', gap: 'clamp(20px,5vw,48px)', flexWrap: 'wrap', justifyContent: 'center', borderTop: '1px solid #1c2028', paddingTop: 28 }}>
             {[
-              { v: '+2.400', l: 'TORNEOS' },
-              { v: '+1.200', l: 'JUGADORES' },
+              { v: stats.torneos > 0 ? stats.torneos.toLocaleString('es-AR') : '—', l: 'TORNEOS' },
+              { v: stats.jugadores > 0 ? stats.jugadores.toLocaleString('es-AR') : '—', l: 'JUGADORES' },
               { v: 'FC26 + EFB', l: 'JUEGOS' },
               { v: 'LATAM', l: 'REGIÓN' },
             ].map(s => (
