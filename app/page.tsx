@@ -68,7 +68,7 @@ export default function HomePage() {
 
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(3.5rem,12vw,6rem)', fontWeight: 900, color: 'white', letterSpacing: 6, lineHeight: 1, textShadow: '0 0 40px rgba(0,255,136,0.3)' }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(2.2rem,8vw,5.5rem)', fontWeight: 900, color: 'white', letterSpacing: 'clamp(2px,1.5vw,6px)', lineHeight: 1, textShadow: '0 0 40px rgba(0,255,136,0.3)', whiteSpace: 'nowrap' }}>
               SOMOS<span style={{ color: '#00ff88' }}>LFA</span>
             </div>
             <div style={{ color: '#ffd700', fontSize: 'clamp(0.7rem,2vw,0.9rem)', fontFamily: "'Orbitron',sans-serif", letterSpacing: 4, marginTop: 8, fontWeight: 700 }}>
