@@ -45,3 +45,13 @@ env:
   # Google Vision API (secreto)
   - variable: GOOGLE_VISION_API_KEY
     secret: GOOGLE_VISION_API_KEY
+
+  # ── Binance API (retiros automáticos) ──────────────────────────────────────
+  # Crear en: https://www.binance.com/en/my/settings/api-management
+  # Permisos necesarios: "Enable Withdrawals" + "IP whitelist" con la IP del server
+  # Agregar los secrets en Firebase Console → App Hosting → Secrets
+  - variable: BINANCE_API_KEY
+    secret: BINANCE_API_KEY
+
+  - variable: BINANCE_API_SECRET
+    secret: BINANCE_API_SECRET

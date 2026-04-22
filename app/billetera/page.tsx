@@ -166,32 +166,32 @@ export default function BilleteraPage() {
     setSending(false);
   }, [uid, userData, depNum, depUsd, txHash, senderWallet]);
 
-  /* ── Enviar retiro ───────────────────────────────── */
+  /* ── Enviar retiro (automático vía Binance API) ──── */
   const enviarRetiro = useCallback(async () => {
     setMsg('');
-    if (retNum < MIN_RETIRO)     return setMsg(`❌ Mínimo ${MIN_RETIRO.toLocaleString()} coins ($${(MIN_RETIRO/RATE).toFixed(0)} USDT) para retirar`);
-    if (retNum > coins)          return setMsg('❌ Saldo insuficiente');
-    if (fairPlay < FP_BLOQUEO)   return setMsg(`❌ Fair Play muy bajo (${fairPlay}%). Jugá torneos limpios para recuperarlo y desbloquear retiros.`);
-    if (!wallet.trim())          return setMsg('❌ Ingresá tu dirección de billetera Binance');
+    if (retNum < MIN_RETIRO)   return setMsg(`❌ Mínimo ${MIN_RETIRO.toLocaleString()} coins ($${(MIN_RETIRO/RATE).toFixed(0)} USDT) para retirar`);
+    if (retNum > coins)        return setMsg('❌ Saldo insuficiente');
+    if (fairPlay < FP_BLOQUEO) return setMsg(`❌ Fair Play muy bajo (${fairPlay}%). Jugá torneos limpios para recuperarlo y desbloquear retiros.`);
+    if (!wallet.trim())        return setMsg('❌ Ingresá tu dirección de billetera Binance');
     setSending(true);
     try {
-      await addDoc(collection(db, 'retiros'), {
-        uid,
-        nombreJugador: userData?.nombre || '',
-        nombre_real: userData?.nombre || '',
-        montoCoins: retNum,
-        usd: parseFloat(retUsd),
-        cbuAlias: wallet.trim(),
-        metodo: `Binance USDT (${redWallet})`,
-        whatsapp: '',
-        estado: 'pendiente',
-        fecha: serverTimestamp(),
+      const token = await import('firebase/auth').then(m => m.getIdToken(m.getAuth().currentUser!));
+      const res = await fetch('/api/retiro', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body:    JSON.stringify({ montoCoins: retNum, wallet: wallet.trim(), network: redWallet === 'TRC20' ? 'TRX' : 'BSC' }),
       });
-      setMsg('✅ Retiro solicitado. Lo procesamos en 24-72 hs hábiles. El pago se acredita en tu Binance.');
-      setRetCoins(''); setWallet('');
-    } catch { setMsg('❌ Error al enviar. Intentá de nuevo.'); }
+      const data = await res.json() as { ok?: boolean; auto?: boolean; message?: string; error?: string };
+      if (!res.ok || data.error) {
+        setMsg(`❌ ${data.error ?? 'Error al procesar el retiro.'}`);
+      } else {
+        setMsg(data.message ?? '✅ Retiro procesado.');
+        setRetCoins('');
+        setWallet('');
+      }
+    } catch { setMsg('❌ Error de conexión. Intentá de nuevo.'); }
     setSending(false);
-  }, [uid, userData, retNum, retUsd, coins, fairPlay, wallet, redWallet]);
+  }, [uid, retNum, coins, fairPlay, wallet, redWallet]);
 
   /* ── Render ──────────────────────────────────────── */
   if (!ready || !userData) return <Spinner />;
