@@ -132,8 +132,15 @@ service cloud.firestore {
 
     match /chat_global/{msgId} {
       allow read: if authExists();
-      allow create: if authExists();
-      allow update, delete: if authExists() && (isOwner(resource.data.uid) || esAdmin());
+      allow create: if authExists()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.texto is string
+                    && request.resource.data.texto.size() >= 1
+                    && request.resource.data.texto.size() <= 280
+                    && request.resource.data.keys().hasAll(['uid', 'texto', 'nombre', 'ts'])
+                    && request.resource.data.keys().size() <= 8;
+      allow update: if false;
+      allow delete: if authExists() && (isOwner(resource.data.uid) || esAdmin());
     }
 
     match /equipos_efootball/{equipoId} {
