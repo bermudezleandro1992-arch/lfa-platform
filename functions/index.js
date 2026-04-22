@@ -1773,3 +1773,121 @@ exports.manualSpawn = functions.https.onRequest(async (req, res) => {
         return res.status(403).json({ ok: false, error: e.message });
     }
 });
+
+// ============================================================
+// 💰 TREASURY AUTO-SWEEP — Todos los días a las 03:00 ARG
+//    Si hay ≥ 50.000 coins (50 USDT) acumulados en tesorería,
+//    los envía automáticamente a la subcuenta Binance TRC20.
+// ============================================================
+const TREASURY_MIN_SWEEP = 50_000; // coins mínimos para disparar el sweep
+
+async function runTreasurySweep() {
+    const treasuryRef = db.collection("lfa_config").doc("treasury");
+    const treasurySnap = await treasuryRef.get();
+    const balance = treasurySnap.exists ? (treasurySnap.data().balance ?? 0) : 0;
+
+    if (balance < TREASURY_MIN_SWEEP) {
+        console.log(`[TreasurySweep] Saldo insuficiente: ${balance} coins (mínimo ${TREASURY_MIN_SWEEP}). Omitiendo.`);
+        return { skipped: true, balance };
+    }
+
+    const walletAddress = process.env.LFA_TREASURY_WALLET;
+    const network       = process.env.LFA_TREASURY_NETWORK ?? "TRX";
+
+    if (!walletAddress) {
+        console.error("[TreasurySweep] LFA_TREASURY_WALLET no configurado.");
+        await db.collection("alertas_ceo").add({
+            tipo: "TREASURY_CONFIG_ERROR",
+            mensaje: "LFA_TREASURY_WALLET no está configurado. El sweep automático no pudo ejecutarse.",
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { error: "WALLET_NOT_CONFIGURED" };
+    }
+
+    const usdtAmount = balance / 1000;
+    const clientId   = `treasury_sweep_${Date.now()}`;
+
+    // Construir firma HMAC-SHA256 para Binance
+    const apiKey    = process.env.BINANCE_API_KEY;
+    const apiSecret = process.env.BINANCE_API_SECRET;
+    if (!apiKey || !apiSecret) {
+        console.error("[TreasurySweep] Claves Binance no configuradas.");
+        return { error: "BINANCE_KEYS_MISSING" };
+    }
+
+    const params = new URLSearchParams({
+        coin:            "USDT",
+        address:         walletAddress,
+        amount:          usdtAmount.toFixed(4),
+        network,
+        withdrawOrderId: clientId,
+        timestamp:       Date.now().toString(),
+    });
+    const signature = crypto.createHmac("sha256", apiSecret).update(params.toString()).digest("hex");
+    params.append("signature", signature);
+
+    // Deducir de Firestore de forma atómica ANTES de enviar
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(treasuryRef);
+        const current = snap.exists ? (snap.data().balance ?? 0) : 0;
+        if (current < TREASURY_MIN_SWEEP) throw new Error("SALDO_BAJO");
+        tx.set(treasuryRef, { balance: 0, last_sweep: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    });
+
+    // Enviar a Binance vía Fixie proxy
+    let withdrawId = null;
+    try {
+        const { ProxyAgent, fetch: uFetch } = require("undici");
+        const fixieUrl   = process.env.FIXIE_URL;
+        const dispatcher = fixieUrl ? new ProxyAgent(fixieUrl) : undefined;
+
+        const resp = await uFetch(
+            `https://api.binance.com/sapi/v1/capital/withdraw/apply?${params.toString()}`,
+            { method: "POST", headers: { "X-MBX-APIKEY": apiKey }, dispatcher }
+        );
+        const data = await resp.json();
+
+        if (!resp.ok || !data.id) {
+            throw new Error(data.msg ?? "Binance error sin id");
+        }
+        withdrawId = data.id;
+    } catch (binanceErr) {
+        // Revertir saldo si Binance falló
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(treasuryRef);
+            const current = snap.exists ? (snap.data().balance ?? 0) : 0;
+            tx.set(treasuryRef, { balance: current + balance }, { merge: true });
+        });
+        console.error("[TreasurySweep] Error Binance, saldo revertido:", binanceErr.message);
+        await db.collection("alertas_ceo").add({
+            tipo: "TREASURY_SWEEP_FAILED",
+            mensaje: `Sweep automático falló: ${binanceErr.message}. Saldo revertido.`,
+            coins: balance,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { error: binanceErr.message };
+    }
+
+    // Registrar en log
+    await db.collection("treasury_log").add({
+        tipo:       "AUTO_SWEEP",
+        coins:      balance,
+        usdt:       usdtAmount,
+        withdrawId,
+        network,
+        wallet:     walletAddress,
+        ts:         admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`[TreasurySweep] OK — ${usdtAmount} USDT enviados. withdrawId: ${withdrawId}`);
+    return { ok: true, usdtAmount, withdrawId };
+}
+
+// Cron: todos los días a las 03:00 ARG (06:00 UTC)
+exports.autoTreasurySweep = onSchedule({
+    schedule: "0 6 * * *",
+    timeZone: "UTC",
+    region:   "us-central1",
+}, async () => {
+    await runTreasurySweep();
+});
