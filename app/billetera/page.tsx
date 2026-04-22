@@ -445,8 +445,8 @@ export default function BilleteraPage() {
                 {[
                   { n: '1', t: `Mínimo ${MIN_RETIRO.toLocaleString()} coins`, d: `Equivale a $${(MIN_RETIRO/RATE).toFixed(0)} USDT. Los retiros solo se bloquean si tu Fair Play baja del ${FP_BLOQUEO}% por múltiples reportes.` },
                   { n: '2', t: 'Completá el formulario', d: 'Ingresá la cantidad de coins y tu dirección Binance (TRC20 o BEP20).' },
-                  { n: '3', t: 'Procesamos en 24-72 hs', d: 'El equipo LFA verifica tu cuenta y envía el USDT manualmente a tu wallet.' },
-                  { n: '4', t: 'Tu saldo se descuenta al aprobar', d: 'Las coins quedan reservadas hasta que el pago se confirme.' },
+                  { n: '3', t: 'Retiro automático', d: 'El sistema verifica tu cuenta y envía el USDT automáticamente a tu wallet en segundos.' },
+                  { n: '4', t: 'Tu saldo se descuenta al instante', d: 'Las coins se deducen en el momento de confirmar el retiro.' },
                 ].map(s => (
                   <div key={s.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1c2028' }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#ff4757', fontSize: '0.7rem', flexShrink: 0 }}>{s.n}</div>
