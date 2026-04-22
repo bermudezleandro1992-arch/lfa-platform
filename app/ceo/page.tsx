@@ -24,6 +24,7 @@ interface Jugador {
   sistema?: string; plataforma_id?: string; region?: string; pais_codigo?: string;
   fair_play?: number; titulos?: number; partidos_jugados?: number;
   rol?: string; es_afiliado?: boolean; ban_hasta?: { toDate?: () => Date } | null;
+  lfa_tv?: boolean;
 }
 interface Room {
   id: string; game?: string; mode?: string; tier?: string; region?: string;
@@ -242,6 +243,11 @@ export default function CeoPage() {
   async function desbanear(uid: string, nombre: string) {
     await updateDoc(doc(db,'usuarios',uid), { baneado: false, ban_hasta: null });
     await alerta('DESBANEADO', `${nombre} desbaneado.`, 'exito');
+  }
+
+  async function toggleLfaTV(uid: string, nombre: string, actual: boolean) {
+    await updateDoc(doc(db,'usuarios',uid), { lfa_tv: !actual });
+    await alerta('LFA TV', actual ? `${nombre} removido de LFA TV.` : `${nombre} habilitado en LFA TV. 📺`, 'exito');
   }
 
   async function limpiarBots() {
@@ -580,6 +586,7 @@ export default function CeoPage() {
                             }
                             <button className="cact" style={sm('rgba(255,215,0,0.15)','#ffd700')} onClick={() => setCoinsM({ uid:j.id, nombre:j.nombre||j.id, actual:j.number||0, nuevo:String(j.number||0) })}>🪙</button>
                             <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => setExpM(j)}>🕵️</button>
+                            <button className="cact" style={sm(j.lfa_tv ? 'rgba(161,113,247,0.2)' : 'rgba(161,113,247,0.07)', j.lfa_tv ? '#a371f7' : '#555')} onClick={() => toggleLfaTV(j.id, j.nombre||j.id, !!j.lfa_tv)} title={j.lfa_tv ? 'Quitar LFA TV' : 'Habilitar LFA TV'}>📺{j.lfa_tv ? ' ✓' : ''}</button>
                             {j.rol === 'bot' && <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={async () => { const ok = await alerta('ELIMINAR BOT',`¿Eliminar a ${j.nombre}?`,'error'); if(ok) await deleteDoc(doc(db,'usuarios',j.id)); }}>🗑️</button>}
                           </div>
                         </td>

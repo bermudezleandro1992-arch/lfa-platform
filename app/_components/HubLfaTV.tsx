@@ -12,6 +12,7 @@ interface StreamerDB {
   twitch_canal?: string;
   kick_canal?: string;
   youtube_canal?: string;
+  lfa_tv?: boolean;
 }
 
 /* ─── Canal oficial LFA (siempre presente) ─────────── */
@@ -48,7 +49,13 @@ export default function HubLfaTV() {
         const seen = new Set<string>();
         const list: typeof streams = [];
 
-        const addSnap = (snap: import('firebase/firestore').QuerySnapshot) => {
+        // Solo jugadores con lfa_tv desbloqueado
+        try {
+          const snap = await getDocs(query(
+            collection(db, 'usuarios'),
+            where('lfa_tv', '==', true),
+            limit(20)
+          ));
           snap.forEach(d => {
             if (seen.has(d.id)) return;
             seen.add(d.id);
@@ -57,17 +64,12 @@ export default function HubLfaTV() {
             if (!ch) return;
             list.push({ uid: d.id, nombre: data.nombre || ch.canal, avatar: data.avatar_url, ...ch });
           });
-        };
-
-        // Queries separadas para no perder resultados si una falla
-        try { addSnap(await getDocs(query(collection(db, 'usuarios'), where('kick_canal',    '>', ''), limit(10)))); } catch { /* ok */ }
-        try { addSnap(await getDocs(query(collection(db, 'usuarios'), where('twitch_canal',  '>', ''), limit(10)))); } catch { /* ok */ }
-        try { addSnap(await getDocs(query(collection(db, 'usuarios'), where('youtube_canal', '>', ''), limit(10)))); } catch { /* ok */ }
+        } catch { /* ok */ }
 
         // Oficial siempre primero
         const withOficial = [
           { uid: '__lfa_oficial__', nombre: 'LFA OFICIAL', plat: OFICIAL.plat, canal: OFICIAL.canal },
-          ...list.filter(s => s.canal !== OFICIAL.canal).slice(0, 5),
+          ...list.filter(s => s.canal !== OFICIAL.canal),
         ];
         setStreams(withOficial);
       } catch { /* ok */ }
@@ -194,12 +196,12 @@ export default function HubLfaTV() {
         )}
 
         {/* ── CTA STREAMER ───────────────────────────── */}
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,71,87,0.04)', border: '1px solid rgba(255,71,87,0.12)', borderRadius: 10, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(83,252,24,0.04)', border: '1px solid rgba(83,252,24,0.12)', borderRadius: 10, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: '0.72rem', color: '#8b949e' }}>
-            ¿Estás transmitiendo un partido LFA? <span style={{ color: '#00ff88' }}>Agregá tu canal en tu perfil y aparecés acá.</span>
+            ¿Querés ser <strong style={{ color: '#53FC18' }}>Streamer Oficial LFA</strong>? Los partners son seleccionados por el equipo LFA. Contactanos para aplicar.
           </div>
-          <a href="/perfil" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.62rem', fontWeight: 900, color: '#ff4757', border: '1px solid rgba(255,71,87,0.35)', padding: '5px 12px', borderRadius: 6, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            MI PERFIL →
+          <a href="https://www.instagram.com/somoslfa" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.62rem', fontWeight: 900, color: 'white', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', border: 'none', padding: '5px 12px', borderRadius: 6, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            📸 CONTACTAR
           </a>
         </div>
 

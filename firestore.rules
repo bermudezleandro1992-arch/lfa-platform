@@ -166,7 +166,16 @@ service cloud.firestore {
                         || obtenerRol() == "soporte"
                         || obtenerRol() == "mod")
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']);
-      allow delete: if esAdmin();
+      allow delete: if authExists()
+                    && (request.auth.uid == "2bOrFxTAcPgFPoHKJHQfYxoQJpw1"
+                        || obtenerRol() == "soporte"
+                        || obtenerRol() == "mod");
+    }
+
+    match /cantina_presencia/{userId} {
+      allow read: if authExists();
+      // Cada usuario solo puede escribir/borrar su propio doc de presencia
+      allow write: if authExists() && request.auth.uid == userId;
     }
 
     match /{document=**} {

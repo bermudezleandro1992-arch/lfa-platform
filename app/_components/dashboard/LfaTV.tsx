@@ -8,11 +8,15 @@ import { db } from '@/lib/firebase';
 interface Streamer {
   uid: string; nombre?: string; avatar_url?: string;
   twitch_canal?: string; kick_canal?: string; youtube_canal?: string;
+  lfa_tv?: boolean;
 }
 
 /* ─── Canales oficiales LFA ─────────────────────────── */
-const LFA_OFICIAL_CANAL = 'somoslfa';
-const LFA_OFICIAL_PLAT  = 'kick';
+const LFA_OFICIAL = {
+  twitch:  'somoslfa',
+  kick:    'somoslfa',
+  youtube: 'somoslfa',
+};
 
 /* ─── Helper: extraer plataforma activa ─────────────── */
 function getPlatform(s: Streamer): 'twitch' | 'kick' | 'youtube' | null {
@@ -29,12 +33,21 @@ function embedUrl(plat: 'twitch' | 'kick' | 'youtube', canal: string, parent: st
   return '';
 }
 
+function channelLink(plat: 'twitch'|'kick'|'youtube', canal: string) {
+  if (plat === 'twitch')  return `https://twitch.tv/${canal}`;
+  if (plat === 'kick')    return `https://kick.com/${canal}`;
+  if (plat === 'youtube') return `https://youtube.com/@${canal}`;
+  return '#';
+}
 
+const PLAT_COLOR: Record<string, string> = { twitch: '#9146FF', kick: '#53FC18', youtube: '#ff0000' };
+const PLAT_LABEL: Record<string, string> = { twitch: '💜 TWITCH', kick: '🟢 KICK', youtube: '▶️ YOUTUBE' };
 
 /* ═══════════════════════════════════════════════════ */
 export default function LfaTV({ uid }: { uid: string }) {
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [gameTab,   setGameTab]   = useState<'todos'|'FC26'|'EFOOTBALL'>('todos');
+  const [featured,  setFeatured]  = useState<'twitch'|'kick'|'youtube'>('youtube');
   const [parent,    setParent]    = useState('localhost');
 
   useEffect(() => {
@@ -46,8 +59,8 @@ export default function LfaTV({ uid }: { uid: string }) {
       try {
         const snap = await getDocs(query(
           collection(db, 'usuarios'),
-          where('twitch_canal', '!=', ''),
-          limit(40)
+          where('lfa_tv', '==', true),
+          limit(20)
         ));
         const list: Streamer[] = [];
         snap.forEach(d => {
@@ -56,18 +69,13 @@ export default function LfaTV({ uid }: { uid: string }) {
             list.push({ ...data, uid: d.id });
           }
         });
-        // También traer los que solo tienen kick o youtube
-        const snap2 = await getDocs(query(collection(db, 'usuarios'), where('kick_canal', '!=', ''), limit(20)));
-        snap2.forEach(d => {
-          if (!list.find(s => s.uid === d.id)) list.push({ ...d.data() as Streamer, uid: d.id });
-        });
-        setStreamers(list.filter(s => s.uid !== 'somoslfa_oficial').slice(0, 20));
+        setStreamers(list.filter(s => s.uid !== 'somoslfa_oficial'));
       } catch { /* ok */ }
     };
     fetchStreamers();
   }, []);
 
-  const featuredEmbed = embedUrl(LFA_OFICIAL_PLAT, LFA_OFICIAL_CANAL, parent);
+  const featuredEmbed = embedUrl(featured, LFA_OFICIAL[featured], parent);
 
   return (
     <>
@@ -92,7 +100,7 @@ export default function LfaTV({ uid }: { uid: string }) {
                 <h1 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.4rem,4vw,2.2rem)', fontWeight: 900, margin: 0 }}>
                   📺 <span style={{ color: '#ff4757' }}>LFA</span> TV
                 </h1>
-            <p style={{ color: '#8b949e', fontSize: '0.78rem', margin: '4px 0 0' }}>Partidos en vivo de la comunidad LFA · somoslfa.com</p>
+                <p style={{ color: '#8b949e', fontSize: '0.78rem', margin: '4px 0 0' }}>Seguí las transmisiones en vivo de LFA y la comunidad</p>
               </div>
             </div>
           </div>
@@ -102,9 +110,16 @@ export default function LfaTV({ uid }: { uid: string }) {
 
           {/* ── CANAL OFICIAL LFA ────────────────────── */}
           <div style={{ marginBottom: 28 }}>
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.82rem', fontWeight: 900 }}>
                 🏆 CANAL OFICIAL LFA
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['youtube', 'twitch', 'kick'] as const).map(p => (
+                  <button key={p} onClick={() => setFeatured(p)} style={{ background: featured === p ? PLAT_COLOR[p] + '20' : 'transparent', border: `1px solid ${featured === p ? PLAT_COLOR[p] : '#30363d'}`, color: featured === p ? PLAT_COLOR[p] : '#8b949e', padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', fontWeight: 900, transition: '0.15s' }}>
+                    {PLAT_LABEL[p]}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -114,18 +129,16 @@ export default function LfaTV({ uid }: { uid: string }) {
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
                 allowFullScreen
                 allow="autoplay; fullscreen"
-                title="LFA TV - Canal Oficial"
+                title={`LFA TV - ${featured}`}
               />
             </div>
 
-            {/* Watermark LFA TV */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, padding: '6px 4px', flexWrap: 'wrap', gap: 6 }}>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#8b949e', letterSpacing: 0.5 }}>
-                somoslfa.com · <span style={{ color: '#ffd700' }}>Torneos FC26 &amp; eFootball Crossplay</span>
-              </div>
-              <a href="https://kick.com/somoslfa" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.65rem', color: '#8b949e', textDecoration: 'none', border: '1px solid #30363d', padding: '3px 10px', borderRadius: 6 }}>
-                Ver en vivo ↗
-              </a>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {(['youtube', 'twitch', 'kick'] as const).map(p => (
+                <a key={p} href={channelLink(p, LFA_OFICIAL[p])} target="_blank" rel="noopener noreferrer" style={{ color: PLAT_COLOR[p], border: `1px solid ${PLAT_COLOR[p]}40`, padding: '5px 14px', borderRadius: 20, textDecoration: 'none', fontSize: '0.72rem', fontWeight: 700, transition: '0.15s' }}>
+                  {PLAT_LABEL[p]} ↗
+                </a>
+              ))}
             </div>
           </div>
 
@@ -133,7 +146,7 @@ export default function LfaTV({ uid }: { uid: string }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.82rem', fontWeight: 900 }}>
-                🎮 CANALES DE LA COMUNIDAD
+                �️ STREAMERS OFICIALES LFA
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {([['todos', '🌐 Todos'], ['FC26', '⚽ FC 26'], ['EFOOTBALL', '🏅 eFootball']] as const).map(([v, l]) => (
@@ -146,10 +159,10 @@ export default function LfaTV({ uid }: { uid: string }) {
 
             {streamers.length === 0 ? (
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 14, padding: '40px', textAlign: 'center', color: '#8b949e' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📡</div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Sin streamers registrados todavía</div>
+                <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🎙️</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Próximamente — Streamers Oficiales LFA</div>
                 <div style={{ fontSize: '0.78rem' }}>
-                  Los jugadores pueden agregar sus canales en <a href="/perfil" style={{ color: '#00ff88' }}>Mi Perfil → Datos Públicos</a>
+                  Los partners oficiales aparecerán acá. <a href="https://www.instagram.com/somoslfa" target="_blank" rel="noopener noreferrer" style={{ color: '#53FC18' }}>Contactanos por Instagram</a> para aplicar.
                 </div>
               </div>
             ) : (
@@ -158,6 +171,7 @@ export default function LfaTV({ uid }: { uid: string }) {
                   const plat = getPlatform(s);
                   if (!plat) return null;
                   const canal = s[`${plat}_canal` as keyof Streamer] as string;
+                  const link  = channelLink(plat, canal);
                   return (
                     <div key={s.uid} className="tvcard" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 14, overflow: 'hidden' }}>
                       {/* Preview embed */}
@@ -176,8 +190,11 @@ export default function LfaTV({ uid }: { uid: string }) {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.nombre || canal}</div>
-                          <div style={{ fontSize: '0.62rem', color: '#00ff88', fontWeight: 700 }}>🎮 EN VIVO</div>
+                          <div style={{ fontSize: '0.65rem', color: PLAT_COLOR[plat], fontWeight: 700 }}>{PLAT_LABEL[plat]}</div>
                         </div>
+                        <a href={link} target="_blank" rel="noopener noreferrer" style={{ color: PLAT_COLOR[plat], textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700, border: `1px solid ${PLAT_COLOR[plat]}40`, padding: '4px 10px', borderRadius: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          Ver ↗
+                        </a>
                       </div>
                     </div>
                   );
@@ -186,13 +203,13 @@ export default function LfaTV({ uid }: { uid: string }) {
             )}
 
             {/* CTA para streamers */}
-            <div style={{ marginTop: 20, padding: '14px 18px', background: 'rgba(145,70,255,0.06)', border: '1px solid #9146FF30', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 20, padding: '14px 18px', background: 'rgba(83,252,24,0.04)', border: '1px solid rgba(83,252,24,0.15)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ color: '#9146FF', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, marginBottom: 3 }}>¿SOS STREAMER?</div>
-                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Agregá tu canal de Twitch, Kick o YouTube en tu perfil y aparecé acá automáticamente.</div>
+                <div style={{ color: '#53FC18', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, marginBottom: 3 }}>¿QUERÉS SER STREAMER OFICIAL LFA?</div>
+                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Los streamers que aparecen acá son partners oficiales seleccionados por LFA. Contactanos por Instagram para aplicar.</div>
               </div>
-              <a href="/perfil" style={{ background: '#9146FF', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: 8, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                AGREGAR CANAL
+              <a href="https://www.instagram.com/somoslfa" target="_blank" rel="noopener noreferrer" style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: 8, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                📸 CONTACTAR
               </a>
             </div>
           </div>
