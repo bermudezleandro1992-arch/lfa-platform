@@ -341,8 +341,8 @@ export default function PerfilPage() {
                 )}
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>CIUDAD</label>
                 <input className="inp-focus" value={ciudad} onChange={e => setCiudad(e.target.value)} style={inp} placeholder="Ej: Buenos Aires" maxLength={60} />
-                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>ID CONSOLA / PC</label>
-                <input className="inp-focus" value={idConsola} onChange={e => setIdConsola(e.target.value)} style={{ ...inp, marginBottom: 14 }} placeholder="PSN ID, Gamertag, Steam..." />
+                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>EA ID (FC26) / KONAMI ID (eFOOTBALL)</label>
+                <input className="inp-focus" value={idConsola} onChange={e => setIdConsola(e.target.value)} style={{ ...inp, marginBottom: 14 }} placeholder="EA ID (FC26) / Konami ID (eFootball)" />
 
                 <div style={{ borderTop: '1px solid #1c2028', paddingTop: 12, marginBottom: 4 }}>
                   <div style={{ color: '#9146FF', fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', fontWeight: 900, marginBottom: 10 }}>📡 CANALES DE STREAMING</div>

@@ -44,7 +44,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
   es: {
     slogan1: 'LIGA DE FÚTBOL AUTOMATIZADA', slogan2: 'DOMINÁ LA CANCHA',
     email: 'Correo Electrónico', pass: 'Contraseña (Registro: 8+ caract, mayúscula, símbolo)',
-    obligatorio: '⚠️ Obligatorio: Ingresá tu ID de consola o PC', id_jugador: 'Tu ID de Consola / PC (GamerTag)',
+    obligatorio: '⚠️ Obligatorio: EA ID (para FC26) o Konami ID (para eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: '¿Olvidaste tu contraseña?', btn_entrar: 'ENTRAR / REGISTRARSE',
     o_accede: 'O ACCEDÉ CON', btn_google: 'Continuar con Google', btn_facebook: 'Facebook',
     btn_instalar: '📲 INSTALAR APP LFA',
@@ -61,7 +61,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
   pt: {
     slogan1: 'LIGA DE FUTEBOL AUTOMATIZADA', slogan2: 'DOMINE O CAMPO',
     email: 'E-mail', pass: 'Senha (mín. 8 e 1 Maiúscula)',
-    obligatorio: '⚠️ Obrigatório: Insira seu ID de console ou PC', id_jugador: 'Seu ID de Console / PC (GamerTag)',
+    obligatorio: '⚠️ Obrigatório: EA ID (para FC26) ou Konami ID (para eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: 'Esqueceu sua senha?', btn_entrar: 'ENTRAR / REGISTRAR',
     o_accede: 'OU ACESSE COM', btn_google: 'Continuar com o Google', btn_facebook: 'Facebook',
     btn_instalar: '📲 INSTALAR APP LFA',
@@ -78,7 +78,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
   en: {
     slogan1: 'AUTOMATED FOOTBALL LEAGUE', slogan2: 'DOMINATE THE PITCH',
     email: 'Email Address', pass: 'Password (min 8 & 1 Uppercase)',
-    obligatorio: '⚠️ Required: Enter your console or PC ID', id_jugador: 'Your Console / PC ID (GamerTag)',
+    obligatorio: '⚠️ Required: EA ID (for FC26) or Konami ID (for eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: 'Forgot your password?', btn_entrar: 'LOGIN / REGISTER',
     o_accede: 'OR ACCESS WITH', btn_google: 'Continue with Google', btn_facebook: 'Facebook',
     btn_instalar: '📲 INSTALL LFA APP',

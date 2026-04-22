@@ -164,7 +164,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
         if (!id) {
           const result = await pedirDato(
             'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu ID de Jugador (PSN/Xbox/PC/Mobile) para crear una cuenta nueva:',
+            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para crear una cuenta nueva:',
           );
           if (!result?.trim()) {
             await alerta('REGISTRO CANCELADO', '❌ El ID es obligatorio para competir.', 'error');
@@ -246,7 +246,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
         if (!id) {
           const res = await pedirDato(
             'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu ID de Jugador (PSN/Xbox/PC/Mobile) para completar el registro con Google:',
+            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para completar el registro con Google:',
           );
           if (!res?.trim()) {
             await signOut(auth);
@@ -322,7 +322,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
         if (!id) {
           const res = await pedirDato(
             'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu ID de Jugador (PSN/Xbox/PC/Mobile) para completar el registro con Facebook:',
+            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para completar el registro con Facebook:',
           );
           if (!res?.trim()) {
             await signOut(auth);

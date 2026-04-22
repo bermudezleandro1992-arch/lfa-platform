@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import AppCheckProvider from './_components/AppCheckProvider';
 
 export const metadata: Metadata = {
   title: {
@@ -35,7 +36,9 @@ export default function RootLayout({
   return (
     <html lang="es-AR">
       <body className="bg-lfa-bg text-lfa-light antialiased">
-        {children}
+        <AppCheckProvider>
+          {children}
+        </AppCheckProvider>
       </body>
     </html>
   );

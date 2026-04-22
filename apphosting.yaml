@@ -28,6 +28,9 @@ env:
   - variable: IP_API_BASE_URL
     value: https://ipapi.co
 
+  - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+    value: 6LecOcUsAAAAAOOcGzfJtWM3JXpo9xJUVI7_JIjP
+
   # Bot secret — reemplazar con el valor real en Firebase Console → App Hosting → Secrets
   - variable: BOT_SECRET
     secret: BOT_SECRET
