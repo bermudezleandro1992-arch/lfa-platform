@@ -12,16 +12,16 @@ import SiteFooter    from '@/app/_components/SiteFooter';
 import LoginBox      from '@/app/auth/_components/LoginBox';
 
 const MODOS = [
-  { icon: '⚔️', title: 'ARENA 1VS1',    desc: 'Torneos relámpago. Inscribite, jugá, cobrá.',    color: '#00ff88' },
-  { icon: '📅', title: 'LIGA 1VS1',     desc: 'Temporadas largas con tabla de posiciones.',      color: '#ffd700' },
-  { icon: '🤝', title: 'CO-OP 2VS2',    desc: 'Armá equipo con un amigo y competí en pareja.',   color: '#009ee3', pronto: true },
-  { icon: '🏛️', title: 'LIGA CLUBES',   desc: 'Representá tu club oficial en la primera división.', color: '#a371f7', pronto: true },
+  { icon: '⚔️', title: 'ARENA 1VS1',  desc: 'Salas de 2 a 16 jugadores. Bracket automático, resultados verificados por el bot.',  color: '#00ff88' },
+  { icon: '📅', title: 'LIGA 1VS1',   desc: 'Temporadas largas con tabla de posiciones y ranking oficial.',  color: '#ffd700' },
+  { icon: '🤝', title: 'CO-OP 2VS2',  desc: 'Armá equipo con un amigo y competí en pareja.',  color: '#009ee3', pronto: true },
+  { icon: '🏛️', title: 'LIGA LFA', sub: 'Clubes FC 26', desc: 'Representá tu club oficial. Primera división de la liga.', color: '#a371f7', pronto: true },
 ];
 
 const PASOS = [
   { n: '01', title: 'REGISTRATE', desc: 'Creá tu cuenta gratis con email o Google en menos de 1 minuto.' },
-  { n: '02', title: 'ELEGÍ UN TORNEO', desc: 'Filtrá por juego, modo y región. Pagá la inscripción con LFA Coins.' },
-  { n: '03', title: 'COMPETÍ Y GANÁ', desc: 'Jugá, reportá tu resultado y cobrá el premio en tu billetera.' },
+  { n: '02', title: 'ELEGÍ UN TORNEO', desc: 'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con entrada de Moneda SOMOS LFA.' },
+  { n: '03', title: 'JUGÁ Y COBRÁ', desc: 'Subí tu resultado, el bot verifica que sea correcto, actualiza el bracket automáticamente y entrega el premio al ganador.' },
 ];
 
 export default function HomePage() {
@@ -79,7 +79,8 @@ export default function HomePage() {
           {/* Slogan */}
           <p style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(0.85rem,2.5vw,1.1rem)', textAlign: 'center', color: '#cdd9e5', maxWidth: 540, lineHeight: 1.7, margin: '0 0 36px' }}>
             Torneos de <strong style={{ color: '#00ff88' }}>FC 26</strong> y <strong style={{ color: '#009ee3' }}>eFootball</strong> con premios reales.<br />
-            Competí 1vs1, armá equipo, dominá la liga.
+            Competí 1vs1, armá equipo y dominá los torneos.<br />
+            <span style={{ color: '#ffd700', fontSize: '0.9em' }}>🏆 Top Ranking · Brackets automáticos · Bot verificador</span>
           </p>
 
           {/* CTAs */}
@@ -96,7 +97,7 @@ export default function HomePage() {
           <div style={{ display: 'flex', gap: 'clamp(20px,5vw,48px)', flexWrap: 'wrap', justifyContent: 'center', borderTop: '1px solid #1c2028', paddingTop: 28 }}>
             {[
               { v: '+2.400', l: 'TORNEOS' },
-              { v: '+15.000', l: 'JUGADORES' },
+              { v: '+1.200', l: 'JUGADORES' },
               { v: 'FC26 + EFB', l: 'JUEGOS' },
               { v: 'LATAM', l: 'REGIÓN' },
             ].map(s => (
@@ -119,7 +120,9 @@ export default function HomePage() {
               <div key={m.title} style={{ background: '#161b22', border: `1px solid ${m.color}22`, borderTop: `3px solid ${m.pronto ? '#30363d' : m.color}`, borderRadius: 14, padding: '24px 18px', textAlign: 'center', opacity: m.pronto ? 0.5 : 1, position: 'relative', transition: '0.2s' }}>
                 {m.pronto && <div style={{ position: 'absolute', top: 10, right: 10, background: '#30363d', color: '#8b949e', fontSize: '0.55rem', fontFamily: "'Orbitron',sans-serif", padding: '2px 7px', borderRadius: 6, fontWeight: 700 }}>PRONTO</div>}
                 <div style={{ fontSize: '2rem', marginBottom: 10 }}>{m.icon}</div>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: m.pronto ? '#4a5568' : m.color, marginBottom: 8, letterSpacing: 1 }}>{m.title}</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: m.pronto ? '#4a5568' : m.color, marginBottom: 2, letterSpacing: 1 }}>{m.title}</div>
+                {'sub' in m && m.sub && <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#4a5568', marginBottom: 8, letterSpacing: 1 }}>{m.sub}</div>}
+                {!('sub' in m && m.sub) && <div style={{ marginBottom: 8 }} />}
                 <div style={{ color: '#8b949e', fontSize: '0.75rem', lineHeight: 1.5 }}>{m.desc}</div>
               </div>
             ))}
