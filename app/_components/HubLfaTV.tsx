@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 /* ─── Tipos ─────────────────────────────────────────── */
@@ -36,8 +36,22 @@ function getChannel(s: StreamerDB): { plat: string; canal: string } | null {
 export default function HubLfaTV() {
   const [parent,   setParent]   = useState('localhost');
   const [streams,  setStreams]  = useState<{ uid: string; nombre: string; avatar?: string; plat: string; canal: string }[]>([]);
-  const [selected, setSelected] = useState<number>(0); // índice del stream grande
+  const [selected, setSelected] = useState<number>(0);
   const [loaded,   setLoaded]   = useState(false);
+  const [leadOpen,  setLeadOpen]  = useState(false);
+  const [leadSent,  setLeadSent]  = useState(false);
+  const [leadSending, setLeadSending] = useState(false);
+  const [lead, setLead] = useState({ nombre: '', email: '', celular: '', juego: 'FC26', mensaje: '' });
+
+  async function enviarLead() {
+    if (!lead.nombre.trim() || !lead.email.trim()) return;
+    setLeadSending(true);
+    try {
+      await addDoc(collection(db, 'leads_streamers'), { ...lead, uid: null, fecha: serverTimestamp() });
+      setLeadSent(true);
+    } catch { /* ok */ }
+    setLeadSending(false);
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') setParent(window.location.hostname);
@@ -89,6 +103,47 @@ export default function HubLfaTV() {
         @keyframes scanline { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
         .lfatv-thumb { transition: all .18s ease; cursor: pointer; }
         .lfatv-thumb:hover { border-color: rgba(255,71,87,0.6) !important; transform: scale(1.03); }
+        .hub-lead-inp{width:100%;padding:9px 12px;background:#0b0e14;border:1px solid #30363d;color:white;border-radius:8px;font-size:0.83rem;box-sizing:border-box;margin-bottom:10px;font-family:'Roboto',sans-serif;outline:none}
+        .hub-lead-inp:focus{border-color:#53FC18 !important}
+      `}</style>
+
+      {/* ── MODAL LEAD ────────────────────────────── */}
+      {leadOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => { setLeadOpen(false); setLeadSent(false); }}>
+          <div style={{ background: '#161b22', border: '1px solid rgba(83,252,24,0.3)', borderRadius: 18, padding: 'clamp(20px,4vw,32px)', width: '100%', maxWidth: 440, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => { setLeadOpen(false); setLeadSent(false); }} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: '#8b949e', fontSize: '1.3rem', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            {leadSent ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🎙️</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#53FC18', fontSize: '1rem', fontWeight: 900, marginBottom: 8 }}>¡SOLICITUD ENVIADA!</div>
+                <div style={{ color: '#8b949e', fontSize: '0.8rem' }}>El equipo SOMOS LFA se va a contactar a la brevedad.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#53FC18', fontSize: '0.9rem', fontWeight: 900, marginBottom: 4 }}>🎙️ APLICAR COMO STREAMER</div>
+                <div style={{ color: '#8b949e', fontSize: '0.72rem', marginBottom: 18 }}>Completá el formulario y te contactamos nosotros.</div>
+                <label style={{ color: '#8b949e', fontSize: '0.68rem', display: 'block', marginBottom: 4 }}>NOMBRE / NICK *</label>
+                <input className="hub-lead-inp" value={lead.nombre} onChange={e => setLead(l => ({ ...l, nombre: e.target.value }))} placeholder="Tu nombre o nick en la comunidad" maxLength={60} />
+                <label style={{ color: '#8b949e', fontSize: '0.68rem', display: 'block', marginBottom: 4 }}>EMAIL *</label>
+                <input className="hub-lead-inp" type="email" value={lead.email} onChange={e => setLead(l => ({ ...l, email: e.target.value }))} placeholder="tucorreo@ejemplo.com" maxLength={100} />
+                <label style={{ color: '#8b949e', fontSize: '0.68rem', display: 'block', marginBottom: 4 }}>CELULAR / WHATSAPP</label>
+                <input className="hub-lead-inp" type="tel" value={lead.celular} onChange={e => setLead(l => ({ ...l, celular: e.target.value }))} placeholder="+54 9 11..." maxLength={25} />
+                <label style={{ color: '#8b949e', fontSize: '0.68rem', display: 'block', marginBottom: 4 }}>JUEGO</label>
+                <select className="hub-lead-inp" value={lead.juego} onChange={e => setLead(l => ({ ...l, juego: e.target.value }))} style={{ cursor: 'pointer' }}>
+                  <option value="FC26">EA SPORTS FC 26</option>
+                  <option value="EFOOTBALL">eFootball</option>
+                  <option value="AMBOS">Ambos juegos</option>
+                </select>
+                <label style={{ color: '#8b949e', fontSize: '0.68rem', display: 'block', marginBottom: 4 }}>MENSAJE (opcional)</label>
+                <textarea className="hub-lead-inp" value={lead.mensaje} onChange={e => setLead(l => ({ ...l, mensaje: e.target.value }))} placeholder="Contanos sobre tu canal, cuántos seguidores tenés, qué tipo de contenido hacés..." maxLength={500} rows={3} style={{ resize: 'vertical', marginBottom: 16 }} />
+                <button onClick={enviarLead} disabled={!lead.nombre.trim() || !lead.email.trim() || leadSending} style={{ width: '100%', background: 'linear-gradient(135deg,#53FC18,#00cc44)', color: '#0b0e14', border: 'none', borderRadius: 10, padding: '12px', fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, cursor: 'pointer', opacity: (!lead.nombre.trim() || !lead.email.trim() || leadSending) ? 0.5 : 1, transition: '0.15s', letterSpacing: 1 }}>
+                  {leadSending ? 'ENVIANDO...' : '📤 ENVIAR SOLICITUD'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       `}</style>
 
       <div style={{ marginBottom: 40 }}>
@@ -198,11 +253,11 @@ export default function HubLfaTV() {
         {/* ── CTA STREAMER ───────────────────────────── */}
         <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(83,252,24,0.04)', border: '1px solid rgba(83,252,24,0.12)', borderRadius: 10, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: '0.72rem', color: '#8b949e' }}>
-            ¿Querés ser <strong style={{ color: '#53FC18' }}>Streamer Oficial LFA</strong>? Los partners son seleccionados por el equipo LFA. Contactanos para aplicar.
+            ¿Querés ser <strong style={{ color: '#53FC18' }}>Streamer Oficial SOMOS LFA</strong>? Los partners son seleccionados por el equipo. Completá el formulario y te contactamos.
           </div>
-          <a href="https://www.instagram.com/somoslfa" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.62rem', fontWeight: 900, color: 'white', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', border: 'none', padding: '5px 12px', borderRadius: 6, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            📸 CONTACTAR
-          </a>
+          <button onClick={() => { setLeadOpen(true); setLeadSent(false); }} style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.62rem', fontWeight: 900, color: '#0b0e14', background: 'linear-gradient(135deg,#53FC18,#00cc44)', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            📤 APLICAR
+          </button>
         </div>
 
       </div>

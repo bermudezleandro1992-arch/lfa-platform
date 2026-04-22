@@ -178,6 +178,15 @@ service cloud.firestore {
       allow write: if authExists() && request.auth.uid == userId;
     }
 
+    match /leads_streamers/{leadId} {
+      allow read: if esAdmin();
+      allow create: if authExists()
+                    && request.resource.data.keys().hasAll(['nombre', 'email'])
+                    && request.resource.data.nombre is string
+                    && request.resource.data.email is string;
+      allow update, delete: if esAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

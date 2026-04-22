@@ -26,6 +26,9 @@ interface Presence {
   avatar_url?: string;
   rol:        string;
   estado:     'online' | 'ausente';
+  // ping_ms es Date.now() — confiable en el snapshot local inmediato
+  ping_ms?:   number;
+  // fallback para documentos viejos con serverTimestamp
   ultimo_ping?: { toDate?: () => Date };
 }
 
@@ -117,7 +120,7 @@ export default function CantinaChat({ uid }: { uid: string }) {
         avatar_url: u.avatar_url ?? null,
         rol:        u.rol,
         estado,
-        ultimo_ping: serverTimestamp(),
+        ping_ms:     Date.now(),
       });
     } catch { /* ok */ }
   }, [uid, userInfo]);
@@ -175,8 +178,9 @@ export default function CantinaChat({ uid }: { uid: string }) {
       const list: Presence[] = [];
       snap.forEach(d => {
         const data = d.data() as Presence;
-        const lastPing = data.ultimo_ping?.toDate?.()?.getTime() ?? 0;
-        if (now - lastPing < PRESENCE_TIMEOUT) {
+        // Usar ping_ms (Date.now) primero; fallback a serverTimestamp viejo
+        const lastPing = data.ping_ms ?? data.ultimo_ping?.toDate?.()?.getTime() ?? 0;
+        if (lastPing === 0 || now - lastPing < PRESENCE_TIMEOUT) {
           list.push({ ...data, uid: d.id });
         }
       });

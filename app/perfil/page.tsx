@@ -19,7 +19,7 @@ interface UserData {
   es_afiliado?: boolean; rol?: string;
   victorias?: number; derrotas?: number;
   nombre_real?: string; celular?: string;
-  ciudad?: string; provincia?: string; id_consola?: string;
+  ciudad?: string; provincia?: string; pais?: string; id_consola?: string;
   country?: string; countryName?: string;
   referidos?: string[]; coins_referidos?: number;
   twitch_canal?: string; kick_canal?: string; youtube_canal?: string;
@@ -73,6 +73,7 @@ export default function PerfilPage() {
   const [nombre,    setNombre]    = useState('');
   const [nombreReal,setNombreReal]= useState('');
   const [celular,   setCelular]   = useState('');
+  const [pais,      setPais]      = useState('');
   const [ciudad,    setCiudad]    = useState('');
   const [provincia, setProvincia] = useState('');
   const [idConsola, setIdConsola] = useState('');
@@ -99,6 +100,7 @@ export default function PerfilPage() {
       setNombre(d.nombre || '');
       setNombreReal(d.nombre_real || '');
       setCelular(d.celular || '');
+      setPais(d.pais || '');
       setCiudad(d.ciudad || '');
       setProvincia(d.provincia || '');
       setIdConsola(d.id_consola || '');
@@ -172,14 +174,15 @@ export default function PerfilPage() {
     setSaving(true);
     await updateDoc(doc(db, 'usuarios', uid), {
       nombre: nombre.trim(), nombre_real: nombreReal.trim(),
-      celular: celular.trim(), ciudad: ciudad.trim(),
+      celular: celular.trim(), pais: pais.trim(),
+      ciudad: ciudad.trim(),
       provincia: provincia.trim(), id_consola: idConsola.trim(),
       twitch_canal: twitchCanal.trim().replace(/^@/, ''),
       kick_canal:   kickCanal.trim().replace(/^@/, ''),
       youtube_canal: youtubeCanal.trim().replace(/^@/, ''),
     });
     setMsg('✅ Datos guardados'); setSaving(false);
-  }, [uid, nombre, nombreReal, celular, ciudad, provincia, idConsola]);
+  }, [uid, nombre, nombreReal, celular, pais, ciudad, provincia, idConsola, twitchCanal, kickCanal, youtubeCanal]);
 
   /* Copiar link */
   function copiarRef() {
@@ -317,10 +320,27 @@ export default function PerfilPage() {
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 14, padding: 'clamp(14px,3vw,20px)', borderTop: '3px solid #009ee3' }}>
                 <h3 style={{ fontFamily: "'Orbitron',sans-serif", color: '#009ee3', margin: '0 0 14px', fontSize: '0.8rem' }}>🌐 DATOS PÚBLICOS</h3>
                 <p style={{ color: '#8b949e', fontSize: '0.71rem', marginTop: -8, marginBottom: 14 }}>Visible en tu perfil público y ranking.</p>
-                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>CIUDAD</label>
-                <input className="inp-focus" value={ciudad} onChange={e => setCiudad(e.target.value)} style={inp} placeholder="Ej: Buenos Aires" />
+                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>PAÍS</label>
+                <select className="inp-focus" value={pais} onChange={e => { setPais(e.target.value); setProvincia(''); }} style={{ ...inp, cursor: 'pointer' }}>
+                  <option value="">— Seleccioná tu país —</option>
+                  {['Argentina','Bolivia','Brasil','Chile','Colombia','Costa Rica','Cuba','Ecuador','El Salvador','España','Estados Unidos','Guatemala','Honduras','México','Nicaragua','Panamá','Paraguay','Perú','Puerto Rico','República Dominicana','Uruguay','Venezuela','Otro'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>PROVINCIA / ESTADO</label>
-                <input className="inp-focus" value={provincia} onChange={e => setProvincia(e.target.value)} style={inp} placeholder="Ej: Buenos Aires" />
+                {pais === 'Argentina' ? (
+                  <select className="inp-focus" value={provincia} onChange={e => setProvincia(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                    <option value="">— Seleccioná tu provincia —</option>
+                    {['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                ) : pais === 'México' ? (
+                  <select className="inp-focus" value={provincia} onChange={e => setProvincia(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                    <option value="">— Seleccioná tu estado —</option>
+                    {['Aguascalientes','Baja California','Baja California Sur','Campeche','Chiapas','Chihuahua','Ciudad de México','Coahuila','Colima','Durango','Guanajuato','Guerrero','Hidalgo','Jalisco','México','Michoacán','Morelos','Nayarit','Nuevo León','Oaxaca','Puebla','Querétaro','Quintana Roo','San Luis Potosí','Sinaloa','Sonora','Tabasco','Tamaulipas','Tlaxcala','Veracruz','Yucatán','Zacatecas'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                ) : (
+                  <input className="inp-focus" value={provincia} onChange={e => setProvincia(e.target.value)} style={inp} placeholder="Ej: Santiago" maxLength={60} />
+                )}
+                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>CIUDAD</label>
+                <input className="inp-focus" value={ciudad} onChange={e => setCiudad(e.target.value)} style={inp} placeholder="Ej: Buenos Aires" maxLength={60} />
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>ID CONSOLA / PC</label>
                 <input className="inp-focus" value={idConsola} onChange={e => setIdConsola(e.target.value)} style={{ ...inp, marginBottom: 14 }} placeholder="PSN ID, Gamertag, Steam..." />
 
