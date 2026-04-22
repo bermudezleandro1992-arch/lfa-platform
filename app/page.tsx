@@ -12,15 +12,15 @@ import SiteFooter    from '@/app/_components/SiteFooter';
 import LoginBox      from '@/app/auth/_components/LoginBox';
 
 const MODOS = [
-  { icon: '⚔️', title: 'ARENA 1VS1',  desc: 'Salas de 2 a 16 jugadores. Bracket automático, resultados verificados por el bot.',  color: '#00ff88' },
-  { icon: '📅', title: 'LIGA 1VS1',   desc: 'Temporadas largas con tabla de posiciones y ranking oficial.',  color: '#ffd700' },
+  { icon: '⚔️', title: 'ARENA 1VS1',  desc: 'Salas de 2 a 16 jugadores. Bracket automático, resultados verificados por el bot. Torneos free y pagos.',  color: '#00ff88' },
+  { icon: '📅', title: 'LIGA 1VS1',   desc: 'Temporadas largas con tabla de posiciones y ranking oficial. Torneos free y pagos.',  color: '#ffd700' },
   { icon: '🤝', title: 'CO-OP 2VS2',  desc: 'Armá equipo con un amigo y competí en pareja.',  color: '#009ee3', pronto: true },
   { icon: '🏛️', title: 'LIGA LFA', sub: 'Clubes FC 26', desc: 'Representá tu club oficial. Primera división de la liga.', color: '#a371f7', pronto: true },
 ];
 
 const PASOS = [
-  { n: '01', title: 'REGISTRATE', desc: 'Creá tu cuenta gratis con email o Google en menos de 1 minuto.' },
-  { n: '02', title: 'ELEGÍ UN TORNEO', desc: 'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con entrada de Moneda SOMOS LFA.' },
+  { n: '01', title: 'REGISTRATE', desc: 'Creá tu cuenta gratis con email, Google o Facebook en menos de 1 minuto.' },
+  { n: '02', title: 'ELEGÍ UN TORNEO', desc: 'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con LFA Coin, la moneda de SOMOS LFA.' },
   { n: '03', title: 'JUGÁ Y COBRÁ', desc: 'Subí tu resultado, el bot verifica que sea correcto, actualiza el bracket automáticamente y entrega el premio al ganador.' },
 ];
 
@@ -113,7 +113,7 @@ export default function HomePage() {
               { v: stats.torneos > 0 ? stats.torneos.toLocaleString('es-AR') : '—', l: 'TORNEOS' },
               { v: stats.jugadores > 0 ? stats.jugadores.toLocaleString('es-AR') : '—', l: 'JUGADORES' },
               { v: 'FC26 + EFB', l: 'JUEGOS' },
-              { v: 'LATAM', l: 'REGIÓN' },
+              { v: 'LATAM', l: 'NORTE Y SUR' },
             ].map(s => (
               <div key={s.l} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.2rem,3vw,1.6rem)', fontWeight: 900, color: '#00ff88' }}>{s.v}</div>

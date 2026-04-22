@@ -36,6 +36,14 @@ const CEO_UID          = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 const HEARTBEAT_MS     = 25_000;   // latido cada 25s
 const PRESENCE_TIMEOUT = 90_000;   // ausente si no latió en 90s
 
+/* ─── Props ──────────────────────────────────────────── */
+interface CantinaChatProps {
+  uid:        string;
+  nombre?:    string;
+  avatarUrl?: string;
+  rol?:       string;
+}
+
 /* ─── Filtro anti-spam / insultos ───────────────────────── */
 const PALABRAS_BLOQUEADAS = [
   // Insultos españoles/argentinos
@@ -81,12 +89,17 @@ function timeStr(ts?: { toDate?: () => Date }) {
 }
 
 /* ═══════════════════════════════════════════════════════════ */
-export default function CantinaChat({ uid }: { uid: string }) {
+export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatarProp, rol: rolProp }: CantinaChatProps) {
   const [messages,   setMessages]   = useState<ChatMsg[]>([]);
   const [texto,      setTexto]      = useState('');
   const [sending,    setSending]    = useState(false);
   const [errMsg,     setErrMsg]     = useState('');
-  const [userInfo,   setUserInfo]   = useState<{ nombre: string; avatar_url?: string; rol: string } | null>(null);
+  const [userInfo,   setUserInfo]   = useState<{ nombre: string; avatar_url?: string; rol: string } | null>(() => {
+    if (nombreProp) {
+      return { nombre: nombreProp, avatar_url: avatarProp, rol: uid === CEO_UID ? 'ceo' : (rolProp || 'jugador') };
+    }
+    return null;
+  });
   const [presences,  setPresences]  = useState<Presence[]>([]);
   const [miEstado,   setMiEstado]   = useState<'online' | 'ausente'>('online');
   const bottomRef  = useRef<HTMLDivElement>(null);
@@ -97,17 +110,25 @@ export default function CantinaChat({ uid }: { uid: string }) {
 
   const isMod = uid === CEO_UID || userInfo?.rol === 'soporte' || userInfo?.rol === 'mod';
 
-  /* ── Cargar datos del usuario ─────────────────────────── */
+  /* ── Cargar datos del usuario (solo si no se recibieron por props) ── */
   useEffect(() => {
-    if (!uid) return;
-    getDoc(doc(db, 'usuarios', uid)).then(snap => {
-      if (snap.exists()) {
-        const d = snap.data();
-        const rol = uid === CEO_UID ? 'ceo' : (d.rol || 'jugador');
-        setUserInfo({ nombre: d.nombre || 'JUGADOR', avatar_url: d.avatar_url, rol });
-      }
-    });
-  }, [uid]);
+    if (!uid || userInfo) return; // ya tenemos info, no hace falta fetchear
+    getDoc(doc(db, 'usuarios', uid))
+      .then(snap => {
+        const d = snap.exists() ? snap.data() : {};
+        const rol = uid === CEO_UID ? 'ceo' : ((d as Record<string,unknown>).rol as string || 'jugador');
+        setUserInfo({
+          nombre:     ((d as Record<string,unknown>).nombre as string) || 'JUGADOR',
+          avatar_url: (d as Record<string,unknown>).avatar_url as string | undefined,
+          rol,
+        });
+      })
+      .catch(() => {
+        // Si falla la lectura igualmente escribimos presencia con nombre básico
+        setUserInfo({ nombre: 'JUGADOR', rol: uid === CEO_UID ? 'ceo' : 'jugador' });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);  // userInfo intencionalmente excluido para no re-fetchear
 
   /* ── Presencia: escribir / heartbeat / cleanup ─────────── */
   const writePresence = useCallback(async (estado: 'online' | 'ausente', info?: { nombre: string; avatar_url?: string; rol: string }) => {
@@ -126,7 +147,7 @@ export default function CantinaChat({ uid }: { uid: string }) {
   }, [uid, userInfo]);
 
   const deletePresence = useCallback(() => {
-    // Fire-and-forget al salir — no await para no bloquear el unload
+    // Solo se usa en beforeunload (cierre de pestaña)
     deleteDoc(doc(db, 'cantina_presencia', uid)).catch(() => {});
   }, [uid]);
 
@@ -140,7 +161,7 @@ export default function CantinaChat({ uid }: { uid: string }) {
       writePresence(miEstado);
     }, HEARTBEAT_MS);
 
-    // Al salir de la página
+    // Al cerrar la pestaña del navegador: borrar presencia
     const onUnload = () => deletePresence();
     window.addEventListener('beforeunload', onUnload);
 
@@ -159,7 +180,8 @@ export default function CantinaChat({ uid }: { uid: string }) {
       if (heartTimer.current) clearInterval(heartTimer.current);
       window.removeEventListener('beforeunload', onUnload);
       document.removeEventListener('visibilitychange', onVisibility);
-      deletePresence();
+      // Marcar como ausente en lugar de borrar — evita race condition con el remontado
+      writePresence('ausente', userInfo);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo]);

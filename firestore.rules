@@ -184,6 +184,17 @@ service cloud.firestore {
       allow write: if authExists() && request.auth.uid == userId;
     }
 
+    match /community_streams/{streamUid} {
+      allow read: if authExists();
+      // Cada usuario puede crear/actualizar solo su propio canal (uid == doc ID)
+      allow create, update: if authExists() && request.auth.uid == streamUid
+                            && request.resource.data.keys().hasAll(['uid','nombre','plataforma','canal','juego'])
+                            && request.resource.data.uid == request.auth.uid
+                            && request.resource.data.plataforma in ['twitch','kick','youtube']
+                            && request.resource.data.juego in ['FC26','EFOOTBALL','AMBOS'];
+      allow delete: if authExists() && (request.auth.uid == streamUid || esAdmin());
+    }
+
     match /leads_streamers/{leadId} {
       allow read: if esAdmin();
       allow create: if authExists()

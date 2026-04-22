@@ -175,7 +175,14 @@ export default function HubPage() {
               <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 CANTINA LFA — CHAT GENERAL</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
-              {uid ? <CantinaChat uid={uid} /> : (
+              {uid ? (
+                <CantinaChat
+                  uid={uid}
+                  nombre={userData?.nombre}
+                  avatarUrl={userData?.avatar_url}
+                  rol={esAdmin ? (uid === DUEÑO_UID ? 'ceo' : 'soporte') : undefined}
+                />
+              ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem' }}>
                   CARGANDO CANTINA...
                 </div>
