@@ -1891,3 +1891,289 @@ exports.autoTreasurySweep = onSchedule({
 }, async () => {
     await runTreasurySweep();
 });
+
+// ============================================================================
+// 🤖 BOT LFA — AUTO-AVANCE DE BRACKETS CADA 2 MINUTOS
+// ============================================================================
+// Lógica:
+//  1. Busca matches con status=PENDING_RESULT y dispute_deadline vencida
+//  2. Si no hay disputa activa → marca FINISHED, define winner
+//  3. Actualiza el bracket del torneo con el ganador
+//  4. Si todos los matches de la ronda terminaron → crea la siguiente ronda
+//  5. Si era la final → distribuye premios según cantidad de jugadores
+//
+// Premios: 2/4/6 jugadores → 1 premio (100% del pozo)
+//          8/16 → 2 premios (70% + 30%)
+//          32   → 3 premios (60% + 25% + 15%)
+//          64   → 4 premios (50% + 25% + 15% + 10%)
+
+const PRIZE_DISTRIBUTION = {
+    2:  [100],
+    4:  [100],
+    6:  [100],
+    8:  [70, 30],
+    16: [70, 30],
+    32: [60, 25, 15],
+    64: [50, 25, 15, 10],
+};
+
+const DISPUTE_WINDOW_MS = 5 * 60 * 1000; // 5 minutos
+
+async function botBotMsg(texto, matchId, tournamentId) {
+    await db.collection('cantina_messages').add({
+        uid:          'BOT_LFA',
+        nombre:       '🤖 BOT LFA',
+        avatar_url:   null,
+        rol:          'bot',
+        texto,
+        match_id:     matchId || null,
+        tournament_id: tournamentId || null,
+        timestamp:    admin.firestore.FieldValue.serverTimestamp(),
+        deleted:      false,
+    });
+}
+
+async function getUserName(uid) {
+    try {
+        const snap = await db.collection('usuarios').doc(uid).get();
+        return snap.exists ? (snap.data().nombre || 'Jugador') : 'Jugador';
+    } catch { return 'Jugador'; }
+}
+
+async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
+    const matchId      = matchDoc.id;
+    const tournamentId = tournamentDoc.id;
+    const winnerId     = matchData.reported_by; // quien reportó gana si no hay disputa
+    const loserScore   = matchData.score || '1-0';
+    const round        = matchData.round || 'round_1';
+
+    // Marcar match como FINISHED
+    await matchDoc.ref.update({
+        status:     'FINISHED',
+        winner:     winnerId,
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const winnerName = await getUserName(winnerId);
+    console.log(`[BOT] Match ${matchId} FINISHED → ganador: ${winnerName} (${winnerId})`);
+
+    // Publicar resultado en cantina
+    await botBotMsg(
+        `✅ [BOT LFA] Tiempo de verificación vencido. **${winnerName}** avanza en el bracket. Marcador: ${loserScore}. Si hay algún error contactá al Staff.`,
+        matchId, tournamentId
+    );
+
+    // Actualizar el bracket del torneo
+    const brackets = tournament.brackets || {};
+    const roundMatches = brackets[round] || [];
+    const matchIdx = roundMatches.findIndex(m => m.id === matchId);
+    if (matchIdx >= 0) {
+        roundMatches[matchIdx] = {
+            ...roundMatches[matchIdx],
+            winner:  winnerId,
+            status:  'FINISHED',
+            score:   loserScore,
+        };
+        brackets[round] = roundMatches;
+    }
+
+    // Verificar si todos los matches de esta ronda terminaron
+    const allFinished = roundMatches.every(m =>
+        m.winner !== null && m.winner !== undefined && m.status === 'FINISHED'
+    );
+
+    if (!allFinished) {
+        await tournamentDoc.ref.update({ brackets });
+        return;
+    }
+
+    // ── Todos los matches de la ronda terminaron ────────────────────
+    const winners = roundMatches.map(m => m.winner).filter(Boolean);
+    console.log(`[BOT] Ronda ${round} completa. Ganadores: ${winners.join(', ')}`);
+
+    // ¿Era la final?
+    const isFinal = round === 'final' || winners.length === 1;
+
+    if (isFinal) {
+        // ── DISTRIBUIR PREMIOS ──────────────────────────────────────
+        const capacity     = tournament.capacity || 2;
+        const totalPrize   = tournament.prize_pool || 0;     // en LFA Coins
+        const prizeLayout  = PRIZE_DISTRIBUTION[capacity] || [100];
+
+        await tournamentDoc.ref.update({
+            brackets,
+            status:     'FINISHED',
+            ganadores:  winners,
+            finished_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Repartir premios
+        for (let i = 0; i < prizeLayout.length && i < winners.length; i++) {
+            const winnerUid  = winners[i];
+            const prizeCoins = Math.floor(totalPrize * prizeLayout[i] / 100);
+            if (prizeCoins <= 0) continue;
+
+            const winnerRef = db.collection('usuarios').doc(winnerUid);
+            await db.runTransaction(async tx => {
+                const snap = await tx.get(winnerRef);
+                if (!snap.exists) return;
+                const current = snap.data().number || 0;
+                tx.update(winnerRef, { number: current + prizeCoins });
+                // Log en transactions
+                await db.collection('transactions').add({
+                    userId:      winnerUid,
+                    type:        'TOURNAMENT_PRIZE',
+                    amount:      prizeCoins,
+                    status:      'completed',
+                    balance_after: current + prizeCoins,
+                    tournamentId,
+                    round:       'final',
+                    position:    i + 1,
+                    description: `Premio ${['1°','2°','3°','4°'][i] || (i+1)+'°'} lugar — Torneo ${tournament.name || tournamentId.slice(-5)}`,
+                    timestamp:   admin.firestore.FieldValue.serverTimestamp(),
+                    created_at:  admin.firestore.FieldValue.serverTimestamp(),
+                });
+            });
+
+            const name = await getUserName(winnerUid);
+            const pos  = ['🥇','🥈','🥉','🏅'][i] || `${i+1}°`;
+            await botBotMsg(
+                `${pos} **${name}** recibe 🪙${prizeCoins.toLocaleString()} coins por llegar al ${['1er','2do','3er','4to'][i] || (i+1)+'to'} lugar. ¡Felicitaciones campeón! 🎉`,
+                null, tournamentId
+            );
+        }
+
+        await botBotMsg(
+            `🏆 [TORNEO FINALIZADO] El torneo **${tournament.name || ''}** ha concluido. Premios distribuidos. ¡Gracias a todos los participantes!`,
+            null, tournamentId
+        );
+        return;
+    }
+
+    // ── Generar siguiente ronda ─────────────────────────────────────
+    const roundNum    = parseInt((round.match(/\d+/) || ['1'])[0], 10);
+    const nextRoundNum = roundNum + 1;
+    const totalRounds  = Math.log2(tournament.capacity || 2);
+    const nextRound    = nextRoundNum >= totalRounds ? 'final' : `round_${nextRoundNum}`;
+    const roundLabel   = nextRound === 'final' ? '🏆 FINAL' : `Round ${nextRoundNum}`;
+
+    // Crear matches de la siguiente ronda en Firestore
+    const nextMatches = [];
+    for (let i = 0; i < winners.length; i += 2) {
+        const p1 = winners[i];
+        const p2 = winners[i + 1];
+        if (!p1 || !p2) break;
+
+        const newMatchRef = db.collection('matches').doc();
+        const matchData2 = {
+            id:           newMatchRef.id,
+            tournamentId,
+            round:        nextRound,
+            p1, p2,
+            score:        '',
+            winner:       null,
+            status:       'WAITING',
+            created_at:   admin.firestore.FieldValue.serverTimestamp(),
+            updated_at:   admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // Obtener nombres/EA IDs
+        try {
+            const [p1Snap, p2Snap] = await Promise.all([
+                db.collection('usuarios').doc(p1).get(),
+                db.collection('usuarios').doc(p2).get(),
+            ]);
+            if (p1Snap.exists) {
+                matchData2.p1_username = p1Snap.data().nombre;
+                matchData2.p1_ea_id    = p1Snap.data().ea_id || p1Snap.data().konami_id;
+            }
+            if (p2Snap.exists) {
+                matchData2.p2_username = p2Snap.data().nombre;
+                matchData2.p2_ea_id    = p2Snap.data().ea_id || p2Snap.data().konami_id;
+            }
+        } catch {}
+
+        await newMatchRef.set(matchData2);
+        nextMatches.push({ id: newMatchRef.id, p1, p2, score: '', winner: null, status: 'WAITING' });
+
+        const p1Name = matchData2.p1_username || p1.slice(0,8);
+        const p2Name = matchData2.p2_username || p2.slice(0,8);
+        await botBotMsg(
+            `⚔️ [${roundLabel}] **${p1Name}** vs **${p2Name}** — El partido comenzó. ¡El ganador tiene que reportar el resultado!`,
+            newMatchRef.id, tournamentId
+        );
+    }
+
+    brackets[nextRound] = nextMatches;
+    await tournamentDoc.ref.update({ brackets, current_round: nextRound });
+
+    await botBotMsg(
+        `🚀 [BOT LFA] La ronda **${round}** terminó. Comenzó **${roundLabel}** con ${winners.length / 2} partidos. ¡Suerte a todos!`,
+        null, tournamentId
+    );
+}
+
+async function processPendingMatches() {
+    const now  = admin.firestore.Timestamp.now();
+    // Buscar matches con deadline vencida y sin disputa activa
+    const snap = await db.collection('matches')
+        .where('status', '==', 'PENDING_RESULT')
+        .where('dispute_deadline', '<=', now)
+        .get();
+
+    if (snap.empty) {
+        console.log('[BOT] No hay matches pendientes con deadline vencida.');
+        return;
+    }
+
+    console.log(`[BOT] ${snap.size} match(es) listo(s) para avanzar.`);
+
+    for (const matchDoc of snap.docs) {
+        const matchData = matchDoc.data();
+        // Verificar que no tenga disputa activa
+        if (matchData.status_override === 'DISPUTE') continue;
+        const disputaSnap = await db.collection('disputas')
+            .where('matchId', '==', matchDoc.id)
+            .where('status', '==', 'PENDING')
+            .limit(1).get();
+        if (!disputaSnap.empty) {
+            console.log(`[BOT] Match ${matchDoc.id} tiene disputa activa — skip.`);
+            continue;
+        }
+
+        // Obtener el torneo
+        const tournamentId = matchData.tournamentId;
+        if (!tournamentId) continue;
+        const tournamentDoc = await db.collection('tournaments').doc(tournamentId).get();
+        if (!tournamentDoc.exists) continue;
+
+        try {
+            await advanceBracket(matchDoc, matchData, tournamentDoc, tournamentDoc.data());
+        } catch (err) {
+            console.error(`[BOT] Error avanzando match ${matchDoc.id}:`, err.message);
+        }
+    }
+}
+
+// Ejecutar cada 2 minutos
+exports.botBracketScheduler = onSchedule({
+    schedule: "every 2 minutes",
+    timeZone: "America/Argentina/Buenos_Aires",
+    region:   "us-central1",
+}, async () => {
+    await processPendingMatches();
+});
+
+// También disponible como HTTP para testing manual del CEO
+exports.botBracketManual = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') { return res.status(204).send(''); }
+    try {
+        const uid = await verificarIdentidad(req);
+        await verificarAdmin(uid);
+        await processPendingMatches();
+        res.json({ ok: true, message: 'Bracket scheduler ejecutado manualmente.' });
+    } catch (err) {
+        res.status(403).json({ error: err.message });
+    }
+});

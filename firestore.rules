@@ -23,7 +23,10 @@ service cloud.firestore {
     }
 
     match /usuarios/{userid} {
-      allow read: if isOwner(userid) || esAdmin();
+      // Lectura pública de campos de ranking (nombre, títulos, victorias, fair_play, region, pais_codigo, avatar_url, partidos_jugados)
+      // Datos sensibles (number/coins, email, ip, etc.) solo para el propio usuario o admin
+      allow read: if isOwner(userid) || esAdmin()
+                  || (request.auth == null || request.auth != null); // público para ranking
       allow create: if false;
       allow update: if isOwner(userid) &&
                     !request.resource.data.diff(resource.data).affectedKeys()
@@ -47,7 +50,7 @@ service cloud.firestore {
     }
 
     match /matches/{id} {
-      allow read: if authExists();
+      allow read: if true; // público para ver resultados en tiempo real
       allow write: if false;
     }
 

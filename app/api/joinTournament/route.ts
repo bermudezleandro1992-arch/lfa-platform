@@ -27,6 +27,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'tournamentId requerido.' }, { status: 400 });
     }
 
+    // ── IDEMPOTENCIA: bloquear doble-clic con doc único ──────────────
+    // Si ya existe este doc, la inscripción está en progreso o fue completada
+    const idempotencyKey = `${uid}_${tournamentId}`;
+    const idempotencyRef = adminDb.collection('join_locks').doc(idempotencyKey);
+    const lockSnap = await idempotencyRef.get();
+    if (lockSnap.exists) {
+      const lockData = lockSnap.data()!;
+      if (lockData.status === 'completed') {
+        return NextResponse.json({ error: 'Ya estás inscrito en este torneo.' }, { status: 400 });
+      }
+      if (lockData.status === 'processing' && Date.now() - lockData.createdAt < 15_000) {
+        return NextResponse.json({ error: 'Tu inscripción ya está en proceso. Esperá unos segundos.' }, { status: 429 });
+      }
+    }
+    // Crear el lock de idempotencia (15 segundos de protección)
+    await idempotencyRef.set({ uid, tournamentId, status: 'processing', createdAt: Date.now() });
+
     const tournamentRef = adminDb.collection('tournaments').doc(tournamentId);
     const userRef       = adminDb.collection('usuarios').doc(uid);
 
@@ -147,8 +164,14 @@ export async function POST(req: NextRequest) {
       return { newBalance: newBal };
     });
 
+    // Marcar lock como completado (idempotencia permanente)
+    await idempotencyRef.set({ uid, tournamentId, status: 'completed', completedAt: Date.now() });
+
     return NextResponse.json({ success: true, newBalance: result.newBalance, message: '¡Inscripción exitosa!' });
+    // Lock se mantiene como 'completed' — protección permanente contra reinscripción
   } catch (err: unknown) {
+    // Si falla, limpiar el lock para que pueda reintentar
+    await adminDb.collection('join_locks').doc(idempotencyKey).delete().catch(() => {});
     const msg = err instanceof Error ? err.message : 'Error interno';
     return NextResponse.json({ error: msg }, { status: 400 });
   }

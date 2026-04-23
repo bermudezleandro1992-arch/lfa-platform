@@ -29,7 +29,7 @@ import { writeLedgerEntry, updateLedgerStatus } from '@/lib/ledger';
 
 /* ─── Constantes ──────────────────────────────────── */
 const RATE            = 1_000;      // 1000 LFA Coins = 1 USDT
-const MIN_COINS       = 10_000;     // Mínimo de retiro: 10 USDT
+const MIN_COINS       = 20_000;     // Mínimo de retiro: 20 USDT
 const MAX_USDT_AUTO   = 200;        // Arriba de 200 USDT → aprobación manual CEO
 const DAILY_LIMIT_USDT = 500;       // Máximo 500 USDT por usuario por día
 const COOLDOWN_MS     = 24 * 60 * 60 * 1000; // 1 retiro cada 24 h

@@ -1,10 +1,16 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState }                 from "react";
+import { useEffect, useState, useCallback }    from "react";
 import { doc, onSnapshot }                     from "firebase/firestore";
 import { db, auth, storage }                   from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL }    from "firebase/storage";
-import ConsoleBadges                           from "./ConsoleBadges";
+
+interface BotVerification {
+  verdict:    "OK" | "SUSPICIOUS" | "MANUAL";
+  confidence: number;
+  game:       string;
+  scoreFound: string | null;
+}
 
 interface Match {
   id:               string;
@@ -22,6 +28,7 @@ interface Match {
   dispute_deadline?: { toMillis: () => number };
   round:            string;
   tournamentId:     string;
+  bot_verification?: BotVerification;
 }
 
 interface Props { matchId: string; }
@@ -30,10 +37,12 @@ export default function MatchRoom({ matchId }: Props) {
   const [match,         setMatch]         = useState<Match | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [uploading,     setUploading]     = useState(false);
+  const [botChecking,   setBotChecking]   = useState(false);
   const [disputing,     setDisputing]     = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [message,       setMessage]       = useState("");
   const [timeLeft,      setTimeLeft]      = useState(0);
+  const [copied,        setCopied]        = useState(false);
 
   const uid = auth.currentUser?.uid;
 
@@ -57,7 +66,7 @@ export default function MatchRoom({ matchId }: Props) {
   const fmtTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
-  const callApi = async (endpoint: string, body: object) => {
+  const callApi = useCallback(async (endpoint: string, body: object) => {
     const token = await auth.currentUser!.getIdToken();
     const res   = await fetch(endpoint, {
       method: "POST",
@@ -67,27 +76,22 @@ export default function MatchRoom({ matchId }: Props) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     return data;
-  };
+  }, []);
 
   const handleUploadResult = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !match) return;
 
-    // Validación client-side antes de subir
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
-    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setMessage('❌ Solo se aceptan imágenes JPEG o PNG como evidencia.');
-      return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setMessage('? Solo se aceptan im�genes JPEG, PNG o WebP.'); return;
     }
-    if (file.size > MAX_SIZE) {
-      setMessage('❌ La imagen no puede superar 5 MB.');
-      return;
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('? La imagen no puede superar 5 MB.'); return;
     }
 
-    setUploading(true); setMessage("");
+    setUploading(true); setMessage("? Comprimiendo imagen...");
     try {
-      // Redimensionar la imagen antes de subir (max 900px, calidad 0.75) para ahorrar Storage y bandwidth
+      // Redimensionar (max 900px, JPEG 75%)
       const resizedBlob = await new Promise<Blob>((resolve, reject) => {
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
@@ -98,193 +102,309 @@ export default function MatchRoom({ matchId }: Props) {
           const canvas  = document.createElement('canvas');
           canvas.width  = Math.round(img.width  * scale);
           canvas.height = Math.round(img.height * scale);
-          const ctx = canvas.getContext('2d')!;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Error al comprimir imagen')), 'image/jpeg', 0.75);
+          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('Compress error')), 'image/jpeg', 0.75);
         };
-        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Error al leer imagen')); };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Read error')); };
         img.src = objectUrl;
       });
 
+      setMessage("?? Subiendo resultado...");
       const storageRef = ref(storage, `results/${match.tournamentId}/${matchId}/${Date.now()}.jpg`);
       await uploadBytes(storageRef, resizedBlob, { contentType: 'image/jpeg' });
       const screenshotUrl = await getDownloadURL(storageRef);
-      const data = await callApi("/api/reportResult", { matchId, screenshotUrl });
-      setMessage(`✅ Resultado enviado. Score: ${data.score}. Tu rival tiene ${data.disputeDeadline ? "10 min" : ""} para disputar.`);
+
+      await callApi("/api/reportResult", { matchId, screenshotUrl });
+      setMessage("?? Resultado subido. El BOT LFA est� verificando la imagen...");
+      setUploading(false);
+
+      // Llamar a Vision AI
+      setBotChecking(true);
+      try {
+        const verif = await callApi("/api/verifyResult", { matchId, screenshotUrl });
+        if (verif.verdict === "OK")
+          setMessage(`? BOT verific� el resultado. Marcador: ${verif.scoreFound || "detectado"} (${Math.round((verif.confidence || 0) * 100)}% confianza). Tu rival tiene 5 minutos para disputar.`);
+        else if (verif.verdict === "SUSPICIOUS")
+          setMessage(`?? El BOT detect� irregularidades (${Math.round((verif.confidence || 0) * 100)}% confianza). El Staff revisar� el caso manualmente.`);
+        else
+          setMessage(`?? Revisi�n manual requerida. Confianza: ${Math.round((verif.confidence || 0) * 100)}%. El Staff validar� en breve.`);
+      } catch {
+        setMessage("? Resultado subido. Tu rival tiene 5 minutos para disputar.");
+      } finally {
+        setBotChecking(false);
+      }
     } catch (err: unknown) {
-      setMessage(`❌ ${err instanceof Error ? err.message : "Error al subir resultado"}`);
-    } finally {
+      setMessage(`? ${err instanceof Error ? err.message : "Error al subir resultado"}`);
       setUploading(false);
     }
   };
 
   const handleDispute = async () => {
-    if (!disputeReason.trim()) { setMessage("❌ Escribí el motivo de la disputa."); return; }
+    if (!disputeReason.trim()) { setMessage("? Escrib� el motivo de la disputa."); return; }
     setDisputing(true); setMessage("");
     try {
       await callApi("/api/disputeMatch", { matchId, reason: disputeReason });
-      setMessage("⚠️ Disputa enviada. El Staff revisará el caso.");
+      setMessage("?? Disputa enviada. El Staff revisar� el caso. El resultado queda suspendido hasta la resoluci�n.");
+      setDisputeReason("");
     } catch (err: unknown) {
-      setMessage(`❌ ${err instanceof Error ? err.message : "Error al disputar"}`);
+      setMessage(`? ${err instanceof Error ? err.message : "Error al disputar"}`);
     } finally {
       setDisputing(false);
     }
   };
 
+  const copyEaId = (id: string) => {
+    navigator.clipboard?.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (loading) return (
-    <div className="flex justify-center py-20">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400" />
+    <div style={{ minHeight: "100vh", background: "#0b0e14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 48, height: 48, border: "3px solid #ffd700", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .8s linear infinite" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  if (!match) return <p className="text-center text-red-400 py-10">Match no encontrado.</p>;
+  if (!match) return <div style={{ minHeight: "100vh", background: "#0b0e14", color: "#ff4757", display: "flex", alignItems: "center", justifyContent: "center" }}>Match no encontrado.</div>;
 
   const isP1       = match.p1 === uid;
   const isP2       = match.p2 === uid;
+  const isPlayer   = isP1 || isP2;
   const rivalEaId  = isP1 ? match.p2_ea_id : match.p1_ea_id;
-  const canReport  = (isP1 || isP2) && match.status === "WAITING";
-  const canDispute = (isP1 || isP2) && match.status === "PENDING_RESULT" && match.reported_by !== uid;
+  const canReport  = isPlayer && match.status === "WAITING";
+  const canDispute = isPlayer && match.status === "PENDING_RESULT" && match.reported_by !== uid && timeLeft > 0;
+  const bv         = match.bot_verification;
+  const bvColor    = bv?.verdict === "OK" ? "#00ff88" : bv?.verdict === "SUSPICIOUS" ? "#ff4757" : "#f3ba2f";
+
+  const roundLabels: Record<string, string> = {
+    round_1: "?? Round 1", round_2: "?? Round 2", round_3: "?? Cuartos",
+    round_4: "?? Semifinal", final: "?? FINAL",
+  };
+  const statusLabel: Record<string, string> = {
+    WAITING: "? Esperando resultado", PENDING_RESULT: "?? Verificando resultado...",
+    DISPUTE: "?? En disputa � Staff notificado", FINISHED: "? Finalizado",
+  };
+  const statusColor: Record<string, string> = {
+    WAITING: "#00ff88", PENDING_RESULT: "#f3ba2f", DISPUTE: "#ff4757", FINISHED: "#8b949e",
+  };
+
+  const card: React.CSSProperties = {
+    background: "#161b22", border: "1px solid #30363d", borderRadius: 18,
+    padding: "clamp(14px,3vw,22px)", marginBottom: 16,
+  };
+  const btnStyle = (bg: string, col = "white"): React.CSSProperties => ({
+    width: "100%", padding: "14px", background: bg, color: col, border: "none",
+    borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
+    fontSize: "0.82rem", cursor: "pointer", letterSpacing: 0.5,
+  });
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4">
-      <div className="max-w-2xl mx-auto">
+    <div style={{ minHeight: "100vh", background: "#0b0e14", color: "white", padding: "clamp(12px,3vw,24px)", fontFamily: "'Roboto',sans-serif" }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
 
         {/* HEADER */}
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-yellow-400 mb-1">⚔️ Sala de Match</h1>
-          <p className="text-gray-500 text-sm">Ronda: <span className="text-white font-semibold">{match.round}</span></p>
-          <div className="flex justify-center mt-3">
-            <ConsoleBadges size="sm" />
-          </div>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <h1 style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "clamp(1.1rem,4vw,1.5rem)", fontWeight: 900, margin: "0 0 4px" }}>?? SALA DE MATCH</h1>
+          <p style={{ color: "#8b949e", fontSize: "0.78rem", margin: "4px 0" }}>{roundLabels[match.round] || match.round}</p>
+          <span style={{ display: "inline-block", marginTop: 8, padding: "4px 14px", background: `${statusColor[match.status]}20`, color: statusColor[match.status], border: `1px solid ${statusColor[match.status]}50`, borderRadius: 99, fontSize: "0.72rem", fontWeight: 700, fontFamily: "'Orbitron',sans-serif" }}>
+            {statusLabel[match.status] || match.status}
+          </span>
         </div>
 
         {/* VS CARD */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 mb-6">
-          <div className="grid grid-cols-3 items-center gap-2 sm:gap-4">
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-yellow-400/10 border-2 border-yellow-400 rounded-full flex items-center justify-center text-xl sm:text-2xl mx-auto mb-2">
-                🎮
+        <div style={{ ...card, background: "linear-gradient(135deg,#161b22,#0f1520)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center" }}>
+            {/* P1 */}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 56, height: 56, background: "rgba(255,215,0,0.1)", border: "2px solid #ffd700", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", margin: "0 auto 8px" }}>
+                {isP1 ? "??" : "??"}
               </div>
-              <p className="font-bold text-white text-sm sm:text-base truncate">{match.p1_username ?? "Jugador 1"}</p>
-              {match.p1_ea_id && (
-                <p className="text-xs text-yellow-400 font-mono mt-1 truncate">{match.p1_ea_id}</p>
-              )}
+              <div style={{ fontWeight: 900, fontSize: "0.88rem", marginBottom: 4, wordBreak: "break-word" as const }}>{match.p1_username ?? "Jugador 1"}</div>
+              {match.p1_ea_id && <div style={{ fontFamily: "monospace", color: "#ffd700", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{match.p1_ea_id}</div>}
+              {match.winner === match.p1 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>?? GANADOR</div>}
             </div>
-
-            <div className="text-center">
-              <p className="text-2xl sm:text-3xl font-black text-gray-600">VS</p>
-              {match.score && (
-                <p className="text-xl sm:text-2xl font-black text-yellow-400 mt-1">{match.score}</p>
-              )}
+            {/* Score */}
+            <div style={{ textAlign: "center", minWidth: 70 }}>
+              {match.score && match.status !== "WAITING"
+                ? <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "clamp(1.3rem,5vw,2rem)", fontWeight: 900, color: "#ffd700" }}>{match.score}</div>
+                : <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "1.4rem", fontWeight: 900, color: "#30363d" }}>VS</div>}
             </div>
-
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-400/10 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl sm:text-2xl mx-auto mb-2">
-                🎮
+            {/* P2 */}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 56, height: 56, background: "rgba(0,158,227,0.1)", border: "2px solid #009ee3", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", margin: "0 auto 8px" }}>
+                {isP2 ? "??" : "??"}
               </div>
-              <p className="font-bold text-white text-sm sm:text-base truncate">{match.p2_username ?? "Jugador 2"}</p>
-              {match.p2_ea_id && (
-                <p className="text-xs text-blue-400 font-mono mt-1 truncate">{match.p2_ea_id}</p>
-              )}
+              <div style={{ fontWeight: 900, fontSize: "0.88rem", marginBottom: 4, wordBreak: "break-word" as const }}>{match.p2_username ?? "Jugador 2"}</div>
+              {match.p2_ea_id && <div style={{ fontFamily: "monospace", color: "#009ee3", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{match.p2_ea_id}</div>}
+              {match.winner === match.p2 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>?? GANADOR</div>}
             </div>
-          </div>
-
-          <div className="text-center mt-4">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-              match.status === "WAITING"        ? "bg-green-500/20 text-green-400"   :
-              match.status === "PENDING_RESULT" ? "bg-yellow-500/20 text-yellow-400" :
-              match.status === "DISPUTE"        ? "bg-red-500/20 text-red-400"       :
-                                                  "bg-gray-700 text-gray-400"
-            }`}>
-              {match.status === "WAITING"        ? "⏳ Esperando resultado"              :
-               match.status === "PENDING_RESULT" ? "🕐 Pendiente de confirmación"       :
-               match.status === "DISPUTE"        ? "⚠️ En disputa — Staff notificado"  :
-                                                   "✅ Finalizado"}
-            </span>
           </div>
         </div>
 
-        {/* INSTRUCCIONES EA ID */}
-        {match.status === "WAITING" && (isP1 || isP2) && rivalEaId && (
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 sm:p-5 mb-6">
-            <h3 className="font-bold text-blue-300 mb-2">📋 Cómo conectarse con tu rival</h3>
-            <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-              <li>Abrí el juego y andá a <strong>Amigos / Buscar jugador</strong></li>
-              <li>Buscá el EA ID de tu rival: <strong className="text-yellow-400 font-mono">{rivalEaId}</strong></li>
-              <li>Invitalo a un partido amistoso</li>
-              <li>Jugá el partido y al terminar subí la foto del resultado</li>
-            </ol>
-            <button
-              onClick={() => navigator.clipboard.writeText(rivalEaId ?? "")}
-              className="mt-3 text-xs text-blue-400 hover:text-blue-300 underline"
-            >
-              📋 Copiar EA ID del rival
-            </button>
-          </div>
-        )}
-
-        {/* REPORTE DE RESULTADO */}
-        {canReport && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-5 mb-6">
-            <h3 className="font-bold text-white mb-3">📸 Reportar Resultado</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Solo el <strong>ganador</strong> sube la foto. La IA valida el marcador automáticamente.
-            </p>
-            <label className={`w-full py-3 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              uploading ? "bg-gray-700 text-gray-500 cursor-wait" : "bg-yellow-400 text-gray-900 hover:bg-yellow-300"
-            }`}>
-              {uploading ? "⏳ Subiendo y validando..." : "📷 Subir foto del resultado"}
-              <input type="file" accept="image/*" className="hidden" onChange={handleUploadResult} disabled={uploading} />
-            </label>
-          </div>
-        )}
-
-        {/* COUNTDOWN + DISPUTA */}
-        {canDispute && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 sm:p-5 mb-6">
-            <h3 className="font-bold text-red-400 mb-2">⚠️ Tu rival reportó victoria</h3>
-
-            {timeLeft > 0 && (
-              <div className="text-center mb-4">
-                <p className="text-xs text-gray-500 mb-1">Tiempo para disputar</p>
-                <p className={`text-3xl font-mono font-black ${timeLeft <= 60 ? "text-red-400 animate-pulse" : "text-yellow-400"}`}>
-                  {fmtTime(timeLeft)}
-                </p>
+        {/* BOT VERIFICATION STATUS */}
+        {bv && (
+          <div style={{ ...card, borderColor: `${bvColor}50`, background: `${bvColor}08` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: "1.3rem" }}>{bv.verdict === "OK" ? "?" : bv.verdict === "SUSPICIOUS" ? "??" : "??"}</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.72rem", color: bvColor, fontWeight: 700 }}>
+                  BOT IA � {bv.verdict} � {Math.round((bv.confidence || 0) * 100)}% confianza
+                </div>
+                <div style={{ color: "#8b949e", fontSize: "0.68rem" }}>
+                  {bv.game && `Juego: ${bv.game}`}{bv.scoreFound && ` � Marcador detectado: ${bv.scoreFound}`}
+                </div>
               </div>
+            </div>
+            {bv.verdict === "SUSPICIOUS" && (
+              <p style={{ color: "#ff4757", fontSize: "0.72rem", marginTop: 8, marginBottom: 0 }}>
+                ?? El BOT detect� irregularidades. El Staff revisar� el caso. Se aplicar�n sanciones Fair Play si se confirma fraude.
+              </p>
             )}
-
-            <p className="text-sm text-gray-400 mb-3">
-              Score reportado: <strong className="text-white">{match.score}</strong>
-            </p>
-
-            {match.screenshot_url && (
-              <a href={match.screenshot_url} target="_blank" rel="noreferrer"
-                className="text-sm text-blue-400 underline block mb-3">
-                🖼️ Ver screenshot subido por tu rival
-              </a>
+            {bv.verdict === "MANUAL" && (
+              <p style={{ color: "#f3ba2f", fontSize: "0.72rem", marginTop: 8, marginBottom: 0 }}>
+                ?? El BOT no pudo verificar con suficiente confianza. Un Staff revisar� la imagen. El resultado se confirma en breve.
+              </p>
             )}
+          </div>
+        )}
 
-            <textarea
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder="Explicá por qué el resultado es incorrecto..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm text-white resize-none h-20 mb-3 focus:border-red-400 outline-none"
+        {/* SCREENSHOT P�BLICO */}
+        {match.screenshot_url && match.status !== "WAITING" && (
+          <div style={card}>
+            <div style={{ color: "#8b949e", fontSize: "0.68rem", fontFamily: "'Orbitron',sans-serif", marginBottom: 8 }}>
+              ?? SCREENSHOT � VISIBLE PARA TODOS
+            </div>
+            <img
+              src={match.screenshot_url} alt="Screenshot resultado"
+              onClick={() => window.open(match.screenshot_url, "_blank")}
+              style={{ width: "100%", borderRadius: 12, border: "1px solid #30363d", display: "block", cursor: "pointer" }}
             />
+            <div style={{ color: "#8b949e", fontSize: "0.68rem", marginTop: 6, textAlign: "center" }}>
+              Subido por {match.reported_by === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")} � Toc� para ver en pantalla completa
+            </div>
+          </div>
+        )}
 
-            <button onClick={handleDispute} disabled={disputing}
-              className="w-full py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-400 transition disabled:opacity-50">
-              {disputing ? "⏳ Enviando disputa..." : "🚨 DISPUTAR RESULTADO"}
+        {/* INSTRUCCIONES EA ID */}
+        {match.status === "WAITING" && isPlayer && rivalEaId && (
+          <div style={{ ...card, borderColor: "rgba(0,158,227,0.3)", background: "rgba(0,158,227,0.05)" }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#009ee3", fontSize: "0.78rem", fontWeight: 700, marginBottom: 12 }}>?? C�MO CONECTARTE CON TU RIVAL</div>
+            {[
+              "Abr� el juego (FC26 o eFootball)",
+              "And� a Amigos ? Buscar jugador",
+              `Busc� el ID de tu rival: ${rivalEaId}`,
+              "Invitalo a un partido amistoso",
+              "Jug� el partido completo",
+              "El GANADOR sube la foto del marcador",
+            ].map((t, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid #1c2028", alignItems: "flex-start" }}>
+                <span style={{ color: "#009ee3", fontWeight: 900, fontSize: "0.78rem", width: 20, flexShrink: 0 }}>{i + 1}.</span>
+                <span style={{ color: "#ccc", fontSize: "0.78rem" }}>{t}</span>
+              </div>
+            ))}
+            <button onClick={() => copyEaId(rivalEaId)} style={{ ...btnStyle("rgba(0,158,227,0.1)", "#009ee3"), marginTop: 14, border: "1px solid rgba(0,158,227,0.3)", fontSize: "0.75rem" }}>
+              {copied ? "? �Copiado!" : "?? COPIAR ID DEL RIVAL"}
             </button>
           </div>
         )}
 
-        {/* MENSAJE GLOBAL */}
+        {/* SUBIR RESULTADO */}
+        {canReport && (
+          <div style={card}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.82rem", fontWeight: 700, marginBottom: 8 }}>?? REPORTAR RESULTADO</div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginBottom: 14, lineHeight: 1.5 }}>
+              Solo el <strong style={{ color: "white" }}>ganador</strong> sube la foto del marcador final.<br />
+              El BOT LFA verifica autom�ticamente con Vision AI.<br />
+              <span style={{ color: "#f3ba2f" }}>?? Subir una foto falsa implica sanci�n de Fair Play.</span>
+            </p>
+            <label style={{ ...btnStyle(uploading || botChecking ? "#30363d" : "#ffd700", uploading || botChecking ? "#555" : "#0b0e14"), display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: uploading || botChecking ? "not-allowed" : "pointer", animation: botChecking ? "pulse 1.5s infinite" : "none" }}>
+              {uploading ? "? Subiendo..." : botChecking ? "?? BOT verificando..." : "?? SUBIR FOTO DEL RESULTADO"}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleUploadResult} disabled={uploading || botChecking} />
+            </label>
+            <p style={{ color: "#8b949e", fontSize: "0.65rem", marginTop: 8, textAlign: "center" }}>JPG, PNG o WebP � M�x 5MB � Mostr� el marcador final completo</p>
+          </div>
+        )}
+
+        {/* DISPUTA */}
+        {canDispute && (
+          <div style={{ ...card, borderColor: "rgba(255,71,87,0.4)", background: "rgba(255,71,87,0.05)" }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ff4757", fontSize: "0.82rem", fontWeight: 700, marginBottom: 8 }}>?? TU RIVAL REPORT� VICTORIA</div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginBottom: 14 }}>
+              Si el resultado es incorrecto ten�s <strong style={{ color: "#ffd700" }}>5 minutos</strong> para disputarlo.
+              Si no lo disput�s, el resultado se confirma autom�ticamente.
+            </p>
+            {/* Countdown */}
+            <div style={{ textAlign: "center", marginBottom: 14 }}>
+              <div style={{ color: "#8b949e", fontSize: "0.65rem", marginBottom: 4, fontFamily: "'Orbitron',sans-serif" }}>TIEMPO PARA DISPUTAR</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 900, color: timeLeft <= 60 ? "#ff4757" : "#f3ba2f", animation: timeLeft <= 60 ? "pulse 1s infinite" : "none" }}>
+                {`${Math.floor(timeLeft / 60).toString().padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`}
+              </div>
+            </div>
+            <div style={{ background: "#0b0e14", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.8rem" }}>
+              <span style={{ color: "#8b949e" }}>Marcador reportado: </span>
+              <strong style={{ color: "#ffd700" }}>{match.score || "Pendiente"}</strong>
+            </div>
+            <textarea
+              value={disputeReason} onChange={e => setDisputeReason(e.target.value)}
+              placeholder="Explic� detalladamente por qu� el resultado es incorrecto..."
+              style={{ width: "100%", background: "#0b0e14", border: "1px solid #30363d", color: "white", borderRadius: 10, padding: "11px 14px", fontSize: "0.8rem", resize: "none", height: 88, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+            />
+            <p style={{ color: "#f3ba2f", fontSize: "0.68rem", marginBottom: 10 }}>
+              ?? Las disputas sin fundamento descuentan puntos de Fair Play.
+            </p>
+            <button onClick={handleDispute} disabled={disputing} style={{ ...btnStyle("#ff4757"), opacity: disputing ? 0.6 : 1 }}>
+              {disputing ? "? ENVIANDO..." : "?? DISPUTAR RESULTADO"}
+            </button>
+          </div>
+        )}
+
+        {/* TIEMPO VENCIDO (rival, sin disputa) */}
+        {match.status === "PENDING_RESULT" && isPlayer && match.reported_by !== uid && timeLeft === 0 && (
+          <div style={{ ...card, borderColor: "rgba(0,255,136,0.3)", background: "rgba(0,255,136,0.05)", textAlign: "center" }}>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}>?</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#00ff88", fontSize: "0.82rem", fontWeight: 700 }}>Tiempo de disputa vencido</div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginTop: 8 }}>
+              El resultado se confirmar� autom�ticamente en el pr�ximo ciclo del BOT.
+            </p>
+          </div>
+        )}
+
+        {/* DISPUTA ACTIVA */}
+        {match.status === "DISPUTE" && (
+          <div style={{ ...card, borderColor: "rgba(145,70,255,0.4)", background: "rgba(145,70,255,0.05)", textAlign: "center" }}>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}>??</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#9146FF", fontSize: "0.82rem", fontWeight: 700 }}>DISPUTA ACTIVA</div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginTop: 8 }}>
+              Un administrador est� revisando el caso.<br />
+              <span style={{ color: "#f3ba2f" }}>?? Se aplicar�n sanciones Fair Play seg�n el veredicto.</span>
+            </p>
+          </div>
+        )}
+
+        {/* FINALIZADO */}
+        {match.status === "FINISHED" && (
+          <div style={{ ...card, background: "linear-gradient(135deg,rgba(0,255,136,0.05),rgba(255,215,0,0.03))", borderColor: "rgba(0,255,136,0.3)", textAlign: "center" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>??</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "1rem", fontWeight: 900, marginBottom: 8 }}>PARTIDO FINALIZADO</div>
+            <div style={{ color: "#00ff88", fontWeight: 700, fontSize: "0.9rem", marginBottom: 12 }}>
+              Ganador: {match.winner === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")}
+            </div>
+            <p style={{ color: "#8b949e", fontSize: "0.75rem" }}>
+              El BOT LFA generar� el pr�ximo match autom�ticamente. �Suerte en la siguiente ronda!
+            </p>
+          </div>
+        )}
+
+        {/* MENSAJE FEEDBACK */}
         {message && (
-          <div className={`text-center py-3 px-4 rounded-xl text-sm font-medium ${
-            message.startsWith("✅") ? "bg-green-500/10 text-green-400 border border-green-500/30" :
-            message.startsWith("⚠️") ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30" :
-                                        "bg-red-500/10 text-red-400 border border-red-500/30"
-          }`}>
+          <div style={{
+            padding: "12px 16px", borderRadius: 12, textAlign: "center", fontSize: "0.8rem", lineHeight: 1.5,
+            background: message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "rgba(0,255,136,0.08)" : message.startsWith("?") ? "rgba(255,71,87,0.08)" : "rgba(243,186,47,0.08)",
+            border: `1px solid ${message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "rgba(0,255,136,0.3)" : message.startsWith("?") ? "rgba(255,71,87,0.3)" : "rgba(243,186,47,0.3)"}`,
+            color: message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "#00ff88" : message.startsWith("?") ? "#ff4757" : "#f3ba2f",
+          }}>
             {message}
           </div>
         )}
