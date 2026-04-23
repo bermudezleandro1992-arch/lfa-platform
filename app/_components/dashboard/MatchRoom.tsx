@@ -87,8 +87,27 @@ export default function MatchRoom({ matchId }: Props) {
 
     setUploading(true); setMessage("");
     try {
-      const storageRef = ref(storage, `results/${match.tournamentId}/${matchId}/${Date.now()}`);
-      await uploadBytes(storageRef, file);
+      // Redimensionar la imagen antes de subir (max 900px, calidad 0.75) para ahorrar Storage y bandwidth
+      const resizedBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          const MAX_DIM = 900;
+          const scale   = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+          const canvas  = document.createElement('canvas');
+          canvas.width  = Math.round(img.width  * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Error al comprimir imagen')), 'image/jpeg', 0.75);
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Error al leer imagen')); };
+        img.src = objectUrl;
+      });
+
+      const storageRef = ref(storage, `results/${match.tournamentId}/${matchId}/${Date.now()}.jpg`);
+      await uploadBytes(storageRef, resizedBlob, { contentType: 'image/jpeg' });
       const screenshotUrl = await getDownloadURL(storageRef);
       const data = await callApi("/api/reportResult", { matchId, screenshotUrl });
       setMessage(`✅ Resultado enviado. Score: ${data.score}. Tu rival tiene ${data.disputeDeadline ? "10 min" : ""} para disputar.`);

@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
+import { FieldValue }                from 'firebase-admin/firestore';
 
 /* ─── Tipos ─────────────────────────────────────────────── */
 type Verdict = 'OK' | 'SUSPICIOUS' | 'MANUAL';
@@ -184,6 +185,29 @@ export async function POST(req: NextRequest) {
         checkedAt: new Date().toISOString(),
       },
     });
+
+    /* Publicar en el chat general como BOT para transparencia */
+    const matchData = (await adminDb.collection('matches').doc(matchId).get()).data();
+    if (matchData) {
+      const botMsg = verdict === 'OK'
+        ? `✅ [BOT LFA] Resultado verificado automáticamente. Marcador detectado: **${scoreFound ?? 'N/D'}** | Juego: ${game} | Confianza: ${Math.round(confidence * 100)}%`
+        : verdict === 'SUSPICIOUS'
+          ? `🚨 [BOT LFA] Resultado marcado como SOSPECHOSO. Confianza: ${Math.round(confidence * 100)}%. Un moderador revisará el caso. Detalles: ${details}`
+          : `🔍 [BOT LFA] Revisión manual requerida para este resultado. Staff fue notificado.`;
+
+      await adminDb.collection('cantina_messages').add({
+        uid:             'BOT_LFA',
+        nombre:          '🤖 BOT LFA',
+        avatar_url:      null,
+        rol:             'bot',
+        texto:           botMsg,
+        is_bot_verify:   true,
+        verdict,
+        match_id:        matchId,
+        timestamp:       FieldValue.serverTimestamp(),
+        deleted:         false,
+      });
+    }
 
     const details = [
       game !== 'UNKNOWN' ? `Juego detectado: ${game}` : 'Juego no identificado en la imagen.',

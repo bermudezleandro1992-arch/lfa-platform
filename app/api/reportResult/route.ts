@@ -49,6 +49,29 @@ export async function POST(req: NextRequest) {
       updated_at:       FieldValue.serverTimestamp(),
     });
 
+    // Obtener nombre del jugador que reportó
+    const reporterSnap = await adminDb.collection('usuarios').doc(uid).get();
+    const reporterName = reporterSnap.data()?.nombre ?? 'Jugador';
+
+    // Publicar en el chat general de la sala (cantina_messages) como BOT
+    const rivalId      = match.p1 === uid ? match.p2 : match.p1;
+    const rivalSnap    = await adminDb.collection('usuarios').doc(rivalId).get();
+    const rivalName    = rivalSnap.data()?.nombre ?? 'Rival';
+    const salaLabel    = match.tournamentId ? `Sala #${match.tournamentId.slice(-5).toUpperCase()}` : 'la sala';
+
+    await adminDb.collection('cantina_messages').add({
+      uid:        'BOT_LFA',
+      nombre:     '🤖 BOT LFA',
+      avatar_url: null,
+      rol:        'bot',
+      texto:      `⚽ [${salaLabel}] **${reporterName}** reportó el resultado de su partido contra **${rivalName}**. Prueba subida. ⏳ El rival tiene ${DISPUTE_MINUTES} minutos para confirmar o disputar.`,
+      screenshot_url: screenshotUrl,
+      is_bot_result:  true,
+      match_id:       matchId,
+      timestamp:  FieldValue.serverTimestamp(),
+      deleted:    false,
+    });
+
     return NextResponse.json({
       success:         true,
       score:           'Pendiente validación',

@@ -101,7 +101,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -115,6 +115,15 @@ export default function CeoPage() {
   const [ganancias,  setGanancias]  = useState(0);
   const [visitas,    setVisitas]    = useState(0);
   const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
+
+  /* ── Disputas ────────────────────────────────────────────── */
+  interface Disputa {
+    id: string; matchId: string; disputedBy: string; reason: string;
+    screenshot_url?: string; score?: string; status: string;
+    created_at?: { toDate?: () => Date };
+  }
+  const [disputas, setDisputas] = useState<Disputa[]>([]);
+  const disputasPend = disputas.filter(d => d.status === 'PENDING').length;
 
   /* ── UI State ────────────────────────────────────────────── */
   const [busqueda,  setBusqueda]  = useState('');
@@ -220,6 +229,10 @@ export default function CeoPage() {
       setLeads(l);
     }));
 
+    subs.push(onSnapshot(query(collection(db,'disputas'), orderBy('created_at','desc'), limit(50)), snap => {
+      const l: Disputa[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as Disputa)); setDisputas(l);
+    }));
+
     return () => subs.forEach(u => u());
   }, [ready]);
 
@@ -259,6 +272,27 @@ export default function CeoPage() {
       setAuditModal(data);
     } catch { await alerta('ERROR', 'Error al cargar auditoría.', 'error'); }
     setAuditLoading(false);
+  }
+
+  async function resolveDispute(disputaId: string, matchId: string, verdict: 'reporter_wins'|'disputer_wins'|'no_evidence'|'rematch', notas?: string) {
+    try {
+      const user = auth.currentUser; if (!user) return;
+      const token = await getIdToken(user);
+      const res = await fetch('/api/ceo/resolveDispute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ disputaId, matchId, verdict, notas }),
+      });
+      const data = await res.json();
+      if (!res.ok) { await alerta('ERROR', data.error || 'Error al resolver disputa.', 'error'); return; }
+      const msgs: Record<string, string> = {
+        reporter_wins: '✅ Resultado validado. Fair Play descontado al que disputó sin razón.',
+        disputer_wins: '⚖️ Resultado revertido. Fair Play descontado al reportador.',
+        no_evidence:   '🔍 Disputa sin evidencia. Ambos perdieron Fair Play leve.',
+        rematch:       '🔄 Rematch ordenado.',
+      };
+      await alerta('DISPUTA RESUELTA', msgs[verdict] || 'Resuelto.', 'exito');
+    } catch { await alerta('ERROR', 'Error al resolver disputa.', 'error'); }
   }
 
   /* ── Usuarios ────────────────────────────────────────────── */
@@ -437,12 +471,13 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
     { id:'torneos',   label:'🏆 Torneos',   badge: openRooms },
     { id:'finanzas',  label:'💰 Finanzas',  badge: retPend + pagPend },
+    { id:'disputas',  label:'⚖️ Disputas',  badge: disputasPend },
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
     { id:'leads',     label:'🎙️ Streamers', badge: leads.length },
@@ -1159,6 +1194,57 @@ export default function CeoPage() {
                 })}
               </div>
             )}
+          </>}
+
+          {/* ══ DISPUTAS ══════════════════════════════════════════ */}
+          {tab === 'disputas' && <>
+            <div style={{ ...card, borderTop:'3px solid #9146FF' }}>
+              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#9146FF', margin:'0 0 14px', fontSize:'0.85rem' }}>⚖️ DISPUTAS DE PARTIDOS ({disputasPend} pendientes)</h3>
+              {disputas.length === 0
+                ? <p style={{ color:'#8b949e', textAlign:'center', padding:'20px 0' }}>Sin disputas ✓</p>
+                : <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    {disputas.map(d => {
+                      const jDat = jugadores.find(j => j.id === d.disputedBy);
+                      const isPending = d.status === 'PENDING';
+                      return (
+                        <div key={d.id} style={{ background:'#0b0e14', border:`1px solid ${isPending ? '#9146FF' : '#30363d'}`, borderRadius:10, padding:'14px 16px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:10, marginBottom:10 }}>
+                            <div>
+                              <span style={{ fontFamily:"'Orbitron',sans-serif", color: isPending ? '#9146FF' : '#8b949e', fontSize:'0.75rem', fontWeight:900 }}>
+                                {isPending ? '🔴 PENDIENTE' : '✅ RESUELTA'}
+                              </span>
+                              <div style={{ color:'white', fontWeight:700, marginTop:4 }}>{jDat?.nombre ?? d.disputedBy.slice(0,12)}…</div>
+                              <div style={{ color:'#8b949e', fontSize:'0.72rem', marginTop:2 }}>Match: <code style={{ color:'#009ee3' }}>{d.matchId.slice(-8)}</code> · {d.created_at?.toDate?.()?.toLocaleDateString() ?? '—'}</div>
+                            </div>
+                            {d.screenshot_url && (
+                              <img src={d.screenshot_url} alt="Prueba" onClick={() => window.open(d.screenshot_url,'_blank')} style={{ height:72, borderRadius:6, cursor:'pointer', border:'1px solid #30363d', objectFit:'cover' }} />
+                            )}
+                          </div>
+                          <div style={{ background:'rgba(145,70,255,0.06)', borderRadius:6, padding:'8px 12px', marginBottom: isPending ? 12 : 0, fontSize:'0.78rem', color:'#e6edf3' }}>
+                            💬 <em>&ldquo;{d.reason}&rdquo;</em>
+                          </div>
+                          {isPending && (
+                            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:8 }}>
+                              <button className="cact" style={sm('rgba(0,255,136,0.12)','#00ff88')} onClick={() => resolveDispute(d.id, d.matchId, 'reporter_wins')}>
+                                ✅ Reporte era correcto<br/><span style={{ fontSize:'0.62rem', opacity:.8 }}>-20 FP al que disputó</span>
+                              </button>
+                              <button className="cact" style={sm('rgba(255,71,87,0.12)','#ff4757')} onClick={() => resolveDispute(d.id, d.matchId, 'disputer_wins')}>
+                                ⚖️ Reporte era falso<br/><span style={{ fontSize:'0.62rem', opacity:.8 }}>-30 FP al reportador</span>
+                              </button>
+                              <button className="cact" style={sm('rgba(255,215,0,0.1)','#ffd700')} onClick={() => resolveDispute(d.id, d.matchId, 'no_evidence')}>
+                                🔍 Sin evidencia clara<br/><span style={{ fontSize:'0.62rem', opacity:.8 }}>-10 FP a ambos</span>
+                              </button>
+                              <button className="cact" style={sm('rgba(0,158,227,0.12)','#009ee3')} onClick={() => resolveDispute(d.id, d.matchId, 'rematch')}>
+                                🔄 Ordenar Rematch<br/><span style={{ fontSize:'0.62rem', opacity:.8 }}>Sin penalización</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+              }
+            </div>
           </>}
 
         </main>
