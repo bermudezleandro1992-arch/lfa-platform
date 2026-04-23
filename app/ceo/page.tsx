@@ -124,6 +124,19 @@ export default function CeoPage() {
   const [coinsM,    setCoinsM]    = useState<{uid:string;nombre:string;actual:number;nuevo:string}|null>(null);
   const [expM,      setExpM]      = useState<Jugador|null>(null);
 
+  /* ── Audit panel de retiros ──────────────────────────────── */
+  interface AuditData {
+    uid: string; nombre: string; email: string; ip: string; fingerprintId: string;
+    winRate: number; partidos: number; victorias: number; derrotas: number;
+    fairPlay: number; saldo: number;
+    colisionIp: { uid: string; nombre: string; ip: string }[];
+    colisionFp: { uid: string; nombre: string; fp: string }[];
+    ultimosMatchs: { id: string; vs: string; winner: string | null; status: string }[];
+    alertas: string[]; riesgo: 'OK' | 'MEDIO' | 'ALTO';
+  }
+  const [auditModal, setAuditModal]   = useState<AuditData | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   /* ── Usuarios filtros y control ─────────────────────────── */
   const [filtroU,     setFiltroU]     = useState<'todos'|'activos'|'baneados'|'bots'>('todos');
   const [ipBlacklist, setIpBlacklist] = useState<string[]>([]);
@@ -230,6 +243,22 @@ export default function CeoPage() {
     b.update(doc(db,'usuarios',uid), { number: increment(monto) });
     b.update(doc(db,'retiros',id), { estado: 'rechazado' });
     await b.commit(); await alerta('DEVUELTO','Coins devueltas.','exito');
+  }
+
+  async function abrirAudit(uid: string) {
+    setAuditLoading(true); setAuditModal(null);
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await getIdToken(user);
+      const res = await fetch(`/api/audit/retiroDetail?uid=${uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { await alerta('ERROR', 'No se pudo cargar la auditoría.', 'error'); return; }
+      const data = await res.json();
+      setAuditModal(data);
+    } catch { await alerta('ERROR', 'Error al cargar auditoría.', 'error'); }
+    setAuditLoading(false);
   }
 
   /* ── Usuarios ────────────────────────────────────────────── */
@@ -776,27 +805,141 @@ export default function CeoPage() {
               <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 12px', fontSize:'0.85rem' }}>💸 RETIROS PENDIENTES ({retiros.length})</h3>
               {retiros.length === 0
                 ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin solicitudes ✓</p>
-                : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:520 }}>
-                    <thead><tr>{['JUGADOR','MONTO','CBU / ALIAS','FECHA','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:600 }}>
+                    <thead><tr>{['JUGADOR','MONTO','CBU / ALIAS / WALLET','FECHA','RIESGO','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {retiros.map(r => (
-                        <tr key={r.id} className="crow">
-                          <td style={td}><b>{r.nombre_real||r.nombreJugador}</b><br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp}</span></td>
-                          <td style={{ ...td, color:'#ff4757', fontWeight:700 }}>🪙 {r.montoCoins}</td>
-                          <td style={td}><code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.cbuAlias}</code></td>
-                          <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
-                          <td style={td}>
-                            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                              <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => marcarRetiroPagado(r.id)}>✅ PAGADO</button>
-                              <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarRetiro(r.id,r.uid||'',r.montoCoins||0)}>↩ DEVOLVER</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {retiros.map(r => {
+                        const jDat = jugadores.find(j => j.id === r.uid);
+                        const victs = jDat?.titulos || 0;
+                        const parts = jDat?.partidos_jugados || 0;
+                        const wr    = parts > 0 ? Math.round((victs / parts) * 100) : 0;
+                        const fp    = jDat?.fair_play ?? 100;
+                        const ipOtros = jugadores.filter(j => j.id !== r.uid && j.ip && j.ip === jDat?.ip);
+                        const fpOtros = jugadores.filter(j => j.id !== r.uid && (j as unknown as Record<string,unknown>).fingerprint_id && (j as unknown as Record<string,unknown>).fingerprint_id === (jDat as unknown as Record<string,unknown>)?.fingerprint_id);
+                        const riesgoAlt = ipOtros.length > 0 || fpOtros.length > 0 || (wr >= 80 && parts >= 10) || fp < 30;
+                        return (
+                          <tr key={r.id} className="crow" style={{ background: riesgoAlt ? 'rgba(255,71,87,0.04)' : undefined }}>
+                            <td style={td}>
+                              <b>{r.nombre_real||r.nombreJugador}</b>
+                              <br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp}</span>
+                            </td>
+                            <td style={{ ...td, color:'#ff4757', fontWeight:700 }}>🪙 {(r.montoCoins||0).toLocaleString()}</td>
+                            <td style={td}><code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.cbuAlias || '—'}</code></td>
+                            <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
+                            <td style={td}>
+                              <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                                <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', fontWeight:900, color: riesgoAlt ? '#ff4757' : '#00ff88', padding:'2px 7px', background: riesgoAlt ? 'rgba(255,71,87,0.1)' : 'rgba(0,255,136,0.07)', borderRadius:4 }}>
+                                  {riesgoAlt ? '🚨 REVISAR' : '✅ OK'}
+                                </span>
+                                {ipOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>⚠️ IP compartida</span>}
+                                {fpOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🖥️ Mismo device</span>}
+                                {wr >= 80 && parts >= 10 && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>📈 WR {wr}% ({parts}p)</span>}
+                                {fp < 30 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>💔 FP {fp}%</span>}
+                              </div>
+                            </td>
+                            <td style={td}>
+                              <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                                <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => abrirAudit(r.uid||'')} disabled={auditLoading}>🕵️ AUDIT</button>
+                                <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => marcarRetiroPagado(r.id)}>✅ PAGADO</button>
+                                <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarRetiro(r.id,r.uid||'',r.montoCoins||0)}>↩ DEVOLVER</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
               }
             </div>
+
+            {/* ── Modal Audit ─────────────────────────────────── */}
+            {auditModal && (
+              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={e => { if(e.target===e.currentTarget) setAuditModal(null); }}>
+                <div style={{ background:'#0d1117', border:`2px solid ${auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88'}`, borderRadius:16, padding:24, maxWidth:680, width:'100%', maxHeight:'90vh', overflowY:'auto', position:'relative' }}>
+                  <button onClick={() => setAuditModal(null)} style={{ position:'absolute', top:14, right:18, background:'none', border:'none', color:'#8b949e', fontSize:'1.5rem', cursor:'pointer', lineHeight:1 }}>×</button>
+
+                  <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.9rem', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
+                    🕵️ AUDITORÍA — {auditModal.nombre.toUpperCase()}
+                    <span style={{ fontSize:'0.7rem', padding:'3px 10px', borderRadius:20, background: auditModal.riesgo==='ALTO'?'rgba(255,71,87,0.15)':auditModal.riesgo==='MEDIO'?'rgba(255,215,0,0.1)':'rgba(0,255,136,0.08)', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88' }}>
+                      {auditModal.riesgo}
+                    </span>
+                  </div>
+
+                  {/* Alertas */}
+                  {auditModal.alertas.length > 0 && (
+                    <div style={{ background:'rgba(255,71,87,0.07)', border:'1px solid #ff475730', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+                      <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', fontSize:'0.72rem', marginBottom:8 }}>🚨 ALERTAS DETECTADAS</div>
+                      {auditModal.alertas.map((a, i) => <div key={i} style={{ color:'#ff4757', fontSize:'0.78rem', marginBottom:4 }}>{a}</div>)}
+                    </div>
+                  )}
+
+                  {/* Stats */}
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:16 }}>
+                    {[
+                      { l:'WIN RATE',  v:`${auditModal.winRate}%`,   c: auditModal.winRate>=80?'#ff4757':auditModal.winRate>=50?'#ffd700':'#00ff88' },
+                      { l:'PARTIDOS',  v: String(auditModal.partidos), c:'#009ee3' },
+                      { l:'VICTORIAS', v: String(auditModal.victorias), c:'#00ff88' },
+                      { l:'FAIR PLAY', v:`${auditModal.fairPlay}%`,  c: auditModal.fairPlay<30?'#ff4757':auditModal.fairPlay<60?'#ffd700':'#00ff88' },
+                      { l:'SALDO',     v:`🪙${auditModal.saldo.toLocaleString()}`, c:'#ffd700' },
+                    ].map(s => (
+                      <div key={s.l} style={{ background:'#161b22', borderRadius:8, padding:'10px 12px', borderLeft:`3px solid ${s.c}` }}>
+                        <div style={{ color:'#8b949e', fontSize:'0.6rem', fontFamily:"'Orbitron',sans-serif" }}>{s.l}</div>
+                        <div style={{ color:s.c, fontWeight:900, fontSize:'1.1rem', fontFamily:"'Orbitron',sans-serif" }}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* IP & Fingerprint */}
+                  <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px', marginBottom:12, fontSize:'0.77rem' }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
+                      <div><span style={{ color:'#8b949e' }}>IP: </span><code style={{ color:'#009ee3' }}>{auditModal.ip||'—'}</code></div>
+                      <div><span style={{ color:'#8b949e' }}>Fingerprint: </span><code style={{ color:'#9146FF', fontSize:'0.68rem' }}>{auditModal.fingerprintId?auditModal.fingerprintId.slice(0,16)+'…':'—'}</code></div>
+                    </div>
+                  </div>
+
+                  {/* Colusiones IP */}
+                  {auditModal.colisionIp.length > 0 && (
+                    <div style={{ background:'rgba(255,71,87,0.06)', border:'1px solid #ff475720', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+                      <div style={{ color:'#ff4757', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>⚠️ MISMA IP — POSIBLE MULTIUENTA ({auditModal.colisionIp.length})</div>
+                      {auditModal.colisionIp.map(c => (
+                        <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                          <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
+                          <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Colusiones Fingerprint */}
+                  {auditModal.colisionFp.length > 0 && (
+                    <div style={{ background:'rgba(145,70,255,0.06)', border:'1px solid #9146FF20', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+                      <div style={{ color:'#9146FF', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>🖥️ MISMO DEVICE (FINGERPRINT) ({auditModal.colisionFp.length})</div>
+                      {auditModal.colisionFp.map(c => (
+                        <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                          <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
+                          <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Últimos matches */}
+                  {auditModal.ultimosMatchs.length > 0 && (
+                    <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px' }}>
+                      <div style={{ color:'#ffd700', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:8 }}>🎮 ÚLTIMOS PARTIDOS</div>
+                      {auditModal.ultimosMatchs.map(m => (
+                        <div key={m.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'0.74rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                          <span style={{ color:'#8b949e', fontFamily:'monospace' }}>vs {m.vs.slice(0,10)}…</span>
+                          <span style={{ color: m.winner===auditModal.uid?'#00ff88':m.winner?'#ff4757':'#8b949e', fontWeight:700 }}>
+                            {m.winner===auditModal.uid?'✅ Ganó':m.winner?'❌ Perdió':'— Pendiente'} · {m.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>}
 
           {/* ══ SPAWNER ═════════════════════════════════════ */}

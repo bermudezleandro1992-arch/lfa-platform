@@ -23,6 +23,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { getVisitorId } from '@/lib/fingerprint';
 import LfaModal, { type LfaModalHandle } from '@/app/_components/LfaModal';
 import type { Translations } from '@/app/_components/LangDropdown';
 import type { RegionDetectionResult } from '@/lib/types';
@@ -120,6 +121,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
     }
 
     const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email, pass);
@@ -134,6 +136,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       let updateData: Record<string, unknown> = {
         ip_conexion: datosRed.country, hw_avanzado: hw,
         ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
+        fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
       };
       if (platId.trim()) updateData.plataforma_id = sanitizarInput(platId);
       await setDoc(doc(db, 'usuarios', cred.user.uid), updateData, { merge: true });
@@ -235,6 +238,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
     }
 
     const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -266,14 +270,17 @@ export default function LoginBox({ t }: LoginBoxProps) {
           ip_conexion:        datosRed.country,
           ip:                 datosRed.ip ?? '',
           hw_avanzado:        hw,
+          fingerprint_id:     fingerprintId,
           pais_codigo:        datosRed.country,
           region:             datosRed.region,
           terminos_aceptados: true,
+          last_login:         new Date().toISOString(),
         });
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
           ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
+          fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
@@ -311,6 +318,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
     }
 
     const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
 
     try {
       const result  = await signInWithPopup(auth, facebookProvider);
@@ -342,14 +350,17 @@ export default function LoginBox({ t }: LoginBoxProps) {
           ip_conexion:        datosRed.country,
           ip:                 datosRed.ip ?? '',
           hw_avanzado:        hw,
+          fingerprint_id:     fingerprintId,
           pais_codigo:        datosRed.country,
           region:             datosRed.region,
           terminos_aceptados: true,
+          last_login:         new Date().toISOString(),
         });
       } else {
         const upd: Record<string, unknown> = {
           ip_conexion: datosRed.country, hw_avanzado: hw,
           ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
+          fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
         };
         if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
         await setDoc(userRef, upd, { merge: true });
