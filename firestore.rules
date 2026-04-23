@@ -241,6 +241,17 @@ service cloud.firestore {
       allow create, delete: if false; // solo el servidor crea
     }
 
+    // Locks de idempotencia para joinTournament (solo servidor Admin SDK)
+    match /join_locks/{lockId} {
+      allow read, write: if false;
+    }
+
+    // Logs de Vision AI (solo CEO puede leer, solo servidor puede escribir)
+    match /vision_logs/{logId} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
