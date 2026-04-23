@@ -326,17 +326,3 @@ async function logVisionResult(
     // No bloquear el flujo si el log falla
   }
 }
-      game !== 'UNKNOWN' ? `Juego detectado: ${game}` : 'Juego no identificado en la imagen.',
-      scoreFound        ? `Marcador detectado: ${scoreFound}` : 'Marcador no legible en la imagen.',
-      found1 ? `ID jugador 1 (${match.p1_ea_id}) encontrado.` : match.p1_ea_id ? `ID jugador 1 NO encontrado.` : '',
-      found2 ? `ID jugador 2 (${match.p2_ea_id}) encontrado.` : match.p2_ea_id ? `ID jugador 2 NO encontrado.` : '',
-      isEdited ? '⚠️ La imagen podría estar editada (detección de SafeSearch).' : '',
-    ].filter(Boolean).join(' ');
-
-    return NextResponse.json({ verdict, confidence, details, game, scoreFound });
-
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error interno';
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
