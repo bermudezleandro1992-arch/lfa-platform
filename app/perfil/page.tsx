@@ -377,6 +377,50 @@ export default function PerfilPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* ── Explicación Fair Play ─────────────────── */}
+                <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.68rem', color: '#00ff88', fontWeight: 900, marginBottom: 10 }}>
+                    ⚖️ ¿CÓMO FUNCIONA EL FAIR PLAY?
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#8b949e', lineHeight: 1.6 }}>
+                    El puntaje Fair Play refleja tu comportamiento dentro de la plataforma. Comienza en <strong style={{ color: '#00ff88' }}>100%</strong> y puede subir o bajar según tus acciones.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 8, marginTop: 12 }}>
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: '#00ff88', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 6 }}>✅ SUBE TU FAIR PLAY</div>
+                      {[
+                        '🎮 Jugar torneos (gratis o de pago)',
+                        '📸 Reportar resultados con captura',
+                        '✔️ Verificar resultados del rival',
+                        '🏆 Completar partidos sin disputas',
+                        '⏱️ Estar en sala a tiempo',
+                      ].map(t => <div key={t} style={{ fontSize: '0.68rem', color: '#8b949e', padding: '3px 0' }}>{t}</div>)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: '#ff4757', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 6 }}>❌ BAJA TU FAIR PLAY</div>
+                      {[
+                        '🚪 Abandonar partidas o salas',
+                        '🚫 No reportar resultado a tiempo',
+                        '⚠️ Disputas resueltas en tu contra',
+                        '📵 No presentarte a la sala',
+                        '🔁 Resultados rechazados por el CEO',
+                      ].map(t => <div key={t} style={{ fontSize: '0.68rem', color: '#8b949e', padding: '3px 0' }}>{t}</div>)}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+                    {[
+                      { min: 80, label: '🟢 EXCELENTE', desc: 'Acceso total, retiro habilitado', color: '#00ff88' },
+                      { min: 50, label: '🟡 REGULAR',   desc: 'Advertencia — mejorá tu conducta', color: '#ffd700' },
+                      { min: 0,  label: '🔴 BAJO',      desc: 'Restricciones activas en la cuenta', color: '#ff4757' },
+                    ].map(r => (
+                      <div key={r.min} style={{ background: '#0b0e14', border: `1px solid ${r.color}30`, borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: r.color, fontFamily: "'Orbitron',sans-serif" }}>{r.label}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#8b949e', marginTop: 3 }}>{r.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 {(() => {
                   const steps = [0, 1, 5, 10, 20, 50];
                   const labels = ['NOVATO', 'BRONCE', 'PLATA', 'ORO', 'ELITE', 'LEYENDA'];

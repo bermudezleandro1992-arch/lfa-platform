@@ -16,6 +16,11 @@ import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { getBinancePayTransactions } from '@/lib/binance';
 import { writeLedgerEntry }          from '@/lib/ledger';
 
+/* ─── Límite de auto-acreditación ────────────────────── */
+// Pagos > MAX_AUTO_USDT van siempre a revisión CEO aunque Binance los confirme.
+// Esto limita el riesgo máximo por transacción no supervisada.
+const MAX_AUTO_USDT = 10;
+
 /* ─── Packs (idénticos a recargar/page.tsx) ──────────── */
 const PACKS = [
   { id: 'starter',  coins: 500,   bonus: 0,    usd: 0.50 },
@@ -40,11 +45,21 @@ export async function POST(req: NextRequest) {
     if (!idToken) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
     let uid: string;
+    let emailVerified = false;
     try {
       const decoded = await adminAuth.verifyIdToken(idToken);
-      uid = decoded.uid;
+      uid           = decoded.uid;
+      emailVerified = decoded.email_verified ?? false;
     } catch {
       return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
+    /* ── 1b. Email verificado (doble factor Google) ─────── */
+    if (!emailVerified) {
+      return NextResponse.json(
+        { error: 'Debés verificar tu email antes de recargar. Revisá tu casilla de correo.' },
+        { status: 403 },
+      );
     }
 
     /* ── 2. Parsear body ──────────────────────────────── */
@@ -124,7 +139,65 @@ export async function POST(req: NextRequest) {
       // Si no coincide → cae a revisión manual CEO (sin fallbacks inseguros)
     }
 
-    /* ── 5a. VERIFICADO → acreditar automáticamente ──── */
+    /* ── 5a. VERIFICADO pero monto alto → forzar revisión CEO ── */
+    if (verified && pack.usd > MAX_AUTO_USDT) {
+      await adminDb.collection('pagos_pendientes').add({
+        uid,
+        coins:           pack.coins,
+        bonus:           pack.bonus,
+        coins_total:     totalCoins,
+        usd:             pack.usd,
+        pack_id:         pack.id,
+        metodo:          'Binance Pay',
+        referencia_id:   refIdClean,
+        binance_tx_id:   binanceTxId,
+        sender_alias:    (sender_alias ?? '').trim().slice(0, 100),
+        comprobante_url: screenshotUrl,
+        estado:          'pendiente',
+        verificado_auto: false,
+        requiere_ceo:    true,
+        binance_api_ok:  true,
+        fecha:           FieldValue.serverTimestamp(),
+      });
+
+      // Notificar al CEO vía Discord
+      const webhookCeo = process.env.DISCORD_WEBHOOK_CEO;
+      if (webhookCeo) {
+        try {
+          await fetch(webhookCeo, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              username:   'SomosLFA Bot',
+              avatar_url: 'https://somoslfa.com/logo.png',
+              embeds: [{
+                title:       '💰 Recarga > $10 USD — Requiere aprobación CEO',
+                color:       0xf3ba2f,
+                fields: [
+                  { name: 'Usuario UID',    value: uid,                              inline: true },
+                  { name: 'Pack',           value: `${pack.id.toUpperCase()} — $${pack.usd} USDT`, inline: true },
+                  { name: 'Coins',          value: `🪙 ${totalCoins.toLocaleString()}`,             inline: true },
+                  { name: 'Binance TX ID',  value: binanceTxId,                      inline: false },
+                  { name: 'Alias emisor',   value: (sender_alias ?? '').trim() || '—', inline: true },
+                  { name: 'Comprobante',    value: `[Ver screenshot](${screenshotUrl})`, inline: false },
+                ],
+                footer:    { text: 'Aprobá desde el panel CEO → somoslfa.com/ceo' },
+                timestamp: new Date().toISOString(),
+              }],
+            }),
+          });
+        } catch { /* No bloquear si Discord falla */ }
+      }
+
+      return NextResponse.json({
+        ok:      true,
+        verified: false,
+        pending:  true,
+        message:  `⏳ Pago de $${pack.usd} USDT verificado por Binance. Por ser un monto alto (> $${MAX_AUTO_USDT}), el CEO lo aprueba manualmente. Recibirás 🪙${totalCoins.toLocaleString()} Coins en breve.`,
+      });
+    }
+
+    /* ── 5b. VERIFICADO y monto OK → acreditar automáticamente ── */
     if (verified) {
       await adminDb.runTransaction(async tx => {
         const userRef  = adminDb.collection('usuarios').doc(uid);
@@ -170,7 +243,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /* ── 5b. NO VERIFICADO → guardar pendiente (fallback CEO) */
+    /* ── 5c. NO VERIFICADO → guardar pendiente (fallback CEO) */
     await adminDb.collection('pagos_pendientes').add({
       uid,
       coins:           pack.coins,

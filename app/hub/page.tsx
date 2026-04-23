@@ -142,6 +142,11 @@ export default function HubPage() {
               <span style={{ fontSize: '1rem' }}>💰</span>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>BILLETERA</span>
             </a>
+            {/* Tienda de Puntos */}
+            <a href="/tienda" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(243,186,47,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid rgba(243,186,47,0.3)', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
+              <span style={{ fontSize: '1rem' }}>🛒</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>TIENDA</span>
+            </a>
             {/* Perfil + coins + logout */}
             <a href="/perfil" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: '7px 14px', borderRadius: 30, border: '1px solid #30363d', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid #00ff88', overflow: 'hidden', background: '#1c2028', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
