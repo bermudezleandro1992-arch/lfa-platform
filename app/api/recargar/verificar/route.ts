@@ -73,13 +73,12 @@ export async function POST(req: NextRequest) {
     const totalCoins = pack.coins + pack.bonus;
 
     /* ── 3. Deduplicación: referencia_id ya usada? ────── */
-    const dupSnap = await adminDb
-      .collection('pagos_pendientes')
-      .where('referencia_id', '==', refIdClean)
-      .limit(1)
-      .get();
+    const [dupRefSnap, dupBinanceSnap] = await Promise.all([
+      adminDb.collection('pagos_pendientes').where('referencia_id', '==', refIdClean).limit(1).get(),
+      adminDb.collection('pagos_pendientes').where('binance_tx_id', '==', refIdClean).limit(1).get(),
+    ]);
 
-    if (!dupSnap.empty) {
+    if (!dupRefSnap.empty || !dupBinanceSnap.empty) {
       return NextResponse.json(
         { error: 'Este ID de referencia ya fue procesado. Si tenés dudas, contactá al CEO.' },
         { status: 409 },
@@ -94,41 +93,35 @@ export async function POST(req: NextRequest) {
     let binanceTxId = '';
 
     if (binanceResult.ok && binanceResult.txs) {
-      // Buscar: transacción SUCCESS con el monto correcto
-      // El usuario puede proveer el transactionId o cualquier ID que Binance le muestre
+      // ÚNICO criterio de match: transactionId exacto + monto correcto + estado SUCCESS
+      // El ID de referencia que muestra Binance Pay al emisor es el transactionId.
+      // No se usa fallback por monto solamente — evita que alguien explote el conocimiento
+      // de que LFA recibió $X de otra persona para auto-acreditarse monedas.
       const matchingTx = binanceResult.txs.find(tx => {
         if (tx.orderStatus !== 'SUCCESS') return false;
         const txAmount = parseFloat(tx.orderAmount);
         const amountOk = Math.abs(txAmount - pack.usd) <= AMOUNT_TOLERANCE;
-        // Intentar coincidir por transactionId si el usuario lo copió
-        const idOk = tx.transactionId === refIdClean;
+        const idOk     = tx.transactionId === refIdClean;
         return amountOk && idOk;
       });
 
       if (matchingTx) {
+        // Verificar además que este binance_tx_id no haya sido reclamado ya
+        const dupTxSnap = await adminDb
+          .collection('pagos_pendientes')
+          .where('binance_tx_id', '==', matchingTx.transactionId)
+          .limit(1)
+          .get();
+        if (!dupTxSnap.empty) {
+          return NextResponse.json(
+            { error: 'Esta transacción de Binance ya fue reclamada.' },
+            { status: 409 },
+          );
+        }
         verified    = true;
         binanceTxId = matchingTx.transactionId;
-      } else {
-        // Segundo intento: misma cantidad aunque el ID no coincida exactamente
-        // (puede que el usuario copiara el ID de orden y no el transactionId)
-        const anyTxCorrectAmount = binanceResult.txs.find(tx => {
-          if (tx.orderStatus !== 'SUCCESS') return false;
-          const txAmount = parseFloat(tx.orderAmount);
-          return Math.abs(txAmount - pack.usd) <= AMOUNT_TOLERANCE;
-        });
-        if (anyTxCorrectAmount) {
-          // Solo marcar como verificado si la cantidad es única (evitar ambigüedad)
-          const sameAmountTxs = binanceResult.txs.filter(tx => {
-            const txAmount = parseFloat(tx.orderAmount);
-            return tx.orderStatus === 'SUCCESS' && Math.abs(txAmount - pack.usd) <= AMOUNT_TOLERANCE;
-          });
-          if (sameAmountTxs.length === 1) {
-            verified    = true;
-            binanceTxId = anyTxCorrectAmount.transactionId;
-          }
-          // Si hay múltiples txs del mismo monto → no se puede determinar cuál es → pendiente
-        }
       }
+      // Si no coincide → cae a revisión manual CEO (sin fallbacks inseguros)
     }
 
     /* ── 5a. VERIFICADO → acreditar automáticamente ──── */
