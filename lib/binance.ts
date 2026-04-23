@@ -118,6 +118,69 @@ export async function binanceWithdraw(params: {
   }
 }
 
+/* ─── Consultar historial de Binance Pay (recibidos) ── */
+export interface BinancePayTx {
+  transactionId:   string;
+  orderStatus:     string;  // 'SUCCESS' | 'INITIAL' | 'PENDING' | 'FAILED'
+  orderAmount:     string;  // e.g. "0.50000000"
+  currency:        string;  // 'USDT'
+  transactionTime: number;  // epoch ms
+  payerInfo?:      { name?: string; binanceId?: string; };
+}
+
+export async function getBinancePayTransactions(params: {
+  startTime?: number;
+  limit?: number;
+}): Promise<{ ok: boolean; txs?: BinancePayTx[]; error?: string }> {
+  const apiKey    = process.env.BINANCE_API_KEY;
+  const apiSecret = process.env.BINANCE_API_SECRET;
+  if (!apiKey || !apiSecret) return { ok: false, error: 'Binance API no configurada.' };
+
+  const queryParams: Record<string, string | number> = {
+    timestamp:  Date.now(),
+    recvWindow: RECV_WINDOW,
+    limit:      params.limit ?? 100,
+  };
+  if (params.startTime) queryParams.startTime = params.startTime;
+
+  const queryString = Object.entries(queryParams)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join('&');
+  const signature = sign(queryString, apiSecret);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  const dispatcher = process.env.FIXIE_URL
+    ? new ProxyAgent(process.env.FIXIE_URL)
+    : undefined;
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/sapi/v1/pay/transactions?${queryString}&signature=${signature}`,
+      {
+        headers: { 'X-MBX-APIKEY': apiKey },
+        signal:  controller.signal,
+        // @ts-expect-error — undici dispatcher compatible con Node.js fetch
+        dispatcher,
+      },
+    );
+    const data = await res.json() as {
+      status: string;
+      code:   string;
+      data?:  { total: number; data: BinancePayTx[] };
+    };
+    if (!res.ok || data.status !== 'SUCCESS') {
+      return { ok: false, error: `Binance Pay error: ${data.code}` };
+    }
+    return { ok: true, txs: data.data?.data ?? [] };
+  } catch (err: unknown) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error de red' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /* ─── Verificar estado de un retiro ─────────────────── */
 export async function binanceWithdrawStatus(withdrawId: string): Promise<{
   status?: number;  // 0=Email sent, 2=Awaiting approval, 3=Rejected, 4=Processing, 5=Failure, 6=Completed

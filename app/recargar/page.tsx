@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
 import { LfaCoin } from '@/app/_components/LfaCoin';
@@ -141,8 +141,8 @@ export default function RecargarPage() {
   const enviar = useCallback(async () => {
     setMsg('');
     if (!pack)                return setMsg('❌ Seleccioná un pack primero');
-    if (!txHash.trim())       return setMsg('❌ Ingresá el TX Hash / ID de referencia de tu pago');
-    if (!senderWallet.trim()) return setMsg('❌ Ingresá tu ID o dirección Binance de origen');
+    if (!txHash.trim())       return setMsg('❌ Ingresá el ID de referencia de tu pago Binance Pay');
+    if (!senderWallet.trim()) return setMsg('❌ Ingresá tu alias o email de Binance');
     if (!comprobante)         return setMsg('❌ Adjuntá el comprobante (captura de pantalla del pago)');
 
     const ALLOWED = ['image/jpeg','image/png','image/webp'];
@@ -150,37 +150,48 @@ export default function RecargarPage() {
     if (comprobante.size > 5 * 1024 * 1024)  return setMsg('❌ El comprobante no puede superar 5 MB.');
 
     setSending(true);
+    setMsg('⏳ Subiendo comprobante...');
     try {
+      // 1. Subir screenshot a Storage
       const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
       const { storage } = await import('@/lib/firebase');
       const storageRef = ref(storage, `comprobantes/${uid}/${Date.now()}_${comprobante.name.replace(/[^a-z0-9.]/gi,'_')}`);
       await uploadBytes(storageRef, comprobante, { contentType: comprobante.type });
-      const comprobante_url = await getDownloadURL(storageRef);
+      const screenshotUrl = await getDownloadURL(storageRef);
 
-      await addDoc(collection(db, 'pagos_pendientes'), {
-        uid,
-        jugador_nombre:  userData?.nombre || '',
-        coins:           pack.coins,
-        bonus:           pack.bonus,
-        coins_total:     totalCoins,
-        usd:             pack.usd,
-        pack_id:         pack.id,
-        pack_label:      pack.label,
-        metodo:          'Binance Pay',
-        tx_hash:         txHash.trim(),
-        referencia_id:   refId.trim(),
-        sender_id:       senderWallet.trim(),
-        comprobante_url,
-        estado:          'pendiente',
-        fecha:           serverTimestamp(),
+      setMsg('⏳ Verificando pago con Binance...');
+
+      // 2. Obtener token y llamar a la API de verificación
+      const { getAuth } = await import('firebase/auth');
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Sesión expirada. Refrescá la página.');
+
+      const res = await fetch('/api/recargar/verificar', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body:    JSON.stringify({
+          packId:        pack.id,
+          referencia_id: txHash.trim(),
+          sender_alias:  senderWallet.trim(),
+          screenshotUrl,
+        }),
       });
-      setMsg(`✅ ¡Solicitud enviada! Verificaremos tu pago de $${pack.usd} USDT en hasta 24 hs. Al aprobar recibirás 🪙${totalCoins.toLocaleString()} coins.`);
+
+      const data = await res.json() as { ok?: boolean; verified?: boolean; message?: string; error?: string };
+
+      if (!res.ok || !data.ok) {
+        setMsg(`❌ ${data.error ?? 'Error al procesar el pago.'}`);
+        setSending(false);
+        return;
+      }
+
+      setMsg(data.message ?? '✅ Solicitud enviada.');
       setTxHash(''); setRefId(''); setSenderWallet(''); setSelected(null); setComprobante(null);
-    } catch {
-      setMsg('❌ Error al enviar la solicitud. Intentá de nuevo.');
+    } catch (err: unknown) {
+      setMsg(`❌ ${err instanceof Error ? err.message : 'Error al enviar la solicitud. Intentá de nuevo.'}`);
     }
     setSending(false);
-  }, [pack, uid, userData, txHash, refId, senderWallet, comprobante, totalCoins]);
+  }, [pack, uid, userData, txHash, senderWallet, comprobante, totalCoins]);
 
   if (!ready || !userData) return <Spinner />;
 
@@ -225,7 +236,7 @@ export default function RecargarPage() {
               CARGÁ TUS COINS
             </div>
             <div style={{ color: '#8b949e', fontSize: '0.82rem', marginTop: 8 }}>
-              1.000 LFA Coins = <strong style={{ color: '#f3ba2f' }}>1 USDT</strong> · Pago vía Binance Pay · Acreditación en hasta 24 hs
+              1.000 LFA Coins = <strong style={{ color: '#f3ba2f' }}>1 USDT</strong> · Pago vía Binance Pay · Verificación automática al instante
             </div>
           </div>
 
@@ -386,8 +397,8 @@ export default function RecargarPage() {
                     { n: '1', t: 'Abrí Binance → Pay', d: 'Tocá "Enviar" → buscá el alias somoslfa (ID 359177674), o escaneá el QR.' },
                     { n: '2', t: `Enviá $${pack.usd.toFixed(2)} USDT`, d: 'Ingresá el monto exacto. Binance Pay gestiona la red automáticamente.' },
                     { n: '3', t: 'Copiá el ID de orden', d: 'En Binance: Historial de Pay → la transacción → copiá el "ID de referencia".' },
-                    { n: '4', t: 'Completá el formulario', d: 'Pegá el ID de orden y tu alias/email Binance abajo y enviá.' },
-                    { n: '5', t: 'Verificación LFA', d: `El equipo acredita 🪙${totalCoins.toLocaleString()} en tu cuenta en hasta 24 hs.` },
+                    { n: '4', t: 'Completá el formulario', d: 'Pegá el ID de orden y tu alias Binance abajo, adjuntá el comprobante y enviá.' },
+                    { n: '5', t: 'Verificación automática', d: `LFA verifica tu pago con Binance al instante. Si todo coincide, 🪙${totalCoins.toLocaleString()} se acreditan de inmediato. Si hay algún problema, el equipo lo resuelve en 24 hs.` },
                   ].map(s => (
                     <div key={s.n} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 0', borderBottom: '1px solid #1c2028' }}>
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(243,186,47,0.12)', border: '1px solid rgba(243,186,47,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#f3ba2f', fontSize: '0.65rem', flexShrink: 0 }}>{s.n}</div>
@@ -464,7 +475,7 @@ export default function RecargarPage() {
                   disabled={sending}
                   style={{ width: '100%', padding: '15px', background: sending ? '#30363d' : pack.color, color: ['#00ff88','#ffd700','#f3ba2f'].includes(pack.color) ? '#0b0e14' : 'white', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.88rem', cursor: sending ? 'not-allowed' : 'pointer', transition: '0.2s', opacity: sending ? 0.6 : 1, letterSpacing: 0.5 }}
                 >
-                  {sending ? '⏳ ENVIANDO...' : `⚡ CONFIRMAR — 🪙${totalCoins.toLocaleString()} COINS POR $${pack.usd.toFixed(2)}`}
+                  {sending ? '⏳ VERIFICANDO PAGO...' : `⚡ CONFIRMAR — 🪙${totalCoins.toLocaleString()} COINS POR $${pack.usd.toFixed(2)}`}
                 </button>
               </div>
             </div>
