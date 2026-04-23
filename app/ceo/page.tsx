@@ -102,7 +102,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -117,6 +117,7 @@ export default function CeoPage() {
   const [visitas,    setVisitas]    = useState(0);
   const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
   const [tesoreria,  setTesoreria]  = useState<{usdt_total?:number;usdt_retirado?:number;usdt_pendiente_retiro?:number;depositos_count?:number}>({});
+  const [visionLogs, setVisionLogs] = useState<{id:string;matchId?:string;verdict?:string;confidence?:number;game?:string;scoreFound?:string;scoreReported?:string;details?:string;rawTextSample?:string;screenshotUrl?:string;timestamp?:{toDate?:()=>Date}}[]>([]);
 
   /* ── Disputas ────────────────────────────────────────────── */
   interface Disputa {
@@ -219,6 +220,12 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(doc(db,'configuracion','tesoreria'), d => {
       if (d.exists()) setTesoreria(d.data() as typeof tesoreria);
+    }));
+
+    subs.push(onSnapshot(query(collection(db,'vision_logs'), orderBy('timestamp','desc'), limit(100)), snap => {
+      const l: typeof visionLogs = [];
+      snap.forEach(d => l.push({ id: d.id, ...d.data() } as typeof visionLogs[number]));
+      setVisionLogs(l);
     }));
 
     subs.push(onSnapshot(doc(db,'configuracion','ip_blacklist'), d => {
@@ -489,7 +496,7 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
@@ -499,6 +506,7 @@ export default function CeoPage() {
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
     { id:'leads',     label:'🎙️ Streamers', badge: leads.length },
+    { id:'vision',    label:'🔬 Vision AI', badge: visionLogs.filter(v => v.verdict === 'SUSPICIOUS').length },
   ];
 
   /* ═══ RENDER ════════════════════════════════════════════════ */
@@ -1397,6 +1405,58 @@ export default function CeoPage() {
           </div>
         </div>
       )}
+
+      {/* ══ VISION AI LOG ═══════════════════════════════════════ */}
+      {tab === 'vision' && <>
+        <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:'0 0 6px', fontSize:'0.9rem' }}>🔬 VISION AI — LOG BETA TEST ({visionLogs.length} análisis)</h2>
+        <p style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:16 }}>
+          Umbral OK: ≥80% · MANUAL: 40-79% · SUSPICIOUS: &lt;40% o imagen editada
+        </p>
+        {/* Stats resumen */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:18 }}>
+          {[
+            { l:'TOTAL', v: visionLogs.length, c:'#009ee3' },
+            { l:'✅ OK', v: visionLogs.filter(v=>v.verdict==='OK').length, c:'#00ff88' },
+            { l:'🔍 MANUAL', v: visionLogs.filter(v=>v.verdict==='MANUAL').length, c:'#f3ba2f' },
+            { l:'🚨 SUSPICIOUS', v: visionLogs.filter(v=>v.verdict==='SUSPICIOUS').length, c:'#ff4757' },
+            { l:'CONF. PROM.', v: visionLogs.length ? `${Math.round(visionLogs.reduce((s,v)=>s+(v.confidence||0),0)/visionLogs.length*100)}%` : '—', c:'#9146FF' },
+          ].map(k => (
+            <div key={k.l} style={{ ...card, borderLeft:`4px solid ${k.c}` }}>
+              <div style={{ color:'#8b949e', fontSize:'0.6rem', fontFamily:"'Orbitron',sans-serif", marginBottom:4 }}>{k.l}</div>
+              <div style={{ color:k.c, fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'1.3rem' }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Tabla de logs */}
+        <div style={{ ...card, padding:0, overflow:'hidden' }}>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.75rem' }}>
+              <thead><tr>{['FECHA','JUEGO','VEREDICTO','CONF.','MARCADOR','DETALLES','SCREENSHOT'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+              <tbody>
+                {visionLogs.map(log => {
+                  const vclr = log.verdict==='OK' ? '#00ff88' : log.verdict==='SUSPICIOUS' ? '#ff4757' : '#f3ba2f';
+                  return (
+                    <tr key={log.id} className="crow">
+                      <td style={td}>{log.timestamp?.toDate?.()?.toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})||'—'}</td>
+                      <td style={{ ...td, color:'#009ee3', fontWeight:700 }}>{log.game||'?'}</td>
+                      <td style={{ ...td, color:vclr, fontWeight:900 }}>{log.verdict}</td>
+                      <td style={{ ...td, color:vclr }}>{log.confidence !== undefined ? `${Math.round((log.confidence||0)*100)}%` : '—'}</td>
+                      <td style={td}>
+                        {log.scoreFound && <span style={{ fontFamily:'monospace', color:'#ffd700' }}>{log.scoreFound}</span>}
+                        {log.scoreReported && log.scoreFound && log.scoreFound !== log.scoreReported
+                          ? <span style={{ color:'#ff4757', fontSize:'0.65rem', display:'block' }}>reportado: {log.scoreReported}</span>
+                          : null}
+                      </td>
+                      <td style={{ ...td, maxWidth:260, fontSize:'0.65rem', color:'#8b949e', whiteSpace:'normal' }}>{(log.details||'').slice(0,160)}</td>
+                      <td style={td}>{log.screenshotUrl ? <button style={sm('#222')} onClick={()=>window.open(log.screenshotUrl,'_blank')}>🖼 VER</button> : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>}
     </>
   );
 }

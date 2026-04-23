@@ -5,13 +5,10 @@
  *  1. De qué juego se trata (FC26 / eFootball)
  *  2. Si el marcador es coherente con el reportado
  *  3. Si los IDs de jugador visibles coinciden con los del match
+ *  4. Si la imagen parece un resultado real (no un menú, foto vieja, etc.)
  *
- * Actualmente usa Google Cloud Vision API (OCR + label detection).
- * Si GOOGLE_VISION_API_KEY no está configurada, devuelve veredicto MANUAL.
- *
- * Flujo esperado:
- *   POST { matchId, screenshotUrl }
- *   → { verdict: 'OK' | 'SUSPICIOUS' | 'MANUAL', confidence, details }
+ * Umbral de confianza: >= 0.80 → OK, 0.40-0.79 → MANUAL, < 0.40 → SUSPICIOUS
+ * Todo se loguea en `vision_logs` para revisión del beta test.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -29,20 +26,65 @@ interface VisionResponse {
   }>;
 }
 
-/* ─── Detectar juego por keywords en OCR text ──────────── */
-function detectGame(text: string): 'FC26' | 'EFOOTBALL' | 'UNKNOWN' {
+/* ─── Keywords específicas de cada juego ────────────────────
+ *  FC26: pantalla de resultado post-partido
+ *  eFootball: pantalla de resultado post-partido
+ *  Si ninguna keyword aparece → imagen sospechosa (menú, screenshot viejo, etc.)
+ */
+const FC26_KEYWORDS = [
+  'full time', 'half time', 'ea sports', 'fc 26', 'fc26',
+  'match summary', 'resumen del partido', 'player of the match',
+  'goals', 'possession', 'shots', 'passes', 'tackles',
+  'ultimate team', 'fut', 'career mode', 'kick off',
+];
+
+const EFOOTBALL_KEYWORDS = [
+  'efootball', 'e-football', 'konami', 'pes',
+  'match result', 'resultado del partido', 'match end',
+  'full time', 'penalty shootout', 'tiro penal',
+  'stamina', 'condition', 'form', 'myclub',
+];
+
+/* ─── Detectar juego + nivel de coincidencia ────────────── */
+function detectGame(text: string): {
+  game: 'FC26' | 'EFOOTBALL' | 'UNKNOWN';
+  gameKeywordsFound: string[];
+  gameConfidence: number;
+} {
   const t = text.toLowerCase();
-  if (t.includes('fc ') || t.includes('ea sports') || t.includes('full time') && t.includes('fc'))
-    return 'FC26';
-  if (t.includes('efootball') || t.includes('e-football') || t.includes('konami'))
-    return 'EFOOTBALL';
-  return 'UNKNOWN';
+  const fc26Hits     = FC26_KEYWORDS.filter(k => t.includes(k));
+  const efbHits      = EFOOTBALL_KEYWORDS.filter(k => t.includes(k));
+
+  if (fc26Hits.length >= efbHits.length && fc26Hits.length > 0) {
+    return { game: 'FC26', gameKeywordsFound: fc26Hits, gameConfidence: Math.min(1, fc26Hits.length / 3) };
+  }
+  if (efbHits.length > 0) {
+    return { game: 'EFOOTBALL', gameKeywordsFound: efbHits, gameConfidence: Math.min(1, efbHits.length / 3) };
+  }
+  return { game: 'UNKNOWN', gameKeywordsFound: [], gameConfidence: 0 };
+}
+
+/* ─── Detectar si es pantalla de resultado real ─────────── */
+function isResultScreen(text: string, game: 'FC26' | 'EFOOTBALL' | 'UNKNOWN'): boolean {
+  const t = text.toLowerCase();
+  // Debe tener marcador visible
+  const hasScore = /\b\d\s*[-:]\s*\d\b/.test(t);
+  if (!hasScore) return false;
+  // Palabras que indican que es un menú, lobby o configuración (no un resultado)
+  const menuWords = ['settings', 'configuración', 'select', 'lobby', 'tournament bracket',
+                     'main menu', 'menú principal', 'create match', 'invitar', 'invite'];
+  const looksLikeMenu = menuWords.some(w => t.includes(w));
+  if (looksLikeMenu) return false;
+  // Para FC26: debe tener al menos "full time" o "match summary"
+  if (game === 'FC26') return t.includes('full time') || t.includes('match summary') || t.includes('resumen');
+  // Para eFootball: debe tener "match result" o "full time"
+  if (game === 'EFOOTBALL') return t.includes('match result') || t.includes('resultado') || t.includes('full time');
+  return hasScore;
 }
 
 /* ─── Extraer marcador del texto OCR ────────────────────── */
 function extractScore(text: string): string | null {
-  // Busca patrones como "3 - 0", "2-1", "1 : 0" etc.
-  const match = text.match(/\b(\d)\s*[-:]\s*(\d)\b/);
+  const match = text.match(/\b([0-9]{1,2})\s*[-:]\s*([0-9]{1,2})\b/);
   if (match) return `${match[1]}-${match[2]}`;
   return null;
 }
@@ -135,81 +177,155 @@ export async function POST(req: NextRequest) {
     /* Si no hay texto → imagen rara */
     const rawText = response?.fullTextAnnotation?.text ?? '';
     if (!rawText.trim()) {
-      return NextResponse.json({
-        verdict:    'SUSPICIOUS',
-        confidence: 0.1,
-        details:    'No se detectó texto en la imagen. Puede ser una foto editada o ilegible.',
+      const noTextResult = {
+        verdict:    'SUSPICIOUS' as Verdict,
+        confidence: 0.05,
+        details:    'No se detectó texto en la imagen. Puede ser una foto editada, en blanco o ilegible.',
         game:       null,
         scoreFound: null,
-      });
+      };
+      await logVisionResult(matchId, screenshotUrl, uid, rawText, noTextResult, match);
+      return NextResponse.json(noTextResult);
     }
 
-    /* Análisis */
-    const game        = detectGame(rawText);
-    const scoreFound  = extractScore(rawText);
-    const reportedScore = match.score ?? '';
+    /* ── Análisis completo ───────────────────────────────── */
+    const { game, gameKeywordsFound, gameConfidence } = detectGame(rawText);
+    const scoreFound    = extractScore(rawText);
+    const reportedScore = (match.score ?? '').replace(/\s/g, '');
     const { found1, found2 } = checkPlayerIds(rawText, match.p1_ea_id, match.p2_ea_id);
+    const resultScreen  = isResultScreen(rawText, game);
 
     const safeSearch = response?.safeSearchAnnotation;
     const isEdited   = safeSearch?.adult === 'LIKELY' || safeSearch?.adult === 'VERY_LIKELY';
 
-    /* Calcular confianza */
-    let confidence = 0.5;
-    if (game !== 'UNKNOWN') confidence += 0.15;
-    if (found1) confidence += 0.15;
-    if (found2) confidence += 0.15;
-    if (scoreFound && reportedScore && scoreFound === reportedScore) confidence += 0.2;
-    if (isEdited) confidence -= 0.4;
+    /* ── Calcular confianza ──────────────────────────────────
+     * Base: 0.30 (arranca neutral-bajo)
+     * +0.20 si se detectó el juego correctamente
+     * +0.10 por cada keyword de juego adicional (máx +0.20)
+     * +0.15 si parece pantalla de resultado (no menú)
+     * +0.10 si ID jugador 1 encontrado
+     * +0.10 si ID jugador 2 encontrado
+     * +0.15 si el marcador detectado coincide con el reportado
+     * -0.50 si imagen parece editada (SafeSearch)
+     * -0.30 si no es pantalla de resultado (menú, lobby, etc.)
+     * -0.20 si juego UNKNOWN (ninguna keyword reconocida)
+     */
+    let confidence = 0.30;
+    if (game !== 'UNKNOWN') confidence += 0.20 + Math.min(0.20, gameKeywordsFound.length * 0.05);
+    else                    confidence -= 0.20;
+    if (resultScreen)       confidence += 0.15;
+    else                    confidence -= 0.30;
+    if (found1)             confidence += 0.10;
+    if (found2)             confidence += 0.10;
+    if (scoreFound && reportedScore && scoreFound === reportedScore) confidence += 0.15;
+    if (isEdited)           confidence -= 0.50;
 
     confidence = Math.max(0, Math.min(1, confidence));
 
-    /* Veredicto */
+    /* ── Veredicto con umbral 80% ───────────────────────────
+     * >= 0.80 → OK     (pago automático)
+     * 0.40-0.79 → MANUAL (staff revisa)
+     * < 0.40 → SUSPICIOUS (alerta + Fair Play)
+     */
     let verdict: Verdict;
-    if (isEdited || confidence < 0.35) {
+    if (isEdited || confidence < 0.40) {
       verdict = 'SUSPICIOUS';
-    } else if (confidence >= 0.65) {
+    } else if (confidence >= 0.80) {
       verdict = 'OK';
     } else {
       verdict = 'MANUAL';
     }
 
-    /* Guardar resultado del BOT en el match */
+    const details = [
+      game !== 'UNKNOWN'
+        ? `Juego: ${game} (keywords: ${gameKeywordsFound.slice(0,4).join(', ')})`
+        : '⚠️ Juego no identificado — ninguna keyword reconocida en la imagen.',
+      resultScreen ? '✅ Pantalla de resultado detectada.' : '⚠️ No parece ser una pantalla de resultado.',
+      scoreFound ? `Marcador detectado: ${scoreFound}` : '⚠️ Marcador no legible.',
+      scoreFound && reportedScore
+        ? (scoreFound === reportedScore ? '✅ Coincide con el reportado.' : `❌ NO coincide — reportado: ${reportedScore}`)
+        : '',
+      found1 ? `✅ ID jugador 1 (${match.p1_ea_id}) encontrado.` : match.p1_ea_id ? `⚠️ ID jugador 1 NO encontrado.` : '',
+      found2 ? `✅ ID jugador 2 (${match.p2_ea_id}) encontrado.` : match.p2_ea_id ? `⚠️ ID jugador 2 NO encontrado.` : '',
+      isEdited ? '🚨 Imagen posiblemente editada (SafeSearch activado).' : '',
+    ].filter(Boolean).join(' | ');
+
+    const result = { verdict, confidence: Math.round(confidence * 100) / 100, details, game, scoreFound };
+
+    /* ── Guardar en match ───────────────────────────────── */
     await adminDb.collection('matches').doc(matchId).update({
       bot_verification: {
         verdict,
-        confidence: Math.round(confidence * 100) / 100,
+        confidence: result.confidence,
         game,
         scoreFound,
-        found1,
-        found2,
+        found1, found2,
+        resultScreen,
+        gameKeywordsFound,
         checkedAt: new Date().toISOString(),
       },
     });
 
-    /* Publicar en el chat general como BOT para transparencia */
-    const matchData = (await adminDb.collection('matches').doc(matchId).get()).data();
-    if (matchData) {
-      const botMsg = verdict === 'OK'
-        ? `✅ [BOT LFA] Resultado verificado automáticamente. Marcador detectado: **${scoreFound ?? 'N/D'}** | Juego: ${game} | Confianza: ${Math.round(confidence * 100)}%`
-        : verdict === 'SUSPICIOUS'
-          ? `🚨 [BOT LFA] Resultado marcado como SOSPECHOSO. Confianza: ${Math.round(confidence * 100)}%. Un moderador revisará el caso. Detalles: ${details}`
-          : `🔍 [BOT LFA] Revisión manual requerida para este resultado. Staff fue notificado.`;
+    /* ── Log para beta test ─────────────────────────────── */
+    await logVisionResult(matchId, screenshotUrl, uid, rawText, result, match);
 
-      await adminDb.collection('cantina_messages').add({
-        uid:             'BOT_LFA',
-        nombre:          '🤖 BOT LFA',
-        avatar_url:      null,
-        rol:             'bot',
-        texto:           botMsg,
-        is_bot_verify:   true,
-        verdict,
-        match_id:        matchId,
-        timestamp:       FieldValue.serverTimestamp(),
-        deleted:         false,
-      });
-    }
+    /* ── Publicar en cantina como BOT ─────────────────────── */
+    const confPct = Math.round(confidence * 100);
+    const botMsg = verdict === 'OK'
+      ? `✅ [BOT LFA] Resultado verificado. Marcador: **${scoreFound ?? 'N/D'}** | ${game} | Confianza: ${confPct}%`
+      : verdict === 'SUSPICIOUS'
+        ? `🚨 [BOT LFA] Resultado SOSPECHOSO (${confPct}%). ${isEdited ? 'Imagen posiblemente editada.' : !resultScreen ? 'No parece pantalla de resultado.' : 'Verificación fallida.'} Un moderador revisará el caso.`
+        : `🔍 [BOT LFA] Resultado con confianza media (${confPct}%). Requiere revisión manual del Staff. Detalles: ${details.slice(0,120)}`;
 
-    const details = [
+    await adminDb.collection('cantina_messages').add({
+      uid:           'BOT_LFA',
+      nombre:        '🤖 BOT LFA',
+      avatar_url:    null,
+      rol:           'bot',
+      texto:         botMsg,
+      is_bot_verify: true,
+      verdict,
+      match_id:      matchId,
+      timestamp:     FieldValue.serverTimestamp(),
+      deleted:       false,
+    });
+
+    return NextResponse.json(result);
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Error interno';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/* ─── Helper: guardar log para revisión del beta test ───── */
+async function logVisionResult(
+  matchId: string,
+  screenshotUrl: string,
+  uid: string,
+  rawText: string,
+  result: { verdict: string; confidence: number; details: string; game: string | null; scoreFound: string | null },
+  match: FirebaseFirestore.DocumentData,
+) {
+  try {
+    await adminDb.collection('vision_logs').add({
+      matchId,
+      screenshotUrl,
+      uid,
+      game:         result.game,
+      verdict:      result.verdict,
+      confidence:   result.confidence,
+      scoreFound:   result.scoreFound,
+      scoreReported: match.score ?? null,
+      details:      result.details,
+      rawTextLength: rawText.length,
+      rawTextSample: rawText.slice(0, 500), // primeros 500 chars para revisión
+      timestamp:    FieldValue.serverTimestamp(),
+    });
+  } catch {
+    // No bloquear el flujo si el log falla
+  }
+}
       game !== 'UNKNOWN' ? `Juego detectado: ${game}` : 'Juego no identificado en la imagen.',
       scoreFound        ? `Marcador detectado: ${scoreFound}` : 'Marcador no legible en la imagen.',
       found1 ? `ID jugador 1 (${match.p1_ea_id}) encontrado.` : match.p1_ea_id ? `ID jugador 1 NO encontrado.` : '',
