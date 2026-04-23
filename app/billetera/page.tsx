@@ -14,7 +14,7 @@ import { LfaCoin } from '@/app/_components/LfaCoin';
 // 1000 LFA Coins = 1 USDT
 const RATE        = 1000;         // coins por 1 USDT
 const MIN_DEPOSIT = 500;          // coins mínimo para depositar
-const MIN_RETIRO  = 10000;        // coins mínimo para retirar (10 USDT)
+const MIN_RETIRO  = 20000;        // coins mínimo para retirar (20 USDT)
 const FP_BLOQUEO  = 15;           // Fair Play mínimo para retirar (solo jugadores con muchos reportes)
 const BINANCE_ID  = 'somoslfa';   // ← Alias Binance Pay oficial LFA
 
@@ -349,10 +349,10 @@ export default function BilleteraPage() {
               <div style={{ background: 'linear-gradient(135deg,#161b22,rgba(243,186,47,0.04))', border: '1px solid rgba(243,186,47,0.2)', borderRadius: 16, padding: 'clamp(16px,3vw,22px)', marginBottom: 20 }}>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#f3ba2f', fontSize: '0.82rem', fontWeight: 900, marginBottom: 12 }}>₿ CÓMO DEPOSITAR VÍA BINANCE</div>
                 {[
-                  { n: '1', t: 'Enviá USDT a nuestra wallet', d: 'Red: TRC20 o BEP20 (BNB Smart Chain). Usá el ID o address de abajo.' },
-                  { n: '2', t: 'Copiá el TX Hash', d: 'Es el ID de la transacción que Binance te muestra al completar el envío.' },
-                  { n: '3', t: 'Completá el formulario', d: 'Ingresá la cantidad de coins que querés + el TX Hash + tu dirección Binance.' },
-                  { n: '4', t: 'Esperá la verificación', d: 'El equipo LFA verifica en hasta 24 hs. Las coins se acreditan automáticamente al aprobar.' },
+                  { n: '1', t: 'Enviá USDT a nuestra wallet', d: 'Binance Pay — alias somoslfa. También aceptamos TRC20 o BEP20. Escaneá el QR de abajo.' },
+                  { n: '2', t: 'Elegí tu pack de coins', d: 'Hacé clic en "RECARGAR COINS" y elegí el pack. Recibirás coins + bonus según el pack.' },
+                  { n: '3', t: 'Completá el formulario con comprobante', d: 'Ingresá el ID de referencia, tu alias Binance y adjuntá captura de pantalla del pago (obligatorio).' },
+                  { n: '4', t: 'Revisión manual CEO — hasta 24 hs', d: 'El equipo LFA verifica el comprobante y la transacción. Al aprobar, las coins se acreditan en tu cuenta.' },
                 ].map(s => (
                   <div key={s.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1c2028' }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(243,186,47,0.12)', border: '1px solid rgba(243,186,47,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#f3ba2f', fontSize: '0.7rem', flexShrink: 0 }}>{s.n}</div>
@@ -410,27 +410,14 @@ export default function BilleteraPage() {
                 </div>
               </div>
 
-              {/* Formulario */}
-              <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,22px)' }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.8rem', fontWeight: 900, marginBottom: 16 }}>📝 FORMULARIO DE DEPÓSITO</div>
-
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>CANTIDAD DE LFA COINS A ACREDITAR</label>
-                <input style={inp} type="number" min={MIN_DEPOSIT} step={100} placeholder={`Mínimo ${MIN_DEPOSIT} coins`} value={depCoins} onChange={e => setDepCoins(e.target.value)} />
-                {depNum >= MIN_DEPOSIT && (
-                  <div style={{ color: '#f3ba2f', fontSize: '0.75rem', marginTop: -8, marginBottom: 12 }}>
-                    Debés enviar: <strong>{depUsd} USDT</strong> ({depNum} coins × ${(1/RATE).toFixed(4)})
-                  </div>
-                )}
-
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700, marginTop: 10 }}>TX HASH (ID DE TRANSACCIÓN BINANCE)</label>
-                <input style={inp} type="text" placeholder="0x1a2b3c..." value={txHash} onChange={e => setTxHash(e.target.value)} />
-
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700, marginTop: 10 }}>TU DIRECCIÓN BINANCE (desde la que enviaste)</label>
-                <input style={inp} type="text" placeholder="Tu wallet address..." value={senderWallet} onChange={e => setSenderWallet(e.target.value)} />
-
-                <button className="subbtn" onClick={enviarDeposito} disabled={sending} style={{ marginTop: 18, width: '100%', padding: '14px', background: sending ? '#30363d' : '#f3ba2f', color: '#0b0e14', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.82rem', cursor: sending ? 'not-allowed' : 'pointer', transition: '0.2s', opacity: sending ? 0.6 : 1 }}>
-                  {sending ? '⏳ ENVIANDO...' : '⚡ CONFIRMAR DEPÓSITO'}
+              {/* CTA → /recargar */}
+              <div style={{ background: '#161b22', border: '1px solid rgba(243,186,47,0.3)', borderRadius: 16, padding: 'clamp(16px,3vw,22px)', textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.82rem', fontWeight: 900, marginBottom: 10 }}>⚡ RECARGAR COINS</div>
+                <p style={{ color: '#8b949e', fontSize: '0.78rem', margin: '0 0 18px' }}>Elegí tu pack, completá el formulario con comprobante y el equipo LFA verificará tu pago en hasta 24 hs.</p>
+                <button onClick={() => router.push('/recargar')} style={{ width: '100%', padding: '15px', background: '#f3ba2f', color: '#0b0e14', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.9rem', cursor: 'pointer', letterSpacing: 0.5 }}>
+                  ⚡ IR A RECARGAR COINS →
                 </button>
+                <p style={{ color: '#8b949e', fontSize: '0.68rem', marginTop: 12 }}>📸 Requiere comprobante (captura de pantalla del pago). Revisión manual CEO.</p>
               </div>
             </div>
           )}
@@ -445,8 +432,8 @@ export default function BilleteraPage() {
                 {[
                   { n: '1', t: `Mínimo ${MIN_RETIRO.toLocaleString()} coins`, d: `Equivale a $${(MIN_RETIRO/RATE).toFixed(0)} USDT. Los retiros solo se bloquean si tu Fair Play baja del ${FP_BLOQUEO}% por múltiples reportes.` },
                   { n: '2', t: 'Completá el formulario', d: 'Ingresá la cantidad de coins y tu dirección Binance (TRC20 o BEP20).' },
-                  { n: '3', t: 'Retiro automático', d: 'El sistema verifica tu cuenta y envía el USDT automáticamente a tu wallet en segundos.' },
-                  { n: '4', t: 'Tu saldo se descuenta al instante', d: 'Las coins se deducen en el momento de confirmar el retiro.' },
+                  { n: '3', t: 'Revisión manual CEO — hasta 24 hs', d: 'El equipo LFA verifica tu cuenta, historial y saldo antes de aprobar. Recibirás el USDT al aprobar.' },
+                  { n: '4', t: 'Las coins se reservan al confirmar', d: 'Al enviar la solicitud, las coins se descuentan de tu saldo y quedan retenidas hasta la resolución.' },
                 ].map(s => (
                   <div key={s.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1c2028' }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#ff4757', fontSize: '0.7rem', flexShrink: 0 }}>{s.n}</div>
@@ -460,7 +447,7 @@ export default function BilleteraPage() {
 
               {/* Formulario retiro */}
               <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,22px)' }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.8rem', fontWeight: 900, marginBottom: 16 }}>📝 FORMULARIO DE RETIRO</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.8rem', fontWeight: 900, marginBottom: 16 }}>📝 SOLICITAR RETIRO — REVISIÓN CEO</div>
 
                 <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>CANTIDAD DE LFA COINS A RETIRAR</label>
                 <input style={inp} type="number" min={MIN_RETIRO} max={coins} step={100} placeholder={`Mínimo ${MIN_RETIRO} coins — Saldo: ${coins.toLocaleString()}`} value={retCoins} onChange={e => setRetCoins(e.target.value)} />
