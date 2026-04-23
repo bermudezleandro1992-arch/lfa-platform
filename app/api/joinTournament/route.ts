@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
+import { writeLedgerEntry }          from '@/lib/ledger';
 
 const REGION_COMPAT: Record<string, string[]> = {
   LATAM_SUR:   ['LATAM_SUR',   'AMERICA', 'GLOBAL'],
@@ -113,19 +114,37 @@ export async function POST(req: NextRequest) {
       }
 
       const newPlayers = [...t.players, uid];
-      if (!isFree) tx.update(userRef, { number: FieldValue.increment(-t.entry_fee) });
+      let newBal: number;
+
+      if (!isFree) {
+        // Débito atómico con registro de ledger
+        const r = writeLedgerEntry(tx, userRef, uid, txCoins, {
+          type:         'TOURNAMENT_ENTRY',
+          amount:       -t.entry_fee,
+          reference_id: tournamentId,
+          description:  `Inscripción: ${t.name ?? t.game ?? tournamentId}`,
+        });
+        newBal = r.newBalance;
+      } else {
+        // FREE_ENTRY: sin movimiento de coins, solo log en ledger
+        const ledgerRef = adminDb.collection('transactions').doc();
+        const now = FieldValue.serverTimestamp();
+        tx.set(ledgerRef, {
+          userId: uid, type: 'FREE_ENTRY', amount: 0, status: 'completed',
+          balance_after: txCoins, reference_id: tournamentId,
+          description:  `Torneo gratuito: ${t.name ?? t.game ?? tournamentId}`,
+          timestamp: now, created_at: now, updated_at: now,
+        });
+        newBal = txCoins;
+      }
+
       tx.update(tournamentRef, { players: newPlayers });
-      tx.set(adminDb.collection('transactions').doc(), {
-        userId: uid, type: isFree ? 'FREE_ENTRY' : 'TOURNAMENT_ENTRY',
-        amount: isFree ? 0 : -t.entry_fee, tournamentId,
-        timestamp: FieldValue.serverTimestamp(),
-      });
 
       // Si tenía reserva pendiente, marcarla completada
       const reservaRef = adminDb.collection('reservas_torneo').doc(`${uid}_${tournamentId}`);
       tx.set(reservaRef, { estado: 'completado', completadoAt: FieldValue.serverTimestamp() }, { merge: true });
 
-      return { newBalance: isFree ? txCoins : txCoins - t.entry_fee };
+      return { newBalance: newBal };
     });
 
     return NextResponse.json({ success: true, newBalance: result.newBalance, message: '¡Inscripción exitosa!' });

@@ -25,6 +25,7 @@ import { FieldValue }                from 'firebase-admin/firestore';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { binanceWithdraw }           from '@/lib/binance';
 import type { BinanceNetwork }       from '@/lib/binance';
+import { writeLedgerEntry, updateLedgerStatus } from '@/lib/ledger';
 
 /* ─── Constantes ──────────────────────────────────── */
 const RATE            = 1_000;      // 1000 LFA Coins = 1 USDT
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
 
   /* 3 ── Transacción atómica: validar + descontar ── */
   let retiroRef: FirebaseFirestore.DocumentReference | null = null;
+  let ledgerTxId = '';
 
   try {
     await adminDb.runTransaction(async (tx) => {
@@ -128,12 +130,17 @@ export async function POST(req: NextRequest) {
         throw new Error(`Límite diario de $${DAILY_LIMIT_USDT} USDT alcanzado. Podés retirar hasta $${restante.toFixed(2)} USDT más hoy.`);
       }
 
-      // Descontar coins
-      tx.update(uRef, {
-        number: FieldValue.increment(-montoCoins),
+      // Débito atómico con registro de ledger (estado: pending hasta confirmar Binance)
+      const ledgerResult = writeLedgerEntry(tx, uRef, uid, balance, {
+        type:         'WITHDRAWAL_PENDING',
+        amount:       -montoCoins,
+        status:       'pending',
+        reference_id: '',   // se completa con TxID de Binance al confirmar
+        description:  `Retiro $${montoUSDT.toFixed(2)} USDT · ${network === 'TRX' ? 'TRC20' : 'BEP20'} · ${wallet.slice(0, 8)}...`,
       });
+      ledgerTxId = ledgerResult.ledgerTxId;
 
-      // Crear registro de retiro (estado: procesando)
+      // Crear registro de retiro (referencia al ledger)
       retiroRef = adminDb.collection('retiros').doc();
       tx.set(retiroRef, {
         uid,
@@ -145,19 +152,9 @@ export async function POST(req: NextRequest) {
         metodo:           `Binance USDT (${network === 'TRX' ? 'TRC20' : 'BEP20'})`,
         estado:           montoUSDT > MAX_USDT_AUTO ? 'aprobacion_manual' : 'procesando',
         binance_id:       null,
+        ledger_tx_id:     ledgerTxId,
         fecha:            FieldValue.serverTimestamp(),
         updated_at:       FieldValue.serverTimestamp(),
-      });
-
-      // Registrar transacción para auditoría
-      tx.set(adminDb.collection('transactions').doc(), {
-        userId:    uid,
-        type:      'RETIRO',
-        amount:    -montoCoins,
-        usd:       montoUSDT,
-        wallet,
-        network,
-        timestamp: FieldValue.serverTimestamp(),
       });
     });
   } catch (err: unknown) {
@@ -191,12 +188,18 @@ export async function POST(req: NextRequest) {
 
   /* 6 ── Resultado de Binance ───────────────────── */
   if (result.ok) {
-    // Actualizar estado a completado
-    await (retiroRef as FirebaseFirestore.DocumentReference).update({
-      estado:     'completado',
-      binance_id: result.id,
-      updated_at: FieldValue.serverTimestamp(),
-    });
+    // Marcar retiro como completado + confirmar ledger con TxID de Binance
+    await Promise.all([
+      (retiroRef as FirebaseFirestore.DocumentReference).update({
+        estado:     'completado',
+        binance_id: result.id,
+        updated_at: FieldValue.serverTimestamp(),
+      }),
+      updateLedgerStatus(ledgerTxId, 'completed', {
+        reference_id: result.id ?? '',
+        type:         'WITHDRAWAL_COMPLETED',
+      }),
+    ]);
 
     return NextResponse.json({
       ok:         true,
@@ -209,21 +212,27 @@ export async function POST(req: NextRequest) {
   /* 7 ── Binance falló → reembolsar coins ──────── */
   try {
     await adminDb.runTransaction(async (tx) => {
-      tx.update(uRef, { number: FieldValue.increment(montoCoins) });
-      tx.update(retiroRef as FirebaseFirestore.DocumentReference, {
-        estado:      'fallido',
-        error:       result.error ?? 'Error desconocido de Binance',
-        updated_at:  FieldValue.serverTimestamp(),
+      const uSnapRefund = await tx.get(uRef);
+      const currentBal  = (uSnapRefund.data()?.number ?? uSnapRefund.data()?.coins ?? 0) as number;
+
+      // Reembolso atómico con ledger
+      writeLedgerEntry(tx, uRef, uid, currentBal, {
+        type:         'WITHDRAWAL_REFUND',
+        amount:       montoCoins,
+        reference_id: ledgerTxId,
+        description:  `Reembolso retiro fallido: ${result.error ?? 'Error Binance'}`,
       });
-      // Transacción de devolución
-      tx.set(adminDb.collection('transactions').doc(), {
-        userId:    uid,
-        type:      'RETIRO_REEMBOLSO',
-        amount:    montoCoins,
-        razon:     result.error ?? 'Error Binance',
-        timestamp: FieldValue.serverTimestamp(),
+
+      tx.update(retiroRef as FirebaseFirestore.DocumentReference, {
+        estado:     'fallido',
+        error:      result.error ?? 'Error desconocido de Binance',
+        updated_at: FieldValue.serverTimestamp(),
       });
     });
+    // Marcar el ledger pendiente como rechazado
+    await updateLedgerStatus(ledgerTxId, 'rejected', {
+      error: result.error ?? 'Error Binance',
+    }).catch(() => {});
   } catch { /* Si el reembolso falla, el CEO_UID debe revisarlo manualmente */ }
 
   // Notificar al CEO para revisión manual (log en Firestore)

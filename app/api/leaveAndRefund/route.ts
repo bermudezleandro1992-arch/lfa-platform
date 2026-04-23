@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
+import { writeLedgerEntry }          from '@/lib/ledger';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,14 +40,14 @@ export async function POST(req: NextRequest) {
 
       // Reembolso de coins si no era FREE
       if (t.entry_fee > 0) {
-        const coins = u.number ?? u.coins ?? 0;
-        tx.update(uRef, { number: coins + t.entry_fee });
-        tx.set(adminDb.collection('transactions').doc(), {
-          userId:       uid,
+        const txBalance = (u.number ?? u.coins ?? 0) as number;
+        // writeLedgerEntry corrige el race condition anterior (se usaba valor leído
+        // fuera de la tx). Ahora el saldo se lee y actualiza atómicamente.
+        writeLedgerEntry(tx, uRef, uid, txBalance, {
           type:         'REFUND',
           amount:       t.entry_fee,
-          tournamentId,
-          timestamp:    FieldValue.serverTimestamp(),
+          reference_id: tournamentId,
+          description:  `Reembolso: salida de torneo ${t.name ?? tournamentId}`,
         });
       }
     });
