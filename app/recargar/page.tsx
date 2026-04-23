@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '@/lib/firebase';
 import { LfaCoin } from '@/app/_components/LfaCoin';
 
 /* ─── Constantes ─────────────────────────────────────── */
@@ -100,7 +101,9 @@ export default function RecargarPage() {
   const [ready,       setReady]       = useState(false);
   const [selected,    setSelected]    = useState<PackId | null>(null);
   const [txHash,      setTxHash]      = useState('');
+  const [refId,       setRefId]       = useState('');
   const [senderWallet,setSenderWallet]= useState('');
+  const [comprobante, setComprobante] = useState<File | null>(null);
   const [sending,     setSending]     = useState(false);
   const [msg,         setMsg]         = useState('');
   const [copied,      setCopied]      = useState<'alias'|''>('');
@@ -137,11 +140,23 @@ export default function RecargarPage() {
   /* ── Enviar solicitud ────────────────────────────── */
   const enviar = useCallback(async () => {
     setMsg('');
-    if (!pack)              return setMsg('❌ Seleccioná un pack primero');
-    if (!txHash.trim())     return setMsg('❌ Ingresá el TX Hash de tu transacción Binance');
-    if (!senderWallet.trim()) return setMsg('❌ Ingresá tu dirección Binance de origen');
+    if (!pack)                return setMsg('❌ Seleccioná un pack primero');
+    if (!txHash.trim())       return setMsg('❌ Ingresá el TX Hash / ID de referencia de tu pago');
+    if (!senderWallet.trim()) return setMsg('❌ Ingresá tu ID o dirección Binance de origen');
+    if (!comprobante)         return setMsg('❌ Adjuntá el comprobante (captura de pantalla del pago)');
+
+    const ALLOWED = ['image/jpeg','image/png','image/webp'];
+    if (!ALLOWED.includes(comprobante.type)) return setMsg('❌ El comprobante debe ser JPG, PNG o WebP.');
+    if (comprobante.size > 5 * 1024 * 1024)  return setMsg('❌ El comprobante no puede superar 5 MB.');
+
     setSending(true);
     try {
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const { storage } = await import('@/lib/firebase');
+      const storageRef = ref(storage, `comprobantes/${uid}/${Date.now()}_${comprobante.name.replace(/[^a-z0-9.]/gi,'_')}`);
+      await uploadBytes(storageRef, comprobante, { contentType: comprobante.type });
+      const comprobante_url = await getDownloadURL(storageRef);
+
       await addDoc(collection(db, 'pagos_pendientes'), {
         uid,
         jugador_nombre:  userData?.nombre || '',
@@ -153,17 +168,19 @@ export default function RecargarPage() {
         pack_label:      pack.label,
         metodo:          'Binance Pay',
         tx_hash:         txHash.trim(),
+        referencia_id:   refId.trim(),
         sender_id:       senderWallet.trim(),
+        comprobante_url,
         estado:          'pendiente',
         fecha:           serverTimestamp(),
       });
-      setMsg(`✅ ¡Solicitud enviada! El equipo LFA verificará tu pago de $${pack.usd} USDT en hasta 24 hs. Al aprobar, recibirás 🪙${totalCoins.toLocaleString()} coins.`);
-      setTxHash(''); setSenderWallet(''); setSelected(null);
+      setMsg(`✅ ¡Solicitud enviada! Verificaremos tu pago de $${pack.usd} USDT en hasta 24 hs. Al aprobar recibirás 🪙${totalCoins.toLocaleString()} coins.`);
+      setTxHash(''); setRefId(''); setSenderWallet(''); setSelected(null); setComprobante(null);
     } catch {
       setMsg('❌ Error al enviar la solicitud. Intentá de nuevo.');
     }
     setSending(false);
-  }, [pack, uid, userData, txHash, senderWallet, totalCoins]);
+  }, [pack, uid, userData, txHash, refId, senderWallet, comprobante, totalCoins]);
 
   if (!ready || !userData) return <Spinner />;
 
@@ -399,14 +416,41 @@ export default function RecargarPage() {
                 />
                 <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 14 }}>Binance → Pay → Historial → la transacción → "ID de referencia"</div>
 
+                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.7rem', fontWeight: 700, marginBottom: 6 }}>TX HASH (OPCIONAL — si pagaste por blockchain)</label>
+                <input
+                  style={{ width: '100%', padding: '11px 14px', background: '#0b0e14', border: '1px solid #30363d', color: 'white', borderRadius: 10, outline: 'none', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box', marginBottom: 14 }}
+                  type="text"
+                  placeholder="0x... o TXID de la red blockchain"
+                  value={refId}
+                  onChange={e => setRefId(e.target.value)}
+                />
+
                 <label style={{ display: 'block', color: '#8b949e', fontSize: '0.7rem', fontWeight: 700, marginBottom: 6 }}>TU ALIAS O EMAIL DE BINANCE (para identificarte)</label>
                 <input
-                  style={{ width: '100%', padding: '11px 14px', background: '#0b0e14', border: '1px solid #30363d', color: 'white', borderRadius: 10, outline: 'none', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box', marginBottom: 18 }}
+                  style={{ width: '100%', padding: '11px 14px', background: '#0b0e14', border: '1px solid #30363d', color: 'white', borderRadius: 10, outline: 'none', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box', marginBottom: 14 }}
                   type="text"
                   placeholder="tu-alias-Binance o email@ejemplo.com"
                   value={senderWallet}
                   onChange={e => setSenderWallet(e.target.value)}
                 />
+
+                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.7rem', fontWeight: 700, marginBottom: 6 }}>
+                  📸 COMPROBANTE DE PAGO <span style={{ color: '#ff4757' }}>*OBLIGATORIO*</span>
+                </label>
+                <label style={{ display: 'block', cursor: 'pointer' }}>
+                  <div style={{ width: '100%', padding: '14px', background: comprobante ? 'rgba(0,255,136,0.06)' : '#0b0e14', border: `2px dashed ${comprobante ? '#00ff88' : '#30363d'}`, borderRadius: 10, textAlign: 'center', color: comprobante ? '#00ff88' : '#8b949e', fontSize: '0.8rem', boxSizing: 'border-box', marginBottom: 6, transition: '0.2s' }}>
+                    {comprobante
+                      ? `✅ ${comprobante.name} (${(comprobante.size/1024).toFixed(0)} KB)`
+                      : '📁 Hacé clic para subir captura de pantalla del pago'}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={e => setComprobante(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 18 }}>Captura de pantalla de Binance Pay mostrando el pago enviado. JPG, PNG o WebP. Máx 5 MB.</div>
 
                 {msg && (
                   <div style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 14, background: msg.startsWith('✅') ? 'rgba(0,255,136,0.08)' : 'rgba(255,71,87,0.08)', border: `1px solid ${msg.startsWith('✅') ? 'rgba(0,255,136,0.3)' : 'rgba(255,71,87,0.3)'}`, color: msg.startsWith('✅') ? '#00ff88' : '#ff4757', fontSize: '0.8rem' }}>

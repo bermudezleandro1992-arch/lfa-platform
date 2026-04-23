@@ -37,8 +37,9 @@ interface Retiro {
   fecha?: { toDate?: () => Date }; uid?: string;
 }
 interface PagoManual {
-  id: string; jugador_nombre?: string; uid?: string; coins?: number;
-  usd?: number; metodo?: string; comprobante_url?: string;
+  id: string; jugador_nombre?: string; uid?: string; coins?: number; coins_total?: number;
+  usd?: number; metodo?: string; comprobante_url?: string; pack_label?: string;
+  tx_hash?: string; referencia_id?: string; sender_id?: string;
 }
 interface Evidencia {
   id: string; imagen_url?: string; sala_id?: string;
@@ -115,6 +116,7 @@ export default function CeoPage() {
   const [ganancias,  setGanancias]  = useState(0);
   const [visitas,    setVisitas]    = useState(0);
   const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
+  const [tesoreria,  setTesoreria]  = useState<{usdt_total?:number;usdt_retirado?:number;usdt_pendiente_retiro?:number;depositos_count?:number}>({});
 
   /* ── Disputas ────────────────────────────────────────────── */
   interface Disputa {
@@ -215,6 +217,10 @@ export default function CeoPage() {
       if (d.exists()) setSpawnerCfg(d.data() as SpawnerConfig);
     }));
 
+    subs.push(onSnapshot(doc(db,'configuracion','tesoreria'), d => {
+      if (d.exists()) setTesoreria(d.data() as typeof tesoreria);
+    }));
+
     subs.push(onSnapshot(doc(db,'configuracion','ip_blacklist'), d => {
       if (d.exists()) setIpBlacklist((d.data() as { ips?: string[] }).ips ?? []);
     }));
@@ -241,15 +247,27 @@ export default function CeoPage() {
     modal.current!.mostrarAlerta(t, m, tipo), []);
 
   /* ── Pagos / Retiros ─────────────────────────────────────── */
-  async function aprobarPago(id: string, uid: string, coins: number) {
-    const ok = await alerta('CONFIRMAR', `Aprobar 🪙${coins} para UID ${uid.slice(0,8)}?`, 'info');
+  async function aprobarPago(id: string, uid: string, coins: number, usd: number, txHash?: string, refId?: string) {
+    const ok = await alerta('CONFIRMAR DEPÓSITO',
+      `Aprobando 🪙${coins.toLocaleString()} (${usd} USDT) para UID ${uid.slice(0,8)}...\n\nTX: ${txHash || '—'}\nRef: ${refId || '—'}\n\n¿Verificaste el comprobante y la transacción en Binance?`,
+      'info');
     if (!ok) return;
     const b = writeBatch(db);
     b.update(doc(db,'usuarios',uid), { number: increment(coins) });
-    b.update(doc(db,'pagos_pendientes',id), { estado: 'aprobado' });
-    await b.commit(); await alerta('APROBADO', 'Coins acreditadas.', 'exito');
+    b.update(doc(db,'pagos_pendientes',id), { estado: 'aprobado', aprobado_at: serverTimestamp() });
+    // Sumar al fondo de tesorería
+    b.set(doc(db,'configuracion','tesoreria'), { usdt_total: increment(usd), depositos_count: increment(1) }, { merge: true });
+    await b.commit();
+    // Registrar en historial de transacciones del usuario
+    await addDoc(collection(db,'transactions'), {
+      userId: uid, type: 'DEPOSIT', amount: coins, status: 'completed',
+      balance_after: 0, // el ledger lo calculará en el próximo ciclo
+      reference_id: id, description: `Depósito aprobado: $${usd} USDT → 🪙${coins}`,
+      timestamp: serverTimestamp(), created_at: serverTimestamp(), updated_at: serverTimestamp(),
+    });
+    await alerta('APROBADO', `🪙${coins.toLocaleString()} coins acreditadas. Tesorería +$${usd} USDT.`, 'exito');
   }
-  async function rechazarPago(id: string) { await updateDoc(doc(db,'pagos_pendientes',id), { estado: 'rechazado' }); }
+  async function rechazarPago(id: string) { await updateDoc(doc(db,'pagos_pendientes',id), { estado: 'rechazado', rechazado_at: serverTimestamp() }); }
   async function marcarRetiroPagado(id: string) { await updateDoc(doc(db,'retiros',id), { estado: 'completado' }); await alerta('LISTO','Retiro marcado como pagado.','exito'); }
   async function rechazarRetiro(id: string, uid: string, monto: number) {
     const b = writeBatch(db);
@@ -546,6 +564,40 @@ export default function CeoPage() {
               ))}
             </div>
 
+            {/* Tesorería USDT */}
+            {(() => {
+              const total    = tesoreria.usdt_total || 0;
+              const retirado = tesoreria.usdt_retirado || 0;
+              const pendRet  = tesoreria.usdt_pendiente_retiro || 0;
+              const disponible = Math.max(0, total - retirado - pendRet);
+              const pct = total > 0 ? Math.round((disponible / total) * 100) : 0;
+              const clr = pct > 50 ? '#00ff88' : pct > 20 ? '#f3ba2f' : '#ff4757';
+              return (
+                <div style={{ ...card, borderColor:'#009ee3', marginBottom:24 }}>
+                  <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', fontSize:'0.82rem', marginBottom:14 }}>💰 TESORERÍA USDT</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:12, marginBottom:14 }}>
+                    {[
+                      { l:'DEPOSITADO TOTAL', v:`$${total.toFixed(2)}`,     c:'#00ff88' },
+                      { l:'RETIRADO',         v:`$${retirado.toFixed(2)}`,  c:'#ff4757' },
+                      { l:'PEND. RETIRO',     v:`$${pendRet.toFixed(2)}`,   c:'#f3ba2f' },
+                      { l:'DISPONIBLE',       v:`$${disponible.toFixed(2)}`,c: clr },
+                    ].map(k => (
+                      <div key={k.l} style={{ background:'rgba(0,0,0,0.3)', borderRadius:10, padding:'10px 14px', borderLeft:`3px solid ${k.c}` }}>
+                        <div style={{ color:'#8b949e', fontSize:'0.6rem', fontFamily:"'Orbitron',sans-serif", marginBottom:4 }}>{k.l}</div>
+                        <div style={{ color:k.c, fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'1.1rem' }}>{k.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ height:8, background:'#30363d', borderRadius:99, overflow:'hidden' }}>
+                    <div style={{ width:`${pct}%`, height:'100%', background:clr, borderRadius:99, transition:'width 0.5s' }} />
+                  </div>
+                  <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:6 }}>
+                    {pct}% disponible · {tesoreria.depositos_count||0} depósitos aprobados · <span style={{ color: disponible < 50 ? '#ff4757' : '#8b949e' }}>{disponible < 50 ? '⚠️ SALDO BAJO' : '✅ SALDO OK'}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Últimas salas */}
             <div style={{ ...card, padding:0, overflow:'hidden' }}>
               <div style={{ padding:'12px 18px', borderBottom:'1px solid #30363d', fontFamily:"'Orbitron',sans-serif", color:'#00ff88', fontSize:'0.82rem' }}>🎮 ÚLTIMAS SALAS ABIERTAS</div>
@@ -814,17 +866,26 @@ export default function CeoPage() {
                   {data.length === 0
                     ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin pendientes ✓</p>
                     : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem' }}>
-                        <thead><tr>{['JUGADOR','MONTO','COMP.','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                        <thead><tr>{['JUGADOR','PACK / MONTO','TX / REF','COMP.','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
                         <tbody>
                           {data.map(p => (
                             <tr key={p.id} className="crow">
-                              <td style={td}><b>{(p.jugador_nombre||'').toUpperCase()}</b><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{(p.uid||'').slice(0,8)}</span></td>
-                              <td style={{ ...td, color:'#ffd700' }}>🪙{p.coins}<br/><span style={{ color:'#ccc', fontSize:'0.68rem' }}>${p.usd} | {p.metodo}</span></td>
-                              <td style={td}>{p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>—</span>}</td>
+                              <td style={td}><b>{(p.jugador_nombre||'').toUpperCase()}</b><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{(p.uid||'').slice(0,8)}</span><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{p.sender_id || '—'}</span></td>
+                              <td style={{ ...td, color:'#ffd700' }}>
+                                🪙{(p.coins_total||p.coins||0).toLocaleString()}<br/>
+                                <span style={{ color:'#ccc', fontSize:'0.68rem' }}>${p.usd} USDT · {p.pack_label || p.metodo}</span>
+                              </td>
+                              <td style={td}>
+                                <div style={{ fontSize:'0.68rem', fontFamily:'monospace', color:'#009ee3', wordBreak:'break-all', maxWidth:140 }}>
+                                  {p.tx_hash ? <span title={p.tx_hash}>🔑 {p.tx_hash.slice(0,18)}…</span> : <span style={{ color:'#555' }}>—</span>}
+                                </div>
+                                {p.referencia_id && <div style={{ fontSize:'0.65rem', fontFamily:'monospace', color:'#8b949e', marginTop:2 }}>ref: {p.referencia_id.slice(0,16)}</div>}
+                              </td>
+                              <td style={td}>{p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄 VER</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>❌ SIN COMP.</span>}</td>
                               <td style={td}>
                                 <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                                  <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => aprobarPago(p.id,p.uid!,p.coins!)}>✅</button>
-                                  <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarPago(p.id)}>✕</button>
+                                  <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => aprobarPago(p.id,p.uid!,p.coins_total||p.coins!,p.usd||0,p.tx_hash,p.referencia_id)}>✅ APROBAR</button>
+                                  <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarPago(p.id)}>✕ RECHAZAR</button>
                                 </div>
                               </td>
                             </tr>
