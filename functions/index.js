@@ -954,7 +954,10 @@ async function aplicarPenalizacionPuntos(uid, penaltyPct, motivo) {
     }
 }
 
- = onDocumentUpdated("torneos/{torneoId}", async (event) => {
+// ==========================================
+// 🚀 9️⃣ AUTO-SPAWNER (CREADOR AUTOMÁTICO DE SALAS)
+// ==========================================
+exports.autoSpawnerSalas = onDocumentUpdated("torneos/{torneoId}", async (event) => {
     const dataAntes = event.data.before.data();
     const dataDespues = event.data.after.data();
 
