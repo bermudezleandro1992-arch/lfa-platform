@@ -13,6 +13,7 @@ const REGION_COMPAT: Record<string, string[]> = {
 const RESERVA_TTL_MS = 15 * 60 * 1000; // 15 minutos para completar el depósito
 
 export async function POST(req: NextRequest) {
+  let idempotencyKey = '';
   try {
     // Verificar token
     const authHeader = req.headers.get('authorization') ?? '';
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     // ── IDEMPOTENCIA: bloquear doble-clic con doc único ──────────────
     // Si ya existe este doc, la inscripción está en progreso o fue completada
-    const idempotencyKey = `${uid}_${tournamentId}`;
+    idempotencyKey = `${uid}_${tournamentId}`;
     const idempotencyRef = adminDb.collection('join_locks').doc(idempotencyKey);
     const lockSnap = await idempotencyRef.get();
     if (lockSnap.exists) {
