@@ -41,6 +41,7 @@ const PRIZES: PrizeItem[] = [
 
   /* ── Premio mensual ───────────────────────────────── */
   { id: 'mvp-month',   emoji: '👑', name: 'Premio Mejor Jugador del Mes', category: 'ESPECIAL', points: null, color: '#f3ba2f', soon: true },
+  { id: 'liga-1vs1',   emoji: '⚽', name: 'Liga 1vs1 (Torneo gratuito)',  category: 'ENTRADAS',  points: null, color: '#00ff88', soon: true },
 ];
 
 const CATEGORIES = ['TODOS', 'MONEDAS', 'ENTRADAS', 'VIDEOJUEGOS', 'HARDWARE', 'CONSOLAS', 'ESPECIAL'];
@@ -59,6 +60,7 @@ export default function TiendaPage() {
 
   const [uid,       setUid]       = useState('');
   const [points,    setPoints]    = useState<number>(0);
+  const [fairPlay,  setFairPlay]  = useState<number>(100);
   const [ready,     setReady]     = useState(false);
   const [filter,    setFilter]    = useState('TODOS');
 
@@ -74,7 +76,10 @@ export default function TiendaPage() {
   useEffect(() => {
     if (!uid) return;
     const unsub = onSnapshot(doc(db, 'usuarios', uid), snap => {
-      if (snap.exists()) setPoints((snap.data().puntos_gratis ?? 0) as number);
+      if (snap.exists()) {
+        setPoints((snap.data().puntos_gratis ?? 0) as number);
+        setFairPlay((snap.data().fair_play ?? 100) as number);
+      }
     });
     return unsub;
   }, [uid]);
@@ -128,7 +133,26 @@ export default function TiendaPage() {
             </div>
           </div>
 
-          {/* ── CÓMO GANAR PUNTOS ──────────────────── */}
+          {/* ── ALERTA FAIR PLAY BAJO ──────────────── */}
+          {fairPlay < 70 && (
+            <div style={{ background: 'rgba(255,71,87,0.08)', border: '2px solid rgba(255,71,87,0.4)', borderRadius: 16, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.75rem', fontWeight: 900, color: '#ff4757', marginBottom: 6 }}>
+                  FAIR PLAY BAJO — ESTÁS PERDIENDO PUNTOS
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#ccc', lineHeight: 1.6 }}>
+                  Tu Fair Play está en <strong style={{ color: '#ff4757' }}>{fairPlay}%</strong>. Mientras esté por debajo de 70%, el sistema descuenta puntos de tu tienda automáticamente cada vez que el staff registra una infracción.
+                  {' '}{fairPlay >= 60 ? <span>(<strong style={{ color: '#ff4757' }}>-5% de tus puntos</strong> por penalización)</span> : fairPlay >= 50 ? <span>(<strong style={{ color: '#ff4757' }}>-10% de tus puntos</strong> por penalización)</span> : fairPlay >= 40 ? <span>(<strong style={{ color: '#ff4757' }}>-15% de tus puntos</strong> por penalización)</span> : fairPlay >= 30 ? <span>(<strong style={{ color: '#ff4757' }}>-20% de tus puntos</strong> por penalización)</span> : <span>(<strong style={{ color: '#ff4757' }}>-30% de tus puntos</strong> por penalización)</span>}
+                </div>
+                <div style={{ marginTop: 8, fontSize: '0.72rem', color: '#8b949e' }}>
+                  Mejorá tu conducta: jugá torneos, reportá resultados correctamente y verificá los de tu rival.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── CÓMO GANAR PUNTOS ──────────────────── */
           <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,24px)', marginBottom: 28 }}>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.78rem', fontWeight: 900, marginBottom: 16 }}>
               ⭐ ¿CÓMO GANAR PUNTOS?
@@ -155,7 +179,35 @@ export default function TiendaPage() {
             </div>
           </div>
 
-          {/* ── FILTROS ─────────────────────────────── */}
+          {/* ── PENALIZACIÓN FAIR PLAY ───────────── */}
+          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,24px)', marginBottom: 28 }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.78rem', fontWeight: 900, marginBottom: 16 }}>
+              ⚠️ PENALIZACIÓN POR FAIR PLAY BAJO
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#8b949e', marginBottom: 16, lineHeight: 1.6 }}>
+              Si tu Fair Play cae por debajo del <strong style={{ color: 'white' }}>70%</strong> por conducta antideportiva (fraude, abandono, no reportar), el sistema descuenta automáticamente un porcentaje de tus puntos acumulados.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,200px),1fr))', gap: 10 }}>
+              {[
+                { range: '60% – 69%', penalty: '-5%',  label: '🟡 ALERTA',  color: '#f3ba2f' },
+                { range: '50% – 59%', penalty: '-10%', label: '🟠 MODERADO', color: '#ff9f43' },
+                { range: '40% – 49%', penalty: '-15%', label: '🔴 ALTO',     color: '#ff4757' },
+                { range: '30% – 39%', penalty: '-20%', label: '🔴 MUY ALTO', color: '#ff2d3a' },
+                { range: 'Menos de 30%', penalty: '-30%', label: '🚨 CRÍTICO', color: '#c0392b' },
+              ].map(t => (
+                <div key={t.range} style={{ background: '#0b0e14', border: `1px solid ${t.color}30`, borderLeft: `3px solid ${t.color}`, borderRadius: 10, padding: '10px 14px' }}>
+                  <div style={{ fontSize: '0.65rem', fontFamily: "'Orbitron',sans-serif", color: '#8b949e', marginBottom: 4 }}>{t.label}</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'white', marginBottom: 2 }}>FP {t.range}</div>
+                  <div style={{ fontSize: '0.82rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: t.color }}>{t.penalty} puntos</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, fontSize: '0.72rem', color: '#8b949e', borderTop: '1px solid #30363d', paddingTop: 12 }}>
+              Los puntos <strong style={{ color: 'white' }}>nunca bajan de 0</strong>. Podés recuperar tu Fair Play participando correctamente en los torneos.
+            </div>
+          </div>
+
+          {/* ── FILTROS ─────────────────────────────── */
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
             {CATEGORIES.map(cat => (
               <button

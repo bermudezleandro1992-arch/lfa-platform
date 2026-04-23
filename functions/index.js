@@ -641,10 +641,18 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
 
                     if (esDerrota) {
                         await snap.ref.update({ estado: 'fraude', marcador_leido: 'Intento de subir Derrota' });
-                        await db.collection('usuarios').doc(u_id).update({ fair_play: admin.firestore.FieldValue.increment(-15) });
+                        const userSnapFP = await db.collection('usuarios').doc(u_id).get();
+                        const fpActual   = userSnapFP.exists ? (userSnapFP.data().fair_play ?? 100) : 100;
+                        const nuevoFP    = Math.max(0, fpActual - 15);
+                        await db.collection('usuarios').doc(u_id).update({ fair_play: nuevoFP });
+                        // Penalizar puntos de tienda si FP cae por debajo de 70
+                        if (nuevoFP < 70) {
+                            const penPct = nuevoFP >= 60 ? 0.05 : nuevoFP >= 50 ? 0.10 : nuevoFP >= 40 ? 0.15 : nuevoFP >= 30 ? 0.20 : 0.30;
+                            await aplicarPenalizacionPuntos(u_id, penPct, 'Subió captura de derrota (fraude detectado por VAR LFA)');
+                        }
                         return chat_ref.add({ 
                             autorId: 'BOT', autorNombre: '🤖 VAR LFA', tipo: 'alerta', 
-                            texto: `🚨 <b>¡VAR LFA INTERVIENE!</b><br>@${nombre} subió una captura de DERROTA. ¡Solo el ganador reporta!<br><b>(-15% Fair Play)</b>`, 
+                            texto: `🚨 <b>¡VAR LFA INTERVIENE!</b><br>@${nombre} subió una captura de DERROTA. ¡Solo el ganador reporta!<br><b>(-15% Fair Play${nuevoFP < 70 ? ' + penalización puntos Tienda' : ''})</b>`, 
                             timestamp: admin.firestore.FieldValue.serverTimestamp() 
                         });
                     }
@@ -743,8 +751,15 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
 
         if (fraude) {
             await snap.ref.update({ estado: 'fraude', marcador_leido: motivo_fraude });
-            await db.collection('usuarios').doc(u_id).update({ fair_play: admin.firestore.FieldValue.increment(-15) });
-            return chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 VAR LFA', tipo: 'alerta', texto: `🚨 ANÁLISIS RECHAZADO: ${motivo_fraude}<br><b>(-15% Puntos de Fair Play)</b>`, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+            const userSnapFraude = await db.collection('usuarios').doc(u_id).get();
+            const fpActualFraude = userSnapFraude.exists ? (userSnapFraude.data().fair_play ?? 100) : 100;
+            const nuevoFPFraude  = Math.max(0, fpActualFraude - 15);
+            await db.collection('usuarios').doc(u_id).update({ fair_play: nuevoFPFraude });
+            if (nuevoFPFraude < 70) {
+                const penPct = nuevoFPFraude >= 60 ? 0.05 : nuevoFPFraude >= 50 ? 0.10 : nuevoFPFraude >= 40 ? 0.15 : nuevoFPFraude >= 30 ? 0.20 : 0.30;
+                await aplicarPenalizacionPuntos(u_id, penPct, `Fraude detectado por VAR LFA: ${motivo_fraude}`);
+            }
+            return chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 VAR LFA', tipo: 'alerta', texto: `🚨 ANÁLISIS RECHAZADO: ${motivo_fraude}<br><b>(-15% Fair Play${nuevoFPFraude < 70 ? ' + penalización puntos Tienda' : ''})</b>`, timestamp: admin.firestore.FieldValue.serverTimestamp() });
         }
 
         // ✅ RESULTADO VÁLIDO — Actualizar según formato del torneo
@@ -845,21 +860,101 @@ exports.modificarFairPlay = functions.https.onRequest(async (req, res) => {
 
     try {
         const uidReal = await verificarIdentidad(req);
-        // 🛡️ VALIDACIÓN REAL DE ADMIN EN SERVER
         await verificarAdmin(uidReal);
         
         const { jugadorUid, nuevoPuntaje } = req.body;
-        const userRef = db.collection('usuarios').doc(jugadorUid);
-        await userRef.update({ fair_play: parseInt(nuevoPuntaje) });
-        
-        res.json({ success: true, mensaje: `Fair Play actualizado a ${nuevoPuntaje}%` });
+        const nuevoFP = parseInt(nuevoPuntaje);
+
+        const userRef  = db.collection('usuarios').doc(jugadorUid);
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) throw new Error('Usuario no encontrado.');
+
+        const userData   = userSnap.data();
+        const anteriorFP = userData.fair_play ?? 100;
+        const puntosActuales = userData.puntos_gratis ?? 0;
+
+        const updates = { fair_play: nuevoFP };
+
+        /* ── Penalización de puntos de tienda por Fair Play bajo ──
+         * Solo aplica si el fair_play CAE por debajo de 70 (racha mala).
+         * Escala progresiva:
+         *   FP 60-69 → -5%  de los puntos actuales
+         *   FP 50-59 → -10%
+         *   FP 40-49 → -15%
+         *   FP 30-39 → -20%
+         *   FP < 30  → -30%
+         * Solo descuenta si el nuevo FP es MENOR al anterior (el CEO lo bajó).
+         */
+        if (nuevoFP < anteriorFP && nuevoFP < 70 && puntosActuales > 0) {
+            let penaltyPct = 0;
+            if      (nuevoFP >= 60) penaltyPct = 0.05;
+            else if (nuevoFP >= 50) penaltyPct = 0.10;
+            else if (nuevoFP >= 40) penaltyPct = 0.15;
+            else if (nuevoFP >= 30) penaltyPct = 0.20;
+            else                    penaltyPct = 0.30;
+
+            const puntosDescontados = Math.ceil(puntosActuales * penaltyPct);
+            const nuevosPuntos      = Math.max(0, puntosActuales - puntosDescontados);
+            updates.puntos_gratis   = nuevosPuntos;
+
+            // Registrar la penalización en un log
+            await db.collection('puntos_log').add({
+                uid:          jugadorUid,
+                tipo:         'PENALIZACION_FAIR_PLAY',
+                puntos_antes: puntosActuales,
+                puntos_despues: nuevosPuntos,
+                descontados:  puntosDescontados,
+                fair_play_anterior: anteriorFP,
+                fair_play_nuevo:    nuevoFP,
+                porcentaje_penalty: penaltyPct * 100,
+                aplicado_por: uidReal,
+                timestamp:    admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+
+        await userRef.update(updates);
+
+        res.json({
+            success: true,
+            mensaje: `Fair Play actualizado a ${nuevoFP}%.${updates.puntos_gratis !== undefined ? ` Penalización aplicada: -${Math.ceil((puntosActuales - updates.puntos_gratis) / puntosActuales * 100)}% de puntos de tienda (${puntosActuales} → ${updates.puntos_gratis} pts).` : ''}`,
+        });
     } catch (error) { res.json({ success: false, error: error.message }); }
 });
 
 // ==========================================
-// 🚀 9️⃣ AUTO-SPAWNER (CREADOR AUTOMÁTICO DE SALAS)
+// ⚖️ HELPER: Penalización de puntos de tienda por Fair Play bajo
+// Llamar cada vez que el sistema baja el fair_play de un usuario.
+// penaltyPct: porcentaje a descontar (0.05 a 0.30)
 // ==========================================
-exports.autoSpawnerSalas = onDocumentUpdated("torneos/{torneoId}", async (event) => {
+async function aplicarPenalizacionPuntos(uid, penaltyPct, motivo) {
+    try {
+        const userRef  = db.collection('usuarios').doc(uid);
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) return;
+
+        const puntosActuales = userSnap.data().puntos_gratis ?? 0;
+        if (puntosActuales <= 0) return; // nada que descontar
+
+        const puntosDescontados = Math.ceil(puntosActuales * penaltyPct);
+        const nuevosPuntos      = Math.max(0, puntosActuales - puntosDescontados);
+
+        await userRef.update({ puntos_gratis: nuevosPuntos });
+        await db.collection('puntos_log').add({
+            uid,
+            tipo:           'PENALIZACION_FAIR_PLAY',
+            puntos_antes:   puntosActuales,
+            puntos_despues: nuevosPuntos,
+            descontados:    puntosDescontados,
+            porcentaje:     penaltyPct * 100,
+            motivo:         motivo || 'Conducta antideportiva detectada por el sistema',
+            timestamp:      admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (e) {
+        console.error('[aplicarPenalizacionPuntos]', e.message);
+    }
+}
+
+ = onDocumentUpdated("torneos/{torneoId}", async (event) => {
     const dataAntes = event.data.before.data();
     const dataDespues = event.data.after.data();
 
