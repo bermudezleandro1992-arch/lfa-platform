@@ -152,7 +152,7 @@ export default function TiendaPage() {
             </div>
           )}
 
-          {/* ── CÓMO GANAR PUNTOS ──────────────────── */
+          {/* ── CÓMO GANAR PUNTOS ──────────────────── */}
           <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,24px)', marginBottom: 28 }}>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.78rem', fontWeight: 900, marginBottom: 16 }}>
               ⭐ ¿CÓMO GANAR PUNTOS?
@@ -207,7 +207,7 @@ export default function TiendaPage() {
             </div>
           </div>
 
-          {/* ── FILTROS ─────────────────────────────── */
+          {/* ── FILTROS ─────────────────────────────── */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
             {CATEGORIES.map(cat => (
               <button
