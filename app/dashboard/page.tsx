@@ -9,8 +9,9 @@ import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
 import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
 
-const RankingInline = dynamic(() => import('@/app/_components/dashboard/RankingInline'), { ssr: false });
-const LfaTV         = dynamic(() => import('@/app/_components/dashboard/LfaTV'),         { ssr: false });
+const RankingInline  = dynamic(() => import('@/app/_components/dashboard/RankingInline'),  { ssr: false });
+const LfaTV          = dynamic(() => import('@/app/_components/dashboard/LfaTV'),          { ssr: false });
+const PingLatencia   = dynamic(() => import('@/app/_components/dashboard/PingLatencia'),   { ssr: false });
 
 export default function DashboardPage() {
   return (
@@ -25,12 +26,12 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
-  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'>(() => 'arena');
+  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'|'ping'>(() => 'arena');
 
   // Leer ?tab= de la URL al montar
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'ranking' || t === 'tv') setTab(t as 'ranking'|'tv');
+    if (t === 'ranking' || t === 'tv' || t === 'ping') setTab(t as 'ranking'|'tv'|'ping');
   }, [searchParams]);
 
   useEffect(() => {
@@ -88,6 +89,9 @@ function DashboardContent() {
         <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           📺 LFA TV
         </button>
+        <button onClick={() => setTab('ping')} style={{ background:'transparent', border:'none', borderBottom: tab==='ping' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ping' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
+          📡 PING
+        </button>
 
         <div style={{ flex: 1 }} />
         <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
@@ -103,6 +107,7 @@ function DashboardContent() {
       )}
       {tab === 'ranking' && <RankingInline />}
       {tab === 'tv'      && <LfaTV uid={uid} />}
+      {tab === 'ping'    && <PingLatencia />}
 
     </>
   );
