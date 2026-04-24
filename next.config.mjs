@@ -50,12 +50,6 @@ const staticCacheHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
-  compress: true, // gzip/brotli en respuestas del servidor
-
-  // Tree-shaking agresivo de paquetes pesados
-  experimental: {
-    optimizePackageImports: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-  },
 
   images: {
     remotePatterns: [
@@ -63,8 +57,8 @@ const nextConfig = {
       { protocol: 'https', hostname: 'graph.facebook.com' },
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],
-    formats: ['image/avif', 'image/webp'], // formatos modernos más livianos
-    minimumCacheTTL: 86400,                // cachear imágenes optimizadas 24h
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400,
   },
 
   async headers() {
@@ -100,10 +94,6 @@ const nextConfig = {
       },
     ];
   },
-};
-
-export default nextConfig;
-
 };
 
 export default nextConfig;
