@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   keywords: ['torneos FC 26', 'eFootball', 'eSports LATAM', 'SomosLFA', 'torneos online'],
   authors: [{ name: 'Gestión SM' }],
   metadataBase: new URL('https://somoslfa.com'),
+  icons: {
+    icon:  '/icon-192.png',
+    apple: '/icon-192.png',
+  },
   openGraph: {
     title:       'SomosLFA — Torneos de FC 26 y eFootball',
     description: 'Competí en los mejores torneos de eSports de LATAM.',

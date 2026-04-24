@@ -22,47 +22,74 @@ const securityHeaders = [
     value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
   {
-    // CSP ajustado para el stack real de LFA:
-    // Firebase Auth, Firestore, Firebase Storage, Google Fonts,
-    // Google/Facebook login, Binance Pay, Fixie proxy
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Scripts: propios + Firebase Auth UI + Google/Facebook login
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://connect.facebook.net https://www.googletagmanager.com",
+      // Scripts: propios + Firebase Auth + Google login + reCAPTCHA + Facebook + GTM
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.google.com https://www.gstatic.com https://connect.facebook.net https://www.googletagmanager.com",
       // Estilos: propios + Google Fonts
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fuentes: Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
       // Imágenes: propios + blobs + Google/Facebook avatars + Firebase Storage
-      "img-src 'self' blob: data: https://*.googleusercontent.com https://*.facebook.com https://*.fbcdn.net https://firebasestorage.googleapis.com",
-      // Conexiones: Firebase (Auth/Firestore/Storage/Functions) + Binance + Google Analytics
+      "img-src 'self' blob: data: https://*.googleusercontent.com https://*.facebook.com https://*.fbcdn.net https://firebasestorage.googleapis.com https://www.gstatic.com",
+      // Conexiones: Firebase + Binance + Google Analytics
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://firebasestorage.googleapis.com https://*.cloudfunctions.net https://*.run.app https://*.binance.com https://bpay.binanceapi.com https://accounts.google.com https://www.google-analytics.com https://www.googletagmanager.com",
-      // Frames: Google login popup + Facebook login
-      "frame-src https://accounts.google.com https://lfaofficial.firebaseapp.com https://www.facebook.com",
-      // Workers: solo propios (Service Worker)
+      // Frames: Google login + Firebase Auth + Facebook + reCAPTCHA
+      "frame-src https://accounts.google.com https://www.google.com https://lfaofficial.firebaseapp.com https://www.facebook.com",
+      // Workers: Service Worker
       "worker-src 'self' blob:",
     ].join('; '),
   },
 ];
 
-const nextConfig = {
-  poweredByHeader: false, // No revelar que usamos Next.js
+// Cache para assets estáticos (imágenes, fuentes, JS, CSS)
+const staticCacheHeaders = [
+  { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+];
 
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: securityHeaders,
-      },
-    ];
+const nextConfig = {
+  poweredByHeader: false,
+  compress: true, // gzip/brotli en respuestas del servidor
+
+  // Tree-shaking agresivo de paquetes pesados
+  experimental: {
+    optimizePackageImports: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
   },
 
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'graph.facebook.com' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],
+    formats: ['image/avif', 'image/webp'], // formatos modernos más livianos
+    minimumCacheTTL: 86400,                // cachear imágenes optimizadas 24h
+  },
+
+  async headers() {
+    return [
+      // Security headers en todas las rutas
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+      // Cache agresivo para assets estáticos de Next.js (_next/static)
+      {
+        source: '/_next/static/(.*)',
+        headers: staticCacheHeaders,
+      },
+      // Cache para archivos públicos (favicon, manifest, sw.js excepto)
+      {
+        source: '/assets/(.*)',
+        headers: staticCacheHeaders,
+      },
+      // Service Worker: sin cache para que siempre se actualice
+      {
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+    ];
   },
 
   async rewrites() {
@@ -73,6 +100,10 @@ const nextConfig = {
       },
     ];
   },
+};
+
+export default nextConfig;
+
 };
 
 export default nextConfig;
