@@ -28,6 +28,7 @@ interface Match {
   dispute_deadline?: { toMillis: () => number };
   round:            string;
   tournamentId:     string;
+  game?:            string;
   bot_verification?: BotVerification;
 }
 
@@ -172,6 +173,9 @@ export default function MatchRoom({ matchId }: Props) {
   const isP2       = match.p2 === uid;
   const isPlayer   = isP1 || isP2;
   const rivalEaId  = isP1 ? match.p2_ea_id : match.p1_ea_id;
+  const isEfootball = ((match.game ?? '') as string).toUpperCase().includes('EFOOTBALL') ||
+                      ((match.game ?? '') as string).toUpperCase().includes('E-FOOTBALL');
+  const idLabel     = isEfootball ? 'Konami ID' : 'EA ID';
   const canReport  = isPlayer && match.status === "WAITING";
   const canDispute = isPlayer && match.status === "PENDING_RESULT" && match.reported_by !== uid && timeLeft > 0;
   const bv         = match.bot_verification;
@@ -287,25 +291,26 @@ export default function MatchRoom({ matchId }: Props) {
           </div>
         )}
 
-        {/* INSTRUCCIONES EA ID */}
+        {/* INSTRUCCIONES ID DEL RIVAL (dinámico según juego) */}
         {match.status === "WAITING" && isPlayer && rivalEaId && (
           <div style={{ ...card, borderColor: "rgba(0,158,227,0.3)", background: "rgba(0,158,227,0.05)" }}>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#009ee3", fontSize: "0.78rem", fontWeight: 700, marginBottom: 12 }}>?? C�MO CONECTARTE CON TU RIVAL</div>
-            {[
-              "Abr� el juego (FC26 o eFootball)",
-              "And� a Amigos ? Buscar jugador",
-              `Busc� el ID de tu rival: ${rivalEaId}`,
-              "Invitalo a un partido amistoso",
-              "Jug� el partido completo",
-              "El GANADOR sube la foto del marcador",
-            ].map((t, i) => (
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#009ee3", fontSize: "0.78rem", fontWeight: 700, marginBottom: 4 }}>
+              {isEfootball ? "⚽ CÓMO CONECTARTE — eFOOTBALL" : "🎮 CÓMO CONECTARTE — FC26 / FC27"}
+            </div>
+            <div style={{ color: "#8b949e", fontSize: "0.68rem", marginBottom: 12 }}>
+              {idLabel} del rival:&nbsp;<span style={{ color: "#ffd700", fontFamily: "monospace", fontWeight: 700 }}>{rivalEaId}</span>
+            </div>
+            {(isEfootball
+              ? ["Abrí eFootball en tu consola o móvil", "Andá a Amigos → Buscar por Konami ID", `Buscá: ${rivalEaId}`, "Invitalo a un partido amistoso", "Jugá el partido completo", "El GANADOR sube la foto del marcador"]
+              : ["Abrí FC26 / FC27 en tu consola o PC", "Andá a Amigos → Buscar jugador por EA ID", `Buscá: ${rivalEaId}`, "Invitalo a un partido amistoso", "Jugá el partido completo", "El GANADOR sube la foto del marcador"]
+            ).map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid #1c2028", alignItems: "flex-start" }}>
                 <span style={{ color: "#009ee3", fontWeight: 900, fontSize: "0.78rem", width: 20, flexShrink: 0 }}>{i + 1}.</span>
-                <span style={{ color: "#ccc", fontSize: "0.78rem" }}>{t}</span>
+                <span style={{ color: "#ccc", fontSize: "0.78rem" }}>{step}</span>
               </div>
             ))}
             <button onClick={() => copyEaId(rivalEaId)} style={{ ...btnStyle("rgba(0,158,227,0.1)", "#009ee3"), marginTop: 14, border: "1px solid rgba(0,158,227,0.3)", fontSize: "0.75rem" }}>
-              {copied ? "? �Copiado!" : "?? COPIAR ID DEL RIVAL"}
+              {copied ? "✅ ¡Copiado!" : `📋 COPIAR ${idLabel.toUpperCase()} DEL RIVAL`}
             </button>
           </div>
         )}

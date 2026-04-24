@@ -2167,6 +2167,7 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
             id:           newMatchRef.id,
             tournamentId,
             round:        nextRound,
+            game:         tournament?.game || tournament?.juego || '',
             p1, p2,
             score:        '',
             winner:       null,

@@ -117,7 +117,17 @@ export async function POST(req: NextRequest) {
       if (isFree) {
         const authUser = await adminAuth.getUser(uid);
         if (!authUser.emailVerified) throw new Error('Verificá tu email para acceder a torneos gratuitos.');
-        if (!u.ea_id?.trim())        throw new Error('Vinculá tu EA ID antes de acceder a torneos gratuitos.');
+        // Validar ID según el juego del torneo
+        const gameStr = ((t.game ?? t.juego ?? '') as string).toUpperCase();
+        const isEfootball = gameStr.includes('EFOOTBALL') || gameStr.includes('E-FOOTBALL') || gameStr.includes('KONAMI');
+        const hasEaId     = !!(u.ea_id?.trim());
+        const hasKonamiId = !!(u.konami_id?.trim());
+        if (isEfootball) {
+          if (!hasKonamiId && !hasEaId) throw new Error('Vinculá tu Konami ID en tu perfil antes de acceder a torneos de eFootball.');
+        } else {
+          // FC26, FC27 u otro juego EA
+          if (!hasEaId && !hasKonamiId) throw new Error('Vinculá tu EA ID en tu perfil antes de acceder a este torneo.');
+        }
         if (txCoins > 5_000)         throw new Error('Con más de 5,000 Coins no podés acceder a salas gratuitas.');
         const since = new Date(Date.now() - 86_400_000);
         const freeSnap = await adminDb.collection('transactions')
