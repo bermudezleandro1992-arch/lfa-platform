@@ -162,8 +162,31 @@ export default function HubPage() {
                 🪙 {(userData?.number || 0).toLocaleString()}
               </span>
             </a>
-            <button onClick={handleLogout} title="Cerrar Sesión" style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid #ff475740', color: '#ff4757', cursor: 'pointer', fontSize: '1rem', transition: '0.2s', padding: '7px 10px', borderRadius: 8 }}>
-              ⏻
+            <button
+              onClick={handleLogout}
+              title="Cerrar Sesión"
+              style={{
+                background: '#ff4757',
+                border: '2px solid #ff2d3a',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                fontFamily: "'Orbitron', sans-serif",
+                fontWeight: 900,
+                letterSpacing: 0.5,
+                transition: '0.2s',
+                padding: '7px 13px',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                whiteSpace: 'nowrap' as const,
+                boxShadow: '0 0 10px rgba(255,71,87,0.4)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#c0392b')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#ff4757')}
+            >
+              ⏻ SALIR
             </button>
           </div>
         </header>
