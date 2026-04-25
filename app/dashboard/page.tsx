@@ -25,7 +25,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { lang, setLang } = useLang();
+  const { lang, setLang, t } = useLang();
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
   const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'|'ping'>(() => 'arena');
@@ -134,7 +134,7 @@ function DashboardContent() {
 
         <div style={{ flex: 1 }} />
         <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
-          👤 PERFIL
+          👤 {t.dash_perfil}
         </Link>
         {/* Idioma */}
         <div style={{ position: 'relative', minHeight: 46, minWidth: 90, borderLeft: '1px solid #1c2028' }}>

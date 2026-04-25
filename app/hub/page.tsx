@@ -64,7 +64,7 @@ const MODOS = [
 
 export default function HubPage() {
   const router                         = useRouter();
-  const { lang, setLang }              = useLang();
+  const { lang, setLang, t }           = useLang();
   const [userData, setUserData]        = useState<UserData | null>(null);
   const [esAdmin,  setEsAdmin]         = useState(false);
   const [uid,      setUid]             = useState('');
@@ -104,7 +104,7 @@ export default function HubPage() {
   if (loading) {
     return (
       <div style={{ background: '#0b0e14', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '1.2rem' }}>CARGANDO HUB...</span>
+        <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '1.2rem' }}>{t.hub_cargando}</span>
       </div>
     );
   }
@@ -142,12 +142,12 @@ export default function HubPage() {
             {/* Billetera */}
             <a href="/billetera" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,215,0,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid #ffd70040', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <span style={{ fontSize: '1rem' }}>💰</span>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>BILLETERA</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>{t.hub_billetera}</span>
             </a>
             {/* Tienda de Puntos */}
             <a href="/tienda" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(243,186,47,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid rgba(243,186,47,0.3)', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <span style={{ fontSize: '1rem' }}>🛒</span>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>TIENDA</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>{t.hub_tienda}</span>
             </a>
             {/* Perfil + coins + logout */}
             <a href="/perfil" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: '7px 14px', borderRadius: 30, border: '1px solid #30363d', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
@@ -188,7 +188,7 @@ export default function HubPage() {
               onMouseEnter={e => (e.currentTarget.style.background = '#c0392b')}
               onMouseLeave={e => (e.currentTarget.style.background = '#ff4757')}
             >
-              ⏻ SALIR
+              ⏻ {t.hub_salir}
             </button>
             {/* Idioma */}
             <div style={{ position: 'relative', minHeight: 46, minWidth: 90, flexShrink: 0 }}>
@@ -206,7 +206,7 @@ export default function HubPage() {
           {/* ── CANTINA embebida ─────────────────────────── */}
           <div style={{ marginBottom: 32, background: '#0d1117', border: '1px solid #ffd70030', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'clamp(340px,50vh,520px)' }}>
             <div style={{ padding: '10px 18px', borderBottom: '1px solid #ffd70020', background: 'rgba(255,215,0,0.04)', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 CANTINA LFA — CHAT GENERAL</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 {t.hub_cantina}</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {uid ? (
@@ -226,7 +226,7 @@ export default function HubPage() {
 
           {/* MODOS */}
           <h2 style={{ fontFamily: "'Orbitron',sans-serif", color: 'white', margin: '0 0 20px', fontSize: 'clamp(1rem, 3vw, 1.3rem)' }}>
-            🎮 SELECCIONÁ TU COMPETICIÓN
+            🎮 {t.hub_selecciona}
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
             {MODOS.map((modo) => (

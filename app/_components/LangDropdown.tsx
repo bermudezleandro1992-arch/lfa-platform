@@ -32,6 +32,16 @@ export interface Translations {
   legal_titulo: string;
   legal_desc:   string;
   legal_btn:    string;
+  // Hub
+  hub_selecciona:  string;
+  hub_salir:       string;
+  hub_billetera:   string;
+  hub_tienda:      string;
+  hub_proximamente: string;
+  hub_cantina:     string;
+  hub_cargando:    string;
+  // Dashboard
+  dash_perfil:     string;
 }
 
 const LANGUAGES: Record<LangCode, { flag: string; label: string; name: string }> = {
@@ -57,6 +67,14 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     legal_titulo: '¡Último paso, Leyenda!',
     legal_desc: 'Para competir por dinero real y mantener el juego limpio en LFA, es obligatorio aceptar nuestras reglas.',
     legal_btn: 'CONFIRMAR Y ENTRAR A LA CANCHA',
+    hub_selecciona: 'SELECCIONÁ TU COMPETICIÓN',
+    hub_salir: 'SALIR',
+    hub_billetera: 'BILLETERA',
+    hub_tienda: 'TIENDA',
+    hub_proximamente: 'PRÓXIMAMENTE',
+    hub_cantina: 'CANTINA LFA — CHAT GENERAL',
+    hub_cargando: 'CARGANDO HUB...',
+    dash_perfil: 'PERFIL',
   },
   pt: {
     slogan1: 'LIGA DE FUTEBOL AUTOMATIZADA', slogan2: 'DOMINE O CAMPO',
@@ -74,6 +92,14 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     legal_titulo: 'Último passo, Lenda!',
     legal_desc: 'Para competir por dinheiro real e manter o jogo limpo, é obrigatório aceitar nossas regras.',
     legal_btn: 'CONFIRMAR E ENTRAR NO CAMPO',
+    hub_selecciona: 'SELECIONE SUA COMPETIÇÃO',
+    hub_salir: 'SAIR',
+    hub_billetera: 'CARTEIRA',
+    hub_tienda: 'LOJA',
+    hub_proximamente: 'EM BREVE',
+    hub_cantina: 'CANTINA LFA — CHAT GERAL',
+    hub_cargando: 'CARREGANDO HUB...',
+    dash_perfil: 'PERFIL',
   },
   en: {
     slogan1: 'AUTOMATED FOOTBALL LEAGUE', slogan2: 'DOMINATE THE PITCH',
@@ -91,6 +117,14 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     legal_titulo: 'Last step, Legend!',
     legal_desc: 'To compete for real money and maintain fair play, you must accept our rules.',
     legal_btn: 'CONFIRM AND ENTER THE PITCH',
+    hub_selecciona: 'SELECT YOUR COMPETITION',
+    hub_salir: 'LOGOUT',
+    hub_billetera: 'WALLET',
+    hub_tienda: 'STORE',
+    hub_proximamente: 'COMING SOON',
+    hub_cantina: 'LFA CANTINA — GENERAL CHAT',
+    hub_cargando: 'LOADING HUB...',
+    dash_perfil: 'PROFILE',
   },
 };
 
