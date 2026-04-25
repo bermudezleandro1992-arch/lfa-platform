@@ -27,6 +27,21 @@ function DashboardContent() {
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
   const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'|'ping'>(() => 'arena');
+  const [vpnWarning, setVpnWarning] = useState<string | null>(null);
+  // Advertencia VPN/Región
+  useEffect(() => {
+    fetch('/api/detect-region').then(async (res) => {
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.isVpn) {
+        setVpnWarning('⚠️ Estás usando VPN. Solo puedes participar en torneos GLOBAL. El ping puede no ser real.');
+      } else if (data.region && data.region !== data.userRegion) {
+        setVpnWarning('⚠️ Tu región detectada no coincide con la de tu perfil. Solo puedes participar en torneos GLOBAL.');
+      } else {
+        setVpnWarning(null);
+      }
+    });
+  }, []);
 
   // Leer ?tab= de la URL al montar
   useEffect(() => {
@@ -71,6 +86,28 @@ function DashboardContent() {
 
   return (
     <>
+      {/* Advertencia VPN/Región */}
+      {vpnWarning && (
+        <div style={{
+          background: 'rgba(255,71,87,0.08)',
+          border: '1px solid #ff4757',
+          color: '#ff4757',
+          borderRadius: 10,
+          padding: '12px 18px',
+          margin: '18px 18px 0 18px',
+          fontFamily: "'Orbitron',sans-serif",
+          fontWeight: 700,
+          fontSize: '0.95rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          justifyContent: 'center',
+        }}>
+          <span style={{fontSize:'1.3rem'}}>⚠️</span>
+          <span>{vpnWarning}</span>
+        </div>
+      )}
+
       {/* Barra nav */}
       <div className="backdrop-blur-xl border-b px-4 py-0 flex items-stretch sticky top-0 z-30"
         style={{ background: "rgba(11,14,20,0.97)", borderColor: "#1c2028" }}>
