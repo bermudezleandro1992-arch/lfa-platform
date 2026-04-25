@@ -31,12 +31,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fuentes: Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Imágenes: propios + blobs + Google/Facebook avatars + Firebase Storage
-      "img-src 'self' blob: data: https://*.googleusercontent.com https://*.facebook.com https://*.fbcdn.net https://firebasestorage.googleapis.com https://www.gstatic.com",
-      // Conexiones: Firebase + Binance + Google Analytics + Twitch/YouTube API
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://firebasestorage.googleapis.com https://*.cloudfunctions.net https://*.run.app https://*.binance.com https://bpay.binanceapi.com https://accounts.google.com https://www.google-analytics.com https://www.googletagmanager.com https://api.twitch.tv https://*.twitch.tv wss://*.twitch.tv https://*.kick.com https://www.youtube.com https://utas.s2.ea.com https://utas.s3.ea.com https://utas.s4.ea.com https://utas.s5.ea.com https://utas.s6.ea.com https://utas.s7.ea.com https://utas.s8.ea.com https://utas.s9.ea.com https://utas.s10.ea.com https://utas.s11.ea.com https://we-pes-mobile.konami.net https://pes.konami.net https://pes-gameserver.konami.net",
+      // Imágenes: propios + blobs + Google/Facebook avatars + Firebase Storage + banderas de idiomas
+      "img-src 'self' blob: data: https://*.googleusercontent.com https://*.facebook.com https://*.fbcdn.net https://firebasestorage.googleapis.com https://www.gstatic.com https://flagcdn.com",
+      // Conexiones: Firebase + Binance + Google Analytics + Twitch/YouTube API + Facebook Graph
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://firebasestorage.googleapis.com https://*.cloudfunctions.net https://*.run.app https://*.binance.com https://bpay.binanceapi.com https://accounts.google.com https://graph.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://api.twitch.tv https://*.twitch.tv wss://*.twitch.tv https://*.kick.com https://www.youtube.com https://utas.s2.ea.com https://utas.s3.ea.com https://utas.s4.ea.com https://utas.s5.ea.com https://utas.s6.ea.com https://utas.s7.ea.com https://utas.s8.ea.com https://utas.s9.ea.com https://utas.s10.ea.com https://utas.s11.ea.com https://we-pes-mobile.konami.net https://pes.konami.net https://pes-gameserver.konami.net",
       // Frames: Google login + Firebase Auth + Facebook + reCAPTCHA + YouTube + Twitch + Kick (LFA TV)
-      "frame-src https://accounts.google.com https://www.google.com https://lfaofficial.firebaseapp.com https://www.facebook.com https://www.youtube.com https://www.youtube-nocookie.com https://player.twitch.tv https://clips.twitch.tv https://player.kick.com https://kick.com",
+      "frame-src https://accounts.google.com https://www.google.com https://*.firebaseapp.com https://www.facebook.com https://www.youtube.com https://www.youtube-nocookie.com https://player.twitch.tv https://clips.twitch.tv https://player.kick.com https://kick.com",
       // Workers: Service Worker
       "worker-src 'self' blob:",
     ].join('; '),

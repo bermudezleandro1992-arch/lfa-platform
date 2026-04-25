@@ -8,6 +8,7 @@ import { auth, db }            from '@/lib/firebase';
 import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
 import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
+import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 
 const RankingInline  = dynamic(() => import('@/app/_components/dashboard/RankingInline'),  { ssr: false });
 const LfaTV          = dynamic(() => import('@/app/_components/dashboard/LfaTV'),          { ssr: false });
@@ -24,6 +25,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
+  const { lang, setLang } = useLang();
   const [ready, setReady] = useState(false);
   const [uid,   setUid]   = useState('');
   const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'|'ping'>(() => 'arena');
@@ -134,6 +136,10 @@ function DashboardContent() {
         <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
           👤 PERFIL
         </Link>
+        {/* Idioma */}
+        <div style={{ position: 'relative', minHeight: 46, minWidth: 90, borderLeft: '1px solid #1c2028' }}>
+          <LangDropdown lang={lang} setLang={setLang} />
+        </div>
       </div>
 
       {tab === 'arena'   && (

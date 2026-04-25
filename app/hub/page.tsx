@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
+import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 
 const HubLfaTV    = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
 const CantinaChat = dynamic(() => import('@/app/_components/dashboard/CantinaChat'), { ssr: false });
@@ -63,6 +64,7 @@ const MODOS = [
 
 export default function HubPage() {
   const router                         = useRouter();
+  const { lang, setLang }              = useLang();
   const [userData, setUserData]        = useState<UserData | null>(null);
   const [esAdmin,  setEsAdmin]         = useState(false);
   const [uid,      setUid]             = useState('');
@@ -188,6 +190,10 @@ export default function HubPage() {
             >
               ⏻ SALIR
             </button>
+            {/* Idioma */}
+            <div style={{ position: 'relative', minHeight: 46, minWidth: 90, flexShrink: 0 }}>
+              <LangDropdown lang={lang} setLang={setLang} />
+            </div>
           </div>
         </header>
 
