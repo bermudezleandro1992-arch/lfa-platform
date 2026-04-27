@@ -1,8 +1,8 @@
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore }                       from 'firebase-admin/firestore';
-import { getAuth }                            from 'firebase-admin/auth';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, Firestore }       from 'firebase-admin/firestore';
+import { getAuth, Auth }                 from 'firebase-admin/auth';
 
-function initAdmin(): App {
+function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
   return initializeApp({
     credential: cert({
@@ -14,6 +14,16 @@ function initAdmin(): App {
   });
 }
 
-const adminApp = initAdmin();
-export const adminDb   = getFirestore(adminApp);
-export const adminAuth = getAuth(adminApp);
+/* Lazy proxies — se inicializan solo en runtime (request), no en build time */
+function lazyProxy<T extends object>(factory: () => T): T {
+  let instance: T | null = null;
+  return new Proxy({} as T, {
+    get(_, prop) {
+      if (!instance) instance = factory();
+      return Reflect.get(instance as T, prop as keyof T);
+    },
+  });
+}
+
+export const adminDb   = lazyProxy<Firestore>(() => getFirestore(getAdminApp()));
+export const adminAuth = lazyProxy<Auth>(() => getAuth(getAdminApp()));
