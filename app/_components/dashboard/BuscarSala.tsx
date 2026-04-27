@@ -5,7 +5,7 @@ import { collection, query,
          where, getDocs,
          orderBy, limit }    from "firebase/firestore";
 import { db }                from "@/lib/firebase";
-import { GAMES, REGIONS }    from "@/lib/constants";
+import { GAMES, REGIONS, COUNTRIES_AMERICA_EUROPE } from "@/lib/constants";
 import type { Game,
               Region,
               GameMode }     from "@/lib/constants";
@@ -28,6 +28,7 @@ export default function BuscarSala() {
   const [mode,    setMode]    = useState<GameMode | "">("");
   const [region,  setRegion]  = useState<Region | "">("");
   const [tier,    setTier]    = useState<TierKey | "">("");
+  const [pais,    setPais]    = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Tournament[] | null>(null);
   const [searched, setSearched] = useState(false);
@@ -197,6 +198,22 @@ export default function BuscarSala() {
                 );
               })}
             </div>
+          </div>
+
+          {/* ── PAÍS ── */}
+          <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>4. País</p>
+            <select
+              className="inp-focus w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none cursor-pointer"
+              style={{ background: "#161b22", borderColor: "#30363d", color: "#c9d1d9" }}
+              value={pais || ""}
+              onChange={e => setPais(e.target.value)}
+            >
+              <option value="">— Cualquier país —</option>
+              {COUNTRIES_AMERICA_EUROPE.map(({ code, name }) => (
+                <option key={code} value={name}>{name}</option>
+              ))}
+            </select>
           </div>
 
           {/* ── NIVEL / TIER ── */}
