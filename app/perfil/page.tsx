@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
+import { COUNTRIES_AMERICA_EUROPE } from '@/lib/constants';
 import Link from 'next/link';
 
 /* ─── Tipos ──────────────────────────────────────────── */
@@ -323,7 +324,9 @@ export default function PerfilPage() {
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>PAÍS</label>
                 <select className="inp-focus" value={pais} onChange={e => { setPais(e.target.value); setProvincia(''); }} style={{ ...inp, cursor: 'pointer' }}>
                   <option value="">— Seleccioná tu país —</option>
-                  {['Argentina','Bolivia','Brasil','Chile','Colombia','Costa Rica','Cuba','Ecuador','El Salvador','España','Estados Unidos','Guatemala','Honduras','México','Nicaragua','Panamá','Paraguay','Perú','Puerto Rico','República Dominicana','Uruguay','Venezuela','Otro'].map(c => <option key={c} value={c}>{c}</option>)}
+                  {COUNTRIES_AMERICA_EUROPE.map(({ code, name }) => (
+                    <option key={code} value={name}>{name}</option>
+                  ))}
                 </select>
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>PROVINCIA / ESTADO</label>
                 {pais === 'Argentina' ? (
