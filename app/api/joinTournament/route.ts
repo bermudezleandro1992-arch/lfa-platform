@@ -1,7 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
 import { writeLedgerEntry }          from '@/lib/ledger';
+import { RegionDetectionResult }     from '@/lib/types';
 
 const REGION_COMPAT: Record<string, string[]> = {
   LATAM_SUR:   ['LATAM_SUR',   'AMERICA', 'GLOBAL'],
@@ -48,6 +50,7 @@ export async function POST(req: NextRequest) {
     const tournamentRef = adminDb.collection('tournaments').doc(tournamentId);
     const userRef       = adminDb.collection('usuarios').doc(uid);
 
+
     // ── Pre-lectura para detectar saldo insuficiente antes de la tx ──
     const [tPreSnap, uPreSnap] = await Promise.all([tournamentRef.get(), userRef.get()]);
     if (!tPreSnap.exists) return NextResponse.json({ error: 'Torneo no encontrado.' }, { status: 400 });
@@ -57,6 +60,31 @@ export async function POST(req: NextRequest) {
     const uPre   = uPreSnap.data()!;
     const isFree = tPre.entry_fee === 0;
     const coins  = (uPre.number ?? uPre.coins ?? 0) as number;
+
+    // ── Validación de VPN y región real ───────────────────────────────
+    // Solo permitir GLOBAL si hay VPN o mismatch de región
+    try {
+      const regionRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/detect-region`, {
+        headers: { 'x-forwarded-for': req.headers.get('x-forwarded-for') || '' },
+        cache: 'no-store',
+      });
+      if (regionRes.ok) {
+        const regionData = (await regionRes.json()) as RegionDetectionResult;
+        const salaRegion = tPre.region;
+        // Si la sala no es GLOBAL:
+        if (salaRegion !== 'GLOBAL') {
+          if (regionData.isVpn) {
+            return NextResponse.json({ error: 'No podés unirte a salas de región usando VPN/proxy. Solo permitido en Región Global.' }, { status: 403 });
+          }
+          // Si la región real no coincide con la declarada, bloquear
+          if (uPre.region && regionData.region && uPre.region !== regionData.region) {
+            return NextResponse.json({ error: `Tu región real (${regionData.region}) no coincide con la declarada (${uPre.region}). Solo podés entrar a Región Global usando VPN o desde otra región.` }, { status: 403 });
+          }
+        }
+      }
+    } catch (e) {
+      // Si falla la detección, dejar pasar (no bloquear por error externo)
+    }
 
     // ── Saldo insuficiente → reservar cupo por 15 min ──────────────
     if (!isFree && coins < tPre.entry_fee) {
