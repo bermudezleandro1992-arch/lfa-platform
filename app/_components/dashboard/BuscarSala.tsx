@@ -12,6 +12,7 @@ import type { Game,
 import type { Tournament }   from "@/hooks/useTournaments";
 import TournamentCard        from "./TournamentCard";
 import Image                 from "next/image";
+import { useLang }           from "@/app/_components/LangDropdown";
 
 // ─── Tiers disponibles para elegir ───────────────────────────
 const TIERS = [
@@ -24,6 +25,7 @@ const TIERS = [
 type TierKey = "FREE" | "RECREATIVO" | "COMPETITIVO" | "ELITE";
 
 export default function BuscarSala() {
+  const { t } = useLang();
   const [game,    setGame]    = useState<Game>("FC26");
   const [mode,    setMode]    = useState<GameMode | "">("");
   const [region,  setRegion]  = useState<Region | "">("");
@@ -92,7 +94,7 @@ export default function BuscarSala() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88]" />
             </span>
-            <span className="text-[11px] font-bold tracking-[3px] uppercase" style={{ color: "#00ff88" }}>Arena 1VS1 · En vivo</span>
+            <span className="text-[11px] font-bold tracking-[3px] uppercase" style={{ color: "#00ff88" }}>{t.bs_live}</span>
           </div>
 
           <h1 className="text-5xl sm:text-7xl font-black tracking-tight leading-none mb-2"
@@ -102,7 +104,7 @@ export default function BuscarSala() {
           </h1>
           <div className="mx-auto h-px w-40 mb-4" style={{ background: "linear-gradient(90deg, transparent, #00ff88, transparent)" }} />
           <p className="text-xs sm:text-sm tracking-widest uppercase mb-6" style={{ color: "#8b949e" }}>
-            eSports Competitivo · Tiempo Real · LATAM
+            {t.bs_esports}
           </p>
 
           {/* Consolas */}
@@ -133,7 +135,7 @@ export default function BuscarSala() {
 
           {/* ── JUEGO ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>1. Juego</p>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_game}</p>
             <div className="flex gap-2">
               {GAMES.map((g) => {
                 const active = game === g.value;
@@ -158,9 +160,9 @@ export default function BuscarSala() {
 
           {/* ── MODO ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>2. Modo de juego</p>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_mode}</p>
             <div className="grid grid-cols-2 gap-2">
-              {[{ value: "", label: "🎮 Cualquier modo" }, ...selectedGame.modes.map((m) => ({ value: m.value, label: `${m.icon} ${m.label}` }))].map((m) => {
+              {[{ value: "", label: t.bs_any_mode }, ...selectedGame.modes.map((m) => ({ value: m.value, label: `${m.icon} ${m.label}` }))].map((m) => {
                 const active = mode === m.value;
                 return (
                   <button key={m.value} onClick={() => setMode(m.value as GameMode | "")}
@@ -179,9 +181,9 @@ export default function BuscarSala() {
 
           {/* ── REGIÓN ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>3. Tu región</p>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_region}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[{ value: "", label: "🌐 Cualquier región", description: "" }, ...REGIONS].map((r) => {
+              {[{ value: "", label: t.bs_any_region, description: "" }, ...REGIONS].map((r) => {
                 const active = region === r.value;
                 return (
                   <button key={r.value} onClick={() => setRegion(r.value as Region | "")}
@@ -202,14 +204,14 @@ export default function BuscarSala() {
 
           {/* ── PAÍS ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>4. País</p>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_country}</p>
             <select
               className="inp-focus w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none cursor-pointer"
               style={{ background: "#161b22", borderColor: "#30363d", color: "#c9d1d9" }}
               value={pais || ""}
               onChange={e => setPais(e.target.value)}
             >
-              <option value="">— Cualquier país —</option>
+              <option value="">{t.bs_any_country}</option>
               {COUNTRIES_AMERICA_EUROPE.map(({ code, name }) => (
                 <option key={code} value={name}>{name}</option>
               ))}
@@ -218,9 +220,9 @@ export default function BuscarSala() {
 
           {/* ── NIVEL / TIER ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>4. Nivel de apuesta</p>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_tier}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[{ key: "", label: "Cualquiera", sub: "Todos los niveles", dot: "#6e7681" }, ...TIERS].map((t) => {
+              {[{ key: "", label: t.bs_any_tier, sub: t.bs_any_tier_sub, dot: "#6e7681" }, ...TIERS].map((t) => {
                 const active = tier === t.key;
                 return (
                   <button key={t.key} onClick={() => setTier(t.key as TierKey | "")}
@@ -253,9 +255,9 @@ export default function BuscarSala() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 rounded-full border-2 border-transparent animate-spin inline-block" style={{ borderTopColor: "#0b0e14" }} />
-                  Buscando sala...
+                  {t.bs_btn_searching}
                 </span>
-              ) : "⚡ BUSCAR SALA DISPONIBLE"}
+              ) : t.bs_btn_search}
             </button>
           </div>
         </div>
@@ -269,10 +271,9 @@ export default function BuscarSala() {
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl border"
                   style={{ background: "#0b0e14", borderColor: "#30363d" }}>🎮</div>
                 <div>
-                  <p className="font-bold text-white mb-1">No hay salas disponibles</p>
+                  <p className="font-bold text-white mb-1">{t.bs_no_rooms}</p>
                   <p className="text-xs" style={{ color: "#8b949e" }}>
-                    Cambiá los filtros o volvé en unos minutos.<br />
-                    El staff crea nuevas salas regularmente.
+                    {t.bs_no_rooms_hint}
                   </p>
                 </div>
               </div>

@@ -56,6 +56,44 @@ export interface Translations {
   dash_tab_ranking: string;
   dash_tab_tv:      string;
   dash_tab_ping:    string;
+  // BuscarSala
+  bs_live:          string;
+  bs_esports:       string;
+  bs_label_game:    string;
+  bs_label_mode:    string;
+  bs_label_region:  string;
+  bs_label_country: string;
+  bs_label_tier:    string;
+  bs_any_mode:      string;
+  bs_any_region:    string;
+  bs_any_country:   string;
+  bs_any_tier:      string;
+  bs_any_tier_sub:  string;
+  bs_btn_search:    string;
+  bs_btn_searching: string;
+  bs_no_rooms:      string;
+  bs_no_rooms_hint: string;
+  // Landing page
+  home_modos_title: string;
+  home_modos_sub:   string;
+  home_como_title:  string;
+  home_como_sub:    string;
+  home_paso1_title: string;
+  home_paso1_desc:  string;
+  home_paso2_title: string;
+  home_paso2_desc:  string;
+  home_paso3_title: string;
+  home_paso3_desc:  string;
+  home_listo_title: string;
+  home_listo_sub:   string;
+  home_crear_cuenta: string;
+  home_ya_tengo:    string;
+  home_slogan1:     string;
+  home_slogan2:     string;
+  home_arena_desc:  string;
+  home_liga_desc:   string;
+  home_coop_desc:   string;
+  home_clubes_desc: string;
 }
 
 const LANGUAGES: Record<LangCode, { flag: string; label: string; name: string }> = {
@@ -102,6 +140,42 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     dash_tab_ranking:      'RANKING',
     dash_tab_tv:           'LFA TV',
     dash_tab_ping:         'PING',
+    bs_live:          'Arena 1VS1 · En vivo',
+    bs_esports:       'eSports Competitivo · Tiempo Real · LATAM',
+    bs_label_game:    '1. Juego',
+    bs_label_mode:    '2. Modo de juego',
+    bs_label_region:  '3. Tu región',
+    bs_label_country: '4. País',
+    bs_label_tier:    '4. Nivel de apuesta',
+    bs_any_mode:      '🎮 Cualquier modo',
+    bs_any_region:    '🌐 Cualquier región',
+    bs_any_country:   '— Cualquier país —',
+    bs_any_tier:      'Cualquiera',
+    bs_any_tier_sub:  'Todos los niveles',
+    bs_btn_search:    '⚡ BUSCAR SALA DISPONIBLE',
+    bs_btn_searching: 'Buscando sala...',
+    bs_no_rooms:      'No hay salas disponibles',
+    bs_no_rooms_hint: 'Cambiá los filtros o volvé en unos minutos. El staff crea nuevas salas regularmente.',
+    home_modos_title: 'MODOS DE COMPETICIÓN',
+    home_modos_sub:   'Elegí tu formato favorito',
+    home_como_title:  '¿CÓMO FUNCIONA?',
+    home_como_sub:    'Simple, rápido, transparente',
+    home_paso1_title: 'REGISTRATE',
+    home_paso1_desc:  'Creá tu cuenta gratis con email, Google o Facebook en menos de 1 minuto.',
+    home_paso2_title: 'ELEGÍ UN TORNEO',
+    home_paso2_desc:  'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con LFA Coin, la moneda de SOMOS LFA.',
+    home_paso3_title: 'JUGÁ Y COBRÁ',
+    home_paso3_desc:  'Subí tu resultado, el bot verifica que sea correcto, actualiza el bracket automáticamente y entrega el premio al ganador.',
+    home_listo_title: '¿LISTO PARA COMPETIR?',
+    home_listo_sub:   'Creá tu cuenta gratis o iniciá sesión',
+    home_crear_cuenta: '🎮 CREAR CUENTA GRATIS',
+    home_ya_tengo:    'YA TENGO CUENTA →',
+    home_slogan1:     'Torneos de FC 26 y eFootball con premios reales.',
+    home_slogan2:     'Competí 1vs1, armá equipo y dominá los torneos.',
+    home_arena_desc:  'Salas de 2 a 16 jugadores. Bracket automático, resultados verificados por el bot. Torneos free y pagos.',
+    home_liga_desc:   'Temporadas largas con tabla de posiciones y ranking oficial. Torneos free y pagos.',
+    home_coop_desc:   'Armá equipo con un amigo y competí en pareja.',
+    home_clubes_desc: 'Representá tu club oficial. Primera división de la liga.',
   },
   pt: {
     slogan1: 'LIGA DE FUTEBOL AUTOMATIZADA', slogan2: 'DOMINE O CAMPO',
@@ -140,6 +214,42 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     dash_tab_ranking:      'RANKING',
     dash_tab_tv:           'LFA TV',
     dash_tab_ping:         'PING',
+    bs_live:          'Arena 1VS1 · Ao vivo',
+    bs_esports:       'eSports Competitivo · Tempo Real · LATAM',
+    bs_label_game:    '1. Jogo',
+    bs_label_mode:    '2. Modo de jogo',
+    bs_label_region:  '3. Sua região',
+    bs_label_country: '4. País',
+    bs_label_tier:    '4. Nível de aposta',
+    bs_any_mode:      '🎮 Qualquer modo',
+    bs_any_region:    '🌐 Qualquer região',
+    bs_any_country:   '— Qualquer país —',
+    bs_any_tier:      'Qualquer',
+    bs_any_tier_sub:  'Todos os níveis',
+    bs_btn_search:    '⚡ BUSCAR SALA DISPONÍVEL',
+    bs_btn_searching: 'Procurando sala...',
+    bs_no_rooms:      'Nenhuma sala disponível',
+    bs_no_rooms_hint: 'Mude os filtros ou volte em alguns minutos. O staff cria novas salas regularmente.',
+    home_modos_title: 'MODOS DE COMPETIÇÃO',
+    home_modos_sub:   'Escolha seu formato favorito',
+    home_como_title:  'COMO FUNCIONA?',
+    home_como_sub:    'Simples, rápido, transparente',
+    home_paso1_title: 'CADASTRE-SE',
+    home_paso1_desc:  'Crie sua conta grátis com email, Google ou Facebook em menos de 1 minuto.',
+    home_paso2_title: 'ESCOLHA UM TORNEIO',
+    home_paso2_desc:  'Salas de 2, 4, 6, 8 e 16 jogadores todo o dia — 32 e 64 nos fins de semana. Grátis ou com LFA Coin, a moeda da SOMOS LFA.',
+    home_paso3_title: 'JOGUE E RECEBA',
+    home_paso3_desc:  'Envie seu resultado, o bot verifica, atualiza o bracket automaticamente e entrega o prêmio ao vencedor.',
+    home_listo_title: 'PRONTO PARA COMPETIR?',
+    home_listo_sub:   'Crie sua conta grátis ou faça login',
+    home_crear_cuenta: '🎮 CRIAR CONTA GRÁTIS',
+    home_ya_tengo:    'JÁ TENHO CONTA →',
+    home_slogan1:     'Torneios de FC 26 e eFootball com prêmios reais.',
+    home_slogan2:     'Compita 1vs1, forme equipe e domine os torneios.',
+    home_arena_desc:  'Salas de 2 a 16 jogadores. Bracket automático, resultados verificados pelo bot. Torneios gratuitos e pagos.',
+    home_liga_desc:   'Temporadas longas com tabela de classificação e ranking oficial. Torneios gratuitos e pagos.',
+    home_coop_desc:   'Monte equipe com um amigo e compita em dupla.',
+    home_clubes_desc: 'Represente seu clube oficial. Primeira divisão da liga.',
   },
   en: {
     slogan1: 'AUTOMATED FOOTBALL LEAGUE', slogan2: 'DOMINATE THE PITCH',
@@ -178,11 +288,43 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     dash_tab_ranking:      'RANKING',
     dash_tab_tv:           'LFA TV',
     dash_tab_ping:         'PING',
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Hook: idioma con persistencia en localStorage
+    bs_live:          'Arena 1VS1 · Live',
+    bs_esports:       'Competitive eSports · Real Time · LATAM',
+    bs_label_game:    '1. Game',
+    bs_label_mode:    '2. Game mode',
+    bs_label_region:  '3. Your region',
+    bs_label_country: '4. Country',
+    bs_label_tier:    '4. Bet level',
+    bs_any_mode:      '🎮 Any mode',
+    bs_any_region:    '🌐 Any region',
+    bs_any_country:   '— Any country —',
+    bs_any_tier:      'Any',
+    bs_any_tier_sub:  'All levels',
+    bs_btn_search:    '⚡ FIND AVAILABLE ROOM',
+    bs_btn_searching: 'Searching...',
+    bs_no_rooms:      'No rooms available',
+    bs_no_rooms_hint: 'Change filters or come back in a few minutes. Staff creates new rooms regularly.',
+    home_modos_title: 'COMPETITION MODES',
+    home_modos_sub:   'Choose your favorite format',
+    home_como_title:  'HOW DOES IT WORK?',
+    home_como_sub:    'Simple, fast, transparent',
+    home_paso1_title: 'SIGN UP',
+    home_paso1_desc:  'Create your free account with email, Google or Facebook in less than 1 minute.',
+    home_paso2_title: 'CHOOSE A TOURNAMENT',
+    home_paso2_desc:  'Rooms of 2, 4, 6, 8 and 16 players all day — 32 and 64 on weekends. Free or with LFA Coin, the SOMOS LFA currency.',
+    home_paso3_title: 'PLAY AND EARN',
+    home_paso3_desc:  'Submit your result, the bot verifies it, updates the bracket automatically and delivers the prize to the winner.',
+    home_listo_title: 'READY TO COMPETE?',
+    home_listo_sub:   'Create your free account or log in',
+    home_crear_cuenta: '🎮 CREATE FREE ACCOUNT',
+    home_ya_tengo:    'I HAVE AN ACCOUNT →',
+    home_slogan1:     'FC 26 and eFootball tournaments with real prizes.',
+    home_slogan2:     'Compete 1vs1, build a team and dominate the tournaments.',
+    home_arena_desc:  'Rooms of 2 to 16 players. Automatic bracket, results verified by the bot. Free and paid tournaments.',
+    home_liga_desc:   'Long seasons with standings and official ranking. Free and paid tournaments.',
+    home_coop_desc:   'Team up with a friend and compete as a duo.',
+    home_clubes_desc: 'Represent your official club. First division of the league.',
+  },};
 // ─────────────────────────────────────────────────────────────────────────────
 export function useLang() {
   const [lang, setLangState] = useState<LangCode>('es');

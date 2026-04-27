@@ -11,17 +11,11 @@ import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 import SiteFooter    from '@/app/_components/SiteFooter';
 import LoginBox      from '@/app/auth/_components/LoginBox';
 
-const MODOS = [
-  { icon: '⚔️', title: 'ARENA 1VS1',  desc: 'Salas de 2 a 16 jugadores. Bracket automático, resultados verificados por el bot. Torneos free y pagos.',  color: '#00ff88' },
-  { icon: '📅', title: 'LIGA 1VS1',   desc: 'Temporadas largas con tabla de posiciones y ranking oficial. Torneos free y pagos.',  color: '#ffd700' },
-  { icon: '🤝', title: 'CO-OP 2VS2',  desc: 'Armá equipo con un amigo y competí en pareja.',  color: '#009ee3', pronto: true },
-  { icon: '🏛️', title: 'LIGA LFA', sub: 'Clubes FC 26', desc: 'Representá tu club oficial. Primera división de la liga.', color: '#a371f7', pronto: true },
-];
-
-const PASOS = [
-  { n: '01', title: 'REGISTRATE', desc: 'Creá tu cuenta gratis con email, Google o Facebook en menos de 1 minuto.' },
-  { n: '02', title: 'ELEGÍ UN TORNEO', desc: 'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con LFA Coin, la moneda de SOMOS LFA.' },
-  { n: '03', title: 'JUGÁ Y COBRÁ', desc: 'Subí tu resultado, el bot verifica que sea correcto, actualiza el bracket automáticamente y entrega el premio al ganador.' },
+const MODOS_BASE = [
+  { icon: '⚔️', title: 'ARENA 1VS1',  key: 'arena',  color: '#00ff88' },
+  { icon: '📅', title: 'LIGA 1VS1',   key: 'liga',   color: '#ffd700' },
+  { icon: '🤝', title: 'CO-OP 2VS2',  key: 'coop',   color: '#009ee3', pronto: true },
+  { icon: '🏛️', title: 'LIGA LFA', sub: 'Clubes FC 26', key: 'clubes', color: '#a371f7', pronto: true },
 ];
 
 export default function HomePage() {
@@ -31,6 +25,19 @@ export default function HomePage() {
   const [authChecked,  setAuthChecked] = useState(false);
   const [stats, setStats] = useState({ jugadores: 0, torneos: 0 });
   const loginRef = useRef<HTMLDivElement>(null);
+
+  const MODOS = [
+    { ...MODOS_BASE[0], desc: t.home_arena_desc },
+    { ...MODOS_BASE[1], desc: t.home_liga_desc },
+    { ...MODOS_BASE[2], desc: t.home_coop_desc },
+    { ...MODOS_BASE[3], desc: t.home_clubes_desc },
+  ];
+
+  const PASOS = [
+    { n: '01', title: t.home_paso1_title, desc: t.home_paso1_desc },
+    { n: '02', title: t.home_paso2_title, desc: t.home_paso2_desc },
+    { n: '03', title: t.home_paso3_title, desc: t.home_paso3_desc },
+  ];
 
   // Cargar stats públicos (sin auth)
   useEffect(() => {
@@ -92,18 +99,18 @@ export default function HomePage() {
 
           {/* Slogan */}
           <p style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(0.85rem,2.5vw,1.1rem)', textAlign: 'center', color: '#cdd9e5', maxWidth: 540, lineHeight: 1.7, margin: '0 0 36px' }}>
-            Torneos de <strong style={{ color: '#00ff88' }}>FC 26</strong> y <strong style={{ color: '#009ee3' }}>eFootball</strong> con premios reales.<br />
-            Competí 1vs1, armá equipo y dominá los torneos.<br />
+            {t.home_slogan1}<br />
+            {t.home_slogan2}<br />
             <span style={{ color: '#ffd700', fontSize: '0.9em' }}>🏆 Top Ranking · Brackets automáticos · Bot verificador</span>
           </p>
 
           {/* CTAs */}
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 48 }}>
             <button onClick={scrollToLogin} style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.85rem', background: 'linear-gradient(135deg,#00ff88,#00a859)', color: '#0b0e14', border: 'none', borderRadius: 12, padding: '14px 32px', cursor: 'pointer', letterSpacing: 1, boxShadow: '0 0 24px rgba(0,255,136,0.35)', transition: '0.2s' }}>
-              🎮 CREAR CUENTA GRATIS
+              {t.home_crear_cuenta}
             </button>
             <button onClick={scrollToLogin} style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 700, fontSize: '0.85rem', background: 'transparent', color: '#8b949e', border: '1px solid #30363d', borderRadius: 12, padding: '14px 28px', cursor: 'pointer', transition: '0.2s' }}>
-              YA TENGO CUENTA →
+              {t.home_ya_tengo}
             </button>
           </div>
 
@@ -127,12 +134,12 @@ export default function HomePage() {
             MODOS DE JUEGO
         ══════════════════════════════════════════════ */}
         <section style={{ padding: 'clamp(40px,8vw,80px) 20px', maxWidth: 900, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Orbitron',sans-serif", textAlign: 'center', fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 10, letterSpacing: 2 }}>MODOS DE COMPETICIÓN</h2>
-          <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.82rem', marginBottom: 36 }}>Elegí tu formato favorito</p>
+          <h2 style={{ fontFamily: "'Orbitron',sans-serif", textAlign: 'center', fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 10, letterSpacing: 2 }}>{t.home_modos_title}</h2>
+          <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.82rem', marginBottom: 36 }}>{t.home_modos_sub}</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 16 }}>
             {MODOS.map(m => (
               <div key={m.title} style={{ background: '#161b22', border: `1px solid ${m.color}22`, borderTop: `3px solid ${m.pronto ? '#30363d' : m.color}`, borderRadius: 14, padding: '24px 18px', textAlign: 'center', opacity: m.pronto ? 0.5 : 1, position: 'relative', transition: '0.2s' }}>
-                {m.pronto && <div style={{ position: 'absolute', top: 10, right: 10, background: '#30363d', color: '#8b949e', fontSize: '0.55rem', fontFamily: "'Orbitron',sans-serif", padding: '2px 7px', borderRadius: 6, fontWeight: 700 }}>PRONTO</div>}
+                {m.pronto && <div style={{ position: 'absolute', top: 10, right: 10, background: '#30363d', color: '#8b949e', fontSize: '0.55rem', fontFamily: "'Orbitron',sans-serif", padding: '2px 7px', borderRadius: 6, fontWeight: 700 }}>{t.hub_pronto}</div>}
                 <div style={{ fontSize: '2rem', marginBottom: 10 }}>{m.icon}</div>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: m.pronto ? '#4a5568' : m.color, marginBottom: 2, letterSpacing: 1 }}>{m.title}</div>
                 {'sub' in m && m.sub && <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#4a5568', marginBottom: 8, letterSpacing: 1 }}>{m.sub}</div>}
@@ -148,8 +155,8 @@ export default function HomePage() {
         ══════════════════════════════════════════════ */}
         <section style={{ padding: 'clamp(40px,8vw,80px) 20px', background: '#0d1117', borderTop: '1px solid #1c2028', borderBottom: '1px solid #1c2028' }}>
           <div style={{ maxWidth: 760, margin: '0 auto' }}>
-            <h2 style={{ fontFamily: "'Orbitron',sans-serif", textAlign: 'center', fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 10, letterSpacing: 2 }}>¿CÓMO FUNCIONA?</h2>
-            <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.82rem', marginBottom: 40 }}>Simple, rápido, transparente</p>
+            <h2 style={{ fontFamily: "'Orbitron',sans-serif", textAlign: 'center', fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 10, letterSpacing: 2 }}>{t.home_como_title}</h2>
+            <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '0.82rem', marginBottom: 40 }}>{t.home_como_sub}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 20 }}>
               {PASOS.map((p, i) => (
                 <div key={p.n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12 }}>
@@ -167,8 +174,8 @@ export default function HomePage() {
             LOGIN / REGISTRO
         ══════════════════════════════════════════════ */}
         <section ref={loginRef} style={{ padding: 'clamp(40px,8vw,80px) 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h2 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 8, letterSpacing: 2, textAlign: 'center' }}>¿LISTO PARA COMPETIR?</h2>
-          <p style={{ color: '#4a5568', fontSize: '0.82rem', marginBottom: 32, textAlign: 'center' }}>Creá tu cuenta gratis o iniciá sesión</p>
+          <h2 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1rem,3vw,1.3rem)', fontWeight: 900, color: 'white', marginBottom: 8, letterSpacing: 2, textAlign: 'center' }}>{t.home_listo_title}</h2>
+          <p style={{ color: '#4a5568', fontSize: '0.82rem', marginBottom: 32, textAlign: 'center' }}>{t.home_listo_sub}</p>
           <LoginBox t={t} />
         </section>
 
