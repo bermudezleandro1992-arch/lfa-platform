@@ -142,27 +142,33 @@ export async function POST(req: NextRequest) {
 
       const txCoins = (u.number ?? u.coins ?? 0) as number;
 
+      // Validar ID de juego para TODOS los torneos (free y pago)
+      const gameStr     = ((t.game ?? t.juego ?? '') as string).toUpperCase();
+      const isEfootball = gameStr.includes('EFOOTBALL') || gameStr.includes('E-FOOTBALL') || gameStr.includes('KONAMI');
+      const hasEaId     = !!(u.ea_id?.trim());
+      const hasKonamiId = !!(u.konami_id?.trim());
+      if (isEfootball) {
+        if (!hasKonamiId) throw new Error('Vinculá tu Konami ID (eFootball) en tu perfil para entrar a este torneo.');
+      } else {
+        // FC26, FC27 u otro juego EA
+        if (!hasEaId) throw new Error('Vinculá tu EA ID (FC 26) en tu perfil para entrar a este torneo.');
+      }
+
       if (isFree) {
         const authUser = await adminAuth.getUser(uid);
         if (!authUser.emailVerified) throw new Error('Verificá tu email para acceder a torneos gratuitos.');
-        // Validar ID según el juego del torneo
-        const gameStr = ((t.game ?? t.juego ?? '') as string).toUpperCase();
-        const isEfootball = gameStr.includes('EFOOTBALL') || gameStr.includes('E-FOOTBALL') || gameStr.includes('KONAMI');
-        const hasEaId     = !!(u.ea_id?.trim());
-        const hasKonamiId = !!(u.konami_id?.trim());
-        if (isEfootball) {
-          if (!hasKonamiId && !hasEaId) throw new Error('Vinculá tu Konami ID en tu perfil antes de acceder a torneos de eFootball.');
-        } else {
-          // FC26, FC27 u otro juego EA
-          if (!hasEaId && !hasKonamiId) throw new Error('Vinculá tu EA ID en tu perfil antes de acceder a este torneo.');
-        }
         if (txCoins > 5_000)         throw new Error('Con más de 5,000 Coins no podés acceder a salas gratuitas.');
-        const since = new Date(Date.now() - 86_400_000);
+        // Límite diario: sin índice compuesto — filtramos en memoria
         const freeSnap = await adminDb.collection('transactions')
-          .where('userId', '==', uid).where('type', '==', 'FREE_ENTRY').where('timestamp', '>=', since).get();
-        if (freeSnap.size >= 2) throw new Error('Límite diario: máximo 2 torneos gratuitos por día.');
+          .where('userId', '==', uid).where('type', '==', 'FREE_ENTRY').limit(10).get();
+        const since = Date.now() - 86_400_000;
+        const recentFree = freeSnap.docs.filter(d => {
+          const ts = (d.data().timestamp as { toMillis?: () => number })?.toMillis?.() ?? 0;
+          return ts >= since;
+        });
+        if (recentFree.length >= 2) throw new Error('Límite diario: máximo 2 torneos gratuitos por día.');
       } else {
-        // Idempotencia: verificar que no haya una tx de entrada duplicada reciente (últimos 30 seg)
+        // Idempotencia: verificar que no haya una tx de entrada duplicada reciente
         const dupCheck = await adminDb.collection('transactions')
           .where('userId', '==', uid).where('type', '==', 'TOURNAMENT_ENTRY').where('tournamentId', '==', tournamentId).limit(1).get();
         if (!dupCheck.empty) throw new Error('Ya procesamos tu inscripción a este torneo.');

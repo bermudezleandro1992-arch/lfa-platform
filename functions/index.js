@@ -1473,22 +1473,31 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
 // ============================================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-// 14 slots × 2 juegos × 2 modos × 3 regiones = 168 plantillas
+// 55 slots × 2 juegos × 2 modos × 5 regiones = 1100 plantillas
+// GRATIS: fee=0 | RECREATIVO: 500-999 | COMPETITIVO: 1000-9999 | ELITE: 10000+
 const SALA_SLOTS_SPAWN = [
-    // [capacity, entry_fee]
-    [2, 500],  [2, 2000],
-    [4, 0],    [4, 500],
-    [6, 0],    [6, 500],  [6, 2000],
-    [8, 0],    [8, 500],  [8, 2000],
-    [12, 500], [12, 2000],
-    [16, 0],   [16, 10000],
+    // GRATIS
+    [2, 0],    [4, 0],    [6, 0],    [8, 0],    [16, 0],
+    // RECREATIVO (500–999)
+    [2, 500],  [4, 500],  [6, 500],  [8, 500],  [16, 500],
+    [2, 750],  [4, 750],  [6, 750],  [8, 750],  [16, 750],
+    [2, 999],  [4, 999],  [6, 999],  [8, 999],  [16, 999],
+    // COMPETITIVO (1000–9999)
+    [2, 1000], [4, 1000], [6, 1000], [8, 1000], [16, 1000],
+    [2, 2500], [4, 2500], [6, 2500], [8, 2500], [16, 2500],
+    [2, 5000], [4, 5000], [6, 5000], [8, 5000], [16, 5000],
+    [2, 9999], [4, 9999], [6, 9999], [8, 9999], [16, 9999],
+    // ELITE (10000–20000)
+    [2, 10000],[4, 10000],[6, 10000],[8, 10000],[16, 10000],
+    [2, 15000],[4, 15000],[6, 15000],[8, 15000],[16, 15000],
+    [2, 20000],[4, 20000],[6, 20000],[8, 20000],[16, 20000],
 ];
 
 const _SPAWN_GAMES = [
     { game: "FC26",      modes: ["GENERAL_95", "ULTIMATE"] },
     { game: "EFOOTBALL", modes: ["DREAM_TEAM", "GENUINOS"] },
 ];
-const _SPAWN_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA"];
+const _SPAWN_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA", "GLOBAL", "EUROPA"];
 
 function getTierFromFee(entry_fee) {
     if (entry_fee === 0)    return "FREE";
@@ -1513,19 +1522,18 @@ function calcPrizes(capacity, entry_fee) {
         { place: 1, label: "🥇 1°", percentage: 70, coins: Math.floor(pot * 0.70) },
         { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pot * 0.30) },
     ];
-    // 32 jugadores → top 4
+    // 32 jugadores → top 3
     if (capacity <= 32) return [
+        { place: 1, label: "🥇 1°", percentage: 60, coins: Math.floor(pot * 0.60) },
+        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
+        { place: 3, label: "🥉 3°", percentage: 15, coins: Math.floor(pot * 0.15) },
+    ];
+    // 64+ jugadores → top 4
+    return [
         { place: 1, label: "🥇 1°", percentage: 50, coins: Math.floor(pot * 0.50) },
         { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
         { place: 3, label: "🥉 3°", percentage: 15, coins: Math.floor(pot * 0.15) },
         { place: 4, label: "4°",    percentage: 10, coins: Math.floor(pot * 0.10) },
-    ];
-    // 64+ jugadores → top 4
-    return [
-        { place: 1, label: "🥇 1°", percentage: 45, coins: Math.floor(pot * 0.45) },
-        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
-        { place: 3, label: "🥉 3°", percentage: 18, coins: Math.floor(pot * 0.18) },
-        { place: 4, label: "4°",    percentage: 12, coins: Math.floor(pot * 0.12) },
     ];
 }
 
@@ -1543,16 +1551,33 @@ for (const g of _SPAWN_GAMES) {
     }
 }
 
-// Slots activos por defecto (Fase 1 — lanzamiento)
+// Slots activos por defecto (Fase 1 — lanzamiento completo)
+// 80 slots × 5 regiones × 2 salas = 800 salas máx simultáneas
 const DEFAULT_SLOTS_ACTIVOS = [
-    "FC26|GENERAL_95|4|0",   "FC26|GENERAL_95|4|500",
-    "FC26|GENERAL_95|8|0",   "FC26|GENERAL_95|8|500",  "FC26|GENERAL_95|8|2000",
-    "FC26|ULTIMATE|4|0",     "FC26|ULTIMATE|4|500",
-    "FC26|ULTIMATE|8|0",     "FC26|ULTIMATE|8|500",
-    "EFOOTBALL|DREAM_TEAM|4|0", "EFOOTBALL|DREAM_TEAM|4|500",
-    "EFOOTBALL|DREAM_TEAM|8|0", "EFOOTBALL|DREAM_TEAM|8|500",
-    "EFOOTBALL|GENUINOS|4|0",   "EFOOTBALL|GENUINOS|4|500",
-    "EFOOTBALL|GENUINOS|8|0",   "EFOOTBALL|GENUINOS|8|500",
+    // FC26 — GENERAL_95
+    "FC26|GENERAL_95|2|0",  "FC26|GENERAL_95|4|0",  "FC26|GENERAL_95|6|0",  "FC26|GENERAL_95|8|0",  "FC26|GENERAL_95|16|0",
+    "FC26|GENERAL_95|2|500","FC26|GENERAL_95|4|500","FC26|GENERAL_95|6|500","FC26|GENERAL_95|8|500","FC26|GENERAL_95|16|500",
+    "FC26|GENERAL_95|2|1000","FC26|GENERAL_95|4|1000","FC26|GENERAL_95|6|1000","FC26|GENERAL_95|8|1000","FC26|GENERAL_95|16|1000",
+    "FC26|GENERAL_95|2|2500","FC26|GENERAL_95|4|2500","FC26|GENERAL_95|6|2500","FC26|GENERAL_95|8|2500","FC26|GENERAL_95|16|2500",
+    "FC26|GENERAL_95|2|10000","FC26|GENERAL_95|4|10000","FC26|GENERAL_95|6|10000","FC26|GENERAL_95|8|10000","FC26|GENERAL_95|16|10000",
+    // FC26 — ULTIMATE
+    "FC26|ULTIMATE|2|0",  "FC26|ULTIMATE|4|0",  "FC26|ULTIMATE|6|0",  "FC26|ULTIMATE|8|0",  "FC26|ULTIMATE|16|0",
+    "FC26|ULTIMATE|2|500","FC26|ULTIMATE|4|500","FC26|ULTIMATE|6|500","FC26|ULTIMATE|8|500","FC26|ULTIMATE|16|500",
+    "FC26|ULTIMATE|2|1000","FC26|ULTIMATE|4|1000","FC26|ULTIMATE|6|1000","FC26|ULTIMATE|8|1000","FC26|ULTIMATE|16|1000",
+    "FC26|ULTIMATE|2|2500","FC26|ULTIMATE|4|2500","FC26|ULTIMATE|6|2500","FC26|ULTIMATE|8|2500","FC26|ULTIMATE|16|2500",
+    "FC26|ULTIMATE|2|10000","FC26|ULTIMATE|4|10000","FC26|ULTIMATE|6|10000","FC26|ULTIMATE|8|10000","FC26|ULTIMATE|16|10000",
+    // EFOOTBALL — DREAM_TEAM
+    "EFOOTBALL|DREAM_TEAM|2|0",  "EFOOTBALL|DREAM_TEAM|4|0",  "EFOOTBALL|DREAM_TEAM|6|0",  "EFOOTBALL|DREAM_TEAM|8|0",  "EFOOTBALL|DREAM_TEAM|16|0",
+    "EFOOTBALL|DREAM_TEAM|2|500","EFOOTBALL|DREAM_TEAM|4|500","EFOOTBALL|DREAM_TEAM|6|500","EFOOTBALL|DREAM_TEAM|8|500","EFOOTBALL|DREAM_TEAM|16|500",
+    "EFOOTBALL|DREAM_TEAM|2|1000","EFOOTBALL|DREAM_TEAM|4|1000","EFOOTBALL|DREAM_TEAM|6|1000","EFOOTBALL|DREAM_TEAM|8|1000","EFOOTBALL|DREAM_TEAM|16|1000",
+    "EFOOTBALL|DREAM_TEAM|2|2500","EFOOTBALL|DREAM_TEAM|4|2500","EFOOTBALL|DREAM_TEAM|6|2500","EFOOTBALL|DREAM_TEAM|8|2500","EFOOTBALL|DREAM_TEAM|16|2500",
+    "EFOOTBALL|DREAM_TEAM|2|10000","EFOOTBALL|DREAM_TEAM|4|10000","EFOOTBALL|DREAM_TEAM|6|10000","EFOOTBALL|DREAM_TEAM|8|10000","EFOOTBALL|DREAM_TEAM|16|10000",
+    // EFOOTBALL — GENUINOS
+    "EFOOTBALL|GENUINOS|2|0",  "EFOOTBALL|GENUINOS|4|0",  "EFOOTBALL|GENUINOS|6|0",  "EFOOTBALL|GENUINOS|8|0",  "EFOOTBALL|GENUINOS|16|0",
+    "EFOOTBALL|GENUINOS|2|500","EFOOTBALL|GENUINOS|4|500","EFOOTBALL|GENUINOS|6|500","EFOOTBALL|GENUINOS|8|500","EFOOTBALL|GENUINOS|16|500",
+    "EFOOTBALL|GENUINOS|2|1000","EFOOTBALL|GENUINOS|4|1000","EFOOTBALL|GENUINOS|6|1000","EFOOTBALL|GENUINOS|8|1000","EFOOTBALL|GENUINOS|16|1000",
+    "EFOOTBALL|GENUINOS|2|2500","EFOOTBALL|GENUINOS|4|2500","EFOOTBALL|GENUINOS|6|2500","EFOOTBALL|GENUINOS|8|2500","EFOOTBALL|GENUINOS|16|2500",
+    "EFOOTBALL|GENUINOS|2|10000","EFOOTBALL|GENUINOS|4|10000","EFOOTBALL|GENUINOS|6|10000","EFOOTBALL|GENUINOS|8|10000","EFOOTBALL|GENUINOS|16|10000",
 ];
 
 async function runSpawnCycle() {
