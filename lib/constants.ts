@@ -1,6 +1,7 @@
 // ============================================================
 // REGIONES
 // ============================================================
+
 export const REGIONS = [
   {
     value: "LATAM_SUR",
@@ -12,15 +13,111 @@ export const REGIONS = [
     value: "LATAM_NORTE",
     label: "🌎 Región Norte",
     description: "México, Colombia, Venezuela, Ecuador, Rep. Dominicana, Costa Rica, Panamá y más",
-    countries: ["MX", "CO", "VE", "EC", "DO", "CR", "PA", "GT", "HN", "SV", "NI", "US"],
+    countries: ["MX", "CO", "VE", "EC", "DO", "CR", "PA", "GT", "HN", "SV", "NI", "US", "CA"],
   },
   {
     value: "AMERICA",
     label: "🌍 Región América",
-    description: "Toda Latinoamérica unificada — Norte + Sur",
-    countries: [],
+    description: "Toda América: Norte, Sur, Centro y Caribe",
+    countries: [
+      "AR","UY","CL","PE","BR","BO","PY","MX","CO","VE","EC","DO","CR","PA","GT","HN","SV","NI","US","CA","CU","PR","HT","JM","TT","BB","LC","VC","GD","AG","DM","KN","BZ","BS","SR","GY","FK"
+    ],
+  },
+  {
+    value: "EUROPA",
+    label: "🇪🇺 Región Europa",
+    description: "España, Francia, Italia, Alemania, Portugal, UK, y más",
+    countries: [
+      "ES","PT","FR","IT","DE","GB","IE","NL","BE","CH","AT","SE","NO","DK","FI","PL","CZ","SK","HU","RO","BG","GR","HR","SI","RS","UA","BY","LT","LV","EE","LU","MC","LI","SM","VA","AL","MD","IS","MT"
+    ],
+  },
+  {
+    value: "GLOBAL",
+    label: "🌐 Región Global",
+    description: "Todos los países y regiones",
+    countries: [], // todos
   },
 ] as const;
+// Lista de países de América y Europa (ISO 3166-1 alpha-2, nombre español)
+export const COUNTRIES_AMERICA_EUROPE = [
+  // América
+  { code: "AR", name: "Argentina" },
+  { code: "BO", name: "Bolivia" },
+  { code: "BR", name: "Brasil" },
+  { code: "CL", name: "Chile" },
+  { code: "CO", name: "Colombia" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "CU", name: "Cuba" },
+  { code: "DO", name: "República Dominicana" },
+  { code: "EC", name: "Ecuador" },
+  { code: "SV", name: "El Salvador" },
+  { code: "GT", name: "Guatemala" },
+  { code: "HN", name: "Honduras" },
+  { code: "JM", name: "Jamaica" },
+  { code: "MX", name: "México" },
+  { code: "NI", name: "Nicaragua" },
+  { code: "PA", name: "Panamá" },
+  { code: "PY", name: "Paraguay" },
+  { code: "PE", name: "Perú" },
+  { code: "PR", name: "Puerto Rico" },
+  { code: "UY", name: "Uruguay" },
+  { code: "US", name: "Estados Unidos" },
+  { code: "VE", name: "Venezuela" },
+  { code: "CA", name: "Canadá" },
+  { code: "BS", name: "Bahamas" },
+  { code: "BZ", name: "Belice" },
+  { code: "SR", name: "Surinam" },
+  { code: "GY", name: "Guyana" },
+  { code: "TT", name: "Trinidad y Tobago" },
+  { code: "BB", name: "Barbados" },
+  { code: "LC", name: "Santa Lucía" },
+  { code: "VC", name: "San Vicente y las Granadinas" },
+  { code: "GD", name: "Granada" },
+  { code: "AG", name: "Antigua y Barbuda" },
+  { code: "DM", name: "Dominica" },
+  { code: "KN", name: "San Cristóbal y Nieves" },
+  { code: "FK", name: "Islas Malvinas" },
+  // Europa
+  { code: "ES", name: "España" },
+  { code: "PT", name: "Portugal" },
+  { code: "FR", name: "Francia" },
+  { code: "IT", name: "Italia" },
+  { code: "DE", name: "Alemania" },
+  { code: "GB", name: "Reino Unido" },
+  { code: "IE", name: "Irlanda" },
+  { code: "NL", name: "Países Bajos" },
+  { code: "BE", name: "Bélgica" },
+  { code: "CH", name: "Suiza" },
+  { code: "AT", name: "Austria" },
+  { code: "SE", name: "Suecia" },
+  { code: "NO", name: "Noruega" },
+  { code: "DK", name: "Dinamarca" },
+  { code: "FI", name: "Finlandia" },
+  { code: "PL", name: "Polonia" },
+  { code: "CZ", name: "Chequia" },
+  { code: "SK", name: "Eslovaquia" },
+  { code: "HU", name: "Hungría" },
+  { code: "RO", name: "Rumania" },
+  { code: "BG", name: "Bulgaria" },
+  { code: "GR", name: "Grecia" },
+  { code: "HR", name: "Croacia" },
+  { code: "SI", name: "Eslovenia" },
+  { code: "RS", name: "Serbia" },
+  { code: "UA", name: "Ucrania" },
+  { code: "BY", name: "Bielorrusia" },
+  { code: "LT", name: "Lituania" },
+  { code: "LV", name: "Letonia" },
+  { code: "EE", name: "Estonia" },
+  { code: "LU", name: "Luxemburgo" },
+  { code: "MC", name: "Mónaco" },
+  { code: "LI", name: "Liechtenstein" },
+  { code: "SM", name: "San Marino" },
+  { code: "VA", name: "Ciudad del Vaticano" },
+  { code: "AL", name: "Albania" },
+  { code: "MD", name: "Moldavia" },
+  { code: "IS", name: "Islandia" },
+  { code: "MT", name: "Malta" },
+];
 
 export type Region = (typeof REGIONS)[number]["value"];
 
