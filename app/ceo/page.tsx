@@ -161,6 +161,7 @@ export default function CeoPage() {
   const [crRegion, setCrRegion] = useState('LATAM_SUR');
   const [crTier,   setCrTier]   = useState('FREE');
   const [crCap,    setCrCap]    = useState('8');
+  const [crCountry, setCrCountry] = useState('');
 
   /* ── Fair play ───────────────────────────────────────────── */
   const [fpUid, setFpUid] = useState('');
@@ -414,31 +415,32 @@ export default function CeoPage() {
     const pool     = cap * fee * 0.9;
     const isFree   = fee === 0;
     function mkPrizes() {
-      if (isFree) return [{ place:1, label:'🥇 1°', percentage:100, coins:0 }];
-      if (cap <= 6)  return [{ place:1, label:'🥇 1°', percentage:100, coins:pool }];
+      if (isFree) return [{ place:1, label:'\ud83e\udd47 1\u00b0', percentage:100, coins:0 }];
+      if (cap <= 6)  return [{ place:1, label:'\ud83e\udd47 1\u00b0', percentage:100, coins:pool }];
       if (cap <= 16) return [
-        { place:1, label:'🥇 1°', percentage:70, coins:Math.floor(pool*0.70) },
-        { place:2, label:'🥈 2°', percentage:30, coins:Math.floor(pool*0.30) },
+        { place:1, label:'\ud83e\udd47 1\u00b0', percentage:70, coins:Math.floor(pool*0.70) },
+        { place:2, label:'\ud83e\udd48 2\u00b0', percentage:30, coins:Math.floor(pool*0.30) },
       ];
       if (cap <= 32) return [
-        { place:1, label:'🥇 1°', percentage:50, coins:Math.floor(pool*0.50) },
-        { place:2, label:'🥈 2°', percentage:25, coins:Math.floor(pool*0.25) },
-        { place:3, label:'🥉 3°', percentage:15, coins:Math.floor(pool*0.15) },
-        { place:4, label:'4°',    percentage:10, coins:Math.floor(pool*0.10) },
+        { place:1, label:'\ud83e\udd47 1\u00b0', percentage:60, coins:Math.floor(pool*0.60) },
+        { place:2, label:'\ud83e\udd48 2\u00b0', percentage:25, coins:Math.floor(pool*0.25) },
+        { place:3, label:'\ud83e\udd49 3\u00b0', percentage:15, coins:Math.floor(pool*0.15) },
       ];
+      // 64+ jugadores → 4 premios
       return [
-        { place:1, label:'🥇 1°', percentage:45, coins:Math.floor(pool*0.45) },
-        { place:2, label:'🥈 2°', percentage:25, coins:Math.floor(pool*0.25) },
-        { place:3, label:'🥉 3°', percentage:18, coins:Math.floor(pool*0.18) },
-        { place:4, label:'4°',    percentage:12, coins:Math.floor(pool*0.12) },
+        { place:1, label:'\ud83e\udd47 1\u00b0', percentage:50, coins:Math.floor(pool*0.50) },
+        { place:2, label:'\ud83e\udd48 2\u00b0', percentage:25, coins:Math.floor(pool*0.25) },
+        { place:3, label:'\ud83e\udd49 3\u00b0', percentage:15, coins:Math.floor(pool*0.15) },
+        { place:4, label:'4\u00b0',               percentage:10, coins:Math.floor(pool*0.10) },
       ];
     }
     await addDoc(collection(db,'tournaments'), {
       game:crGame, mode:crMode, region:crRegion, tier:crTier, free:isFree,
       entry_fee:fee, prize_pool:pool, prizes:mkPrizes(),
       capacity:cap, players:[], status:'OPEN', spawned:false, created_at:serverTimestamp(),
+      ...(crCountry ? { country: crCountry } : {}),
     });
-    await alerta('SALA CREADA', `${GL[crGame]} · ${ML[crMode]} · ${crTier} · ${cap}j · ${mkPrizes().length} premios`, 'exito');
+    await alerta('SALA CREADA', `${GL[crGame]} \u00b7 ${ML[crMode]} \u00b7 ${crTier} \u00b7 ${cap}j \u00b7 ${mkPrizes().length} premios${crCountry ? ` \u00b7 ${crCountry}` : ''}`, 'exito');
   }
 
   /* ── Spawner manual ──────────────────────────────────────── */
@@ -798,12 +800,28 @@ export default function CeoPage() {
                     <option value="ELITE">ELITE (10.000)</option>
                   </select>
                   <select style={{ ...inp, gridColumn:'1/-1' }} value={crCap} onChange={e => setCrCap(e.target.value)}>
-                    <option value="4">4 cupos</option>
-                    <option value="8">8 cupos</option>
-                    <option value="12">12 cupos</option>
-                    <option value="16">16 cupos</option>
-                    <option value="32">32 cupos</option>
-                    <option value="64">64 cupos</option>
+                    <option value="2">2 cupos (1 premio)</option>
+                    <option value="4">4 cupos (1 premio)</option>
+                    <option value="6">6 cupos (1 premio)</option>
+                    <option value="8">8 cupos (2 premios)</option>
+                    <option value="16">16 cupos (2 premios)</option>
+                    <option value="32">32 cupos — FIN DE SEMANA (3 premios)</option>
+                    <option value="64">64 cupos — FIN DE SEMANA (4 premios)</option>
+                  </select>
+                  <select style={{ ...inp, gridColumn:'1/-1' }} value={crCountry} onChange={e => setCrCountry(e.target.value)}>
+                    <option value="">🌐 Todos los países</option>
+                    <option value="Argentina">🇦🇷 Argentina</option>
+                    <option value="México">🇲🇽 México</option>
+                    <option value="Colombia">🇨🇴 Colombia</option>
+                    <option value="Chile">🇨🇱 Chile</option>
+                    <option value="Perú">🇵🇪 Perú</option>
+                    <option value="Venezuela">🇻🇪 Venezuela</option>
+                    <option value="Uruguay">🇺🇾 Uruguay</option>
+                    <option value="Brasil">🇧🇷 Brasil</option>
+                    <option value="Ecuador">🇪🇨 Ecuador</option>
+                    <option value="Bolivia">🇧🇴 Bolivia</option>
+                    <option value="Paraguay">🇵🇾 Paraguay</option>
+                    <option value="España">🇪🇸 España</option>
                   </select>
                 </div>
                 <button style={{ ...btn('#00ff88'), width:'100%', marginTop:2 }} onClick={crearSalaManual}>🚀 PUBLICAR SALA</button>
@@ -1055,15 +1073,41 @@ export default function CeoPage() {
               <div style={{ ...card, borderTop:'3px solid #ff00cc', background:'linear-gradient(135deg,#161b22,rgba(255,0,204,0.04))' }}>
                 <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:'0 0 14px', fontSize:'0.85rem' }}>⚙️ MOTOR DE SALAS</h3>
 
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:'1px solid #30363d', marginBottom:14 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:'1px solid #30363d', marginBottom:8 }}>
                   <div>
                     <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.82rem' }}>AUTO-SPAWN HORARIO</div>
-                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Crea 2 salas por modo cada hora</div>
+                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Crea salas por modo cada hora</div>
                   </div>
                   <label style={{ position:'relative', display:'inline-block', width:52, height:26, cursor:'pointer', flexShrink:0 }}>
                     <input type="checkbox" checked={!!spawnerCfg.activo} onChange={e => updateDoc(doc(db,'configuracion','spawner'),{activo:e.target.checked})} style={{ opacity:0, width:0, height:0 }} />
                     <span style={{ position:'absolute', inset:0, background:spawnerCfg.activo ? '#00ff88' : '#30363d', borderRadius:34, transition:'0.3s', boxShadow:spawnerCfg.activo ? '0 0 12px rgba(0,255,136,0.4)' : 'none' }}>
                       <span style={{ position:'absolute', height:18, width:18, bottom:4, left:spawnerCfg.activo ? 30 : 4, background:'white', borderRadius:'50%', transition:'0.3s' }} />
+                    </span>
+                  </label>
+                </div>
+
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:`1px solid ${(spawnerCfg as Record<string,unknown>).autoRespawn ? '#ff00cc' : '#30363d'}`, marginBottom:8 }}>
+                  <div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.82rem', color:(spawnerCfg as Record<string,unknown>).autoRespawn ? '#ff00cc' : 'white' }}>♻️ AUTO-RESPAWN CONTINUO</div>
+                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Cuando una sala se llena → crea otra igual automáticamente</div>
+                  </div>
+                  <label style={{ position:'relative', display:'inline-block', width:52, height:26, cursor:'pointer', flexShrink:0 }}>
+                    <input type="checkbox" checked={!!(spawnerCfg as Record<string,unknown>).autoRespawn} onChange={e => updateDoc(doc(db,'configuracion','spawner'),{autoRespawn:e.target.checked})} style={{ opacity:0, width:0, height:0 }} />
+                    <span style={{ position:'absolute', inset:0, background:(spawnerCfg as Record<string,unknown>).autoRespawn ? '#ff00cc' : '#30363d', borderRadius:34, transition:'0.3s', boxShadow:(spawnerCfg as Record<string,unknown>).autoRespawn ? '0 0 12px rgba(255,0,204,0.4)' : 'none' }}>
+                      <span style={{ position:'absolute', height:18, width:18, bottom:4, left:(spawnerCfg as Record<string,unknown>).autoRespawn ? 30 : 4, background:'white', borderRadius:'50%', transition:'0.3s' }} />
+                    </span>
+                  </label>
+                </div>
+
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:`1px solid ${(spawnerCfg as Record<string,unknown>).weekendMode ? '#ffd700' : '#30363d'}`, marginBottom:14 }}>
+                  <div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.82rem', color:(spawnerCfg as Record<string,unknown>).weekendMode ? '#ffd700' : 'white' }}>🏆 MODO FIN DE SEMANA</div>
+                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Habilita salas de 32 y 64 jugadores (torneos grandes)</div>
+                  </div>
+                  <label style={{ position:'relative', display:'inline-block', width:52, height:26, cursor:'pointer', flexShrink:0 }}>
+                    <input type="checkbox" checked={!!(spawnerCfg as Record<string,unknown>).weekendMode} onChange={e => updateDoc(doc(db,'configuracion','spawner'),{weekendMode:e.target.checked})} style={{ opacity:0, width:0, height:0 }} />
+                    <span style={{ position:'absolute', inset:0, background:(spawnerCfg as Record<string,unknown>).weekendMode ? '#ffd700' : '#30363d', borderRadius:34, transition:'0.3s', boxShadow:(spawnerCfg as Record<string,unknown>).weekendMode ? '0 0 12px rgba(255,215,0,0.4)' : 'none' }}>
+                      <span style={{ position:'absolute', height:18, width:18, bottom:4, left:(spawnerCfg as Record<string,unknown>).weekendMode ? 30 : 4, background:' #0b0e14', borderRadius:'50%', transition:'0.3s' }} />
                     </span>
                   </label>
                 </div>

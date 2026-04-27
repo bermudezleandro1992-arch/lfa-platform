@@ -20,7 +20,7 @@ interface UserData {
   es_afiliado?: boolean; rol?: string;
   victorias?: number; derrotas?: number;
   nombre_real?: string; celular?: string;
-  ciudad?: string; provincia?: string; pais?: string; id_consola?: string;
+  ciudad?: string; provincia?: string; pais?: string; id_consola?: string; ea_id?: string; konami_id?: string;
   country?: string; countryName?: string;
   referidos?: string[]; coins_referidos?: number;
   twitch_canal?: string; kick_canal?: string; youtube_canal?: string;
@@ -78,6 +78,8 @@ export default function PerfilPage() {
   const [ciudad,    setCiudad]    = useState('');
   const [provincia, setProvincia] = useState('');
   const [idConsola, setIdConsola] = useState('');
+  const [eaId,      setEaId]      = useState('');
+  const [konamiId,  setKonamiId]  = useState('');
   const [twitchCanal, setTwitchCanal] = useState('');
   const [kickCanal,   setKickCanal]   = useState('');
   const [youtubeCanal,setYoutubeCanal]= useState('');
@@ -105,6 +107,8 @@ export default function PerfilPage() {
       setCiudad(d.ciudad || '');
       setProvincia(d.provincia || '');
       setIdConsola(d.id_consola || '');
+      setEaId(d.ea_id || '');
+      setKonamiId(d.konami_id || '');
       setTwitchCanal(d.twitch_canal || '');
       setKickCanal(d.kick_canal || '');
       setYoutubeCanal(d.youtube_canal || '');
@@ -178,12 +182,14 @@ export default function PerfilPage() {
       celular: celular.trim(), pais: pais.trim(),
       ciudad: ciudad.trim(),
       provincia: provincia.trim(), id_consola: idConsola.trim(),
+      ea_id:     eaId.trim(),
+      konami_id: konamiId.trim(),
       twitch_canal: twitchCanal.trim().replace(/^@/, ''),
       kick_canal:   kickCanal.trim().replace(/^@/, ''),
       youtube_canal: youtubeCanal.trim().replace(/^@/, ''),
     });
     setMsg('✅ Datos guardados'); setSaving(false);
-  }, [uid, nombre, nombreReal, celular, pais, ciudad, provincia, idConsola, twitchCanal, kickCanal, youtubeCanal]);
+  }, [uid, nombre, nombreReal, celular, pais, ciudad, provincia, idConsola, eaId, konamiId, twitchCanal, kickCanal, youtubeCanal]);
 
   /* Copiar link */
   function copiarRef() {
@@ -266,7 +272,8 @@ export default function PerfilPage() {
                 </div>
                 <div style={{ color: '#8b949e', fontSize: '0.76rem', marginBottom: 14 }}>
                   {userData.ciudad && userData.provincia ? `📍 ${userData.ciudad}, ${userData.provincia}` : '📍 Ciudad no configurada'}
-                  {userData.id_consola && <span style={{ marginLeft: 12, color: '#009ee3', fontSize: '0.7rem' }}>🎮 {userData.id_consola}</span>}
+                  {(userData.ea_id || userData.id_consola) && <span style={{ marginLeft: 12, color: '#009ee3', fontSize: '0.7rem' }}>⚽ EA: {userData.ea_id || userData.id_consola}</span>}
+                  {userData.konami_id && <span style={{ marginLeft: 8, color: '#00c853', fontSize: '0.7rem' }}>⚽ Konami: {userData.konami_id}</span>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(80px,1fr))', gap: 8 }}>
                   {[
@@ -344,8 +351,13 @@ export default function PerfilPage() {
                 )}
                 <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>CIUDAD</label>
                 <input className="inp-focus" value={ciudad} onChange={e => setCiudad(e.target.value)} style={inp} placeholder="Ej: Buenos Aires" maxLength={60} />
-                <label style={{ color: '#8b949e', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>EA ID (FC26) / KONAMI ID (eFOOTBALL)</label>
-                <input className="inp-focus" value={idConsola} onChange={e => setIdConsola(e.target.value)} style={{ ...inp, marginBottom: 14 }} placeholder="EA ID (FC26) / Konami ID (eFootball)" />
+                <div style={{ borderTop: '1px solid #1c2028', paddingTop: 12, marginBottom: 8 }}>
+                  <div style={{ color: '#ffd700', fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', fontWeight: 900, marginBottom: 10 }}>🎮 IDs DE JUEGO</div>
+                </div>
+                <label style={{ color: '#009ee3', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>⚽ EA ID — FC 26</label>
+                <input className="inp-focus" value={eaId} onChange={e => setEaId(e.target.value)} style={{ ...inp, borderColor: eaId ? '#009ee3' : '#30363d' }} placeholder="Ej: TuNick#1234 (EA App)" maxLength={60} />
+                <label style={{ color: '#00c853', fontSize: '0.7rem', display: 'block', marginBottom: 4 }}>⚽ KONAMI ID — eFootball</label>
+                <input className="inp-focus" value={konamiId} onChange={e => setKonamiId(e.target.value)} style={{ ...inp, marginBottom: 14, borderColor: konamiId ? '#00c853' : '#30363d' }} placeholder="Ej: TuNick_eFootball (Konami)" maxLength={60} />
 
                 <div style={{ borderTop: '1px solid #1c2028', paddingTop: 12, marginBottom: 4 }}>
                   <div style={{ color: '#9146FF', fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', fontWeight: 900, marginBottom: 10 }}>📡 CANALES DE STREAMING</div>

@@ -56,7 +56,14 @@ export default function BuscarSala() {
 
       if (snap.empty) { setResults([]); return; }
 
-      const list: Tournament[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Tournament));
+      let list: Tournament[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Tournament));
+
+      // Filtrar por país si el jugador seleccionó uno:
+      // Mostrar salas del país elegido O salas sin restricción de país
+      if (pais) {
+        list = list.filter((r) => !(r as unknown as Record<string, unknown>).country || (r as unknown as Record<string, unknown>).country === pais);
+      }
+
       // Ordenar: menos llenos primero para mejor experiencia de unirse
       list.sort((a, b) => (a.players.length / a.capacity) - (b.players.length / b.capacity));
       setResults(list);
