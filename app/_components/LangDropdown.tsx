@@ -40,8 +40,22 @@ export interface Translations {
   hub_proximamente: string;
   hub_cantina:     string;
   hub_cargando:    string;
+  // Hub modos
+  hub_modo_arena_title:   string;
+  hub_modo_arena_desc:    string;
+  hub_modo_liga_title:    string;
+  hub_modo_liga_desc:     string;
+  hub_modo_coop_title:    string;
+  hub_modo_coop_desc:     string;
+  hub_modo_clubes_title:  string;
+  hub_modo_clubes_desc:   string;
+  hub_pronto:             string;
   // Dashboard
-  dash_perfil:     string;
+  dash_perfil:      string;
+  dash_tab_arena:   string;
+  dash_tab_ranking: string;
+  dash_tab_tv:      string;
+  dash_tab_ping:    string;
 }
 
 const LANGUAGES: Record<LangCode, { flag: string; label: string; name: string }> = {
@@ -75,6 +89,19 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     hub_cantina: 'CANTINA LFA — CHAT GENERAL',
     hub_cargando: 'CARGANDO HUB...',
     dash_perfil: 'PERFIL',
+    hub_modo_arena_title:  'ARENA 1VS1',
+    hub_modo_arena_desc:   'Torneos relámpago individuales.',
+    hub_modo_liga_title:   'LIGA 1VS1',
+    hub_modo_liga_desc:    'Ligas largas oficiales de temporada.',
+    hub_modo_coop_title:   'CO-OP 2VS2',
+    hub_modo_coop_desc:    'Torneos en parejas.',
+    hub_modo_clubes_title: 'LIGA CLUBES',
+    hub_modo_clubes_desc:  'Compite con tu club oficial.',
+    hub_pronto:            'PRONTO',
+    dash_tab_arena:        'ARENA 1VS1',
+    dash_tab_ranking:      'RANKING',
+    dash_tab_tv:           'LFA TV',
+    dash_tab_ping:         'PING',
   },
   pt: {
     slogan1: 'LIGA DE FUTEBOL AUTOMATIZADA', slogan2: 'DOMINE O CAMPO',
@@ -100,6 +127,19 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     hub_cantina: 'CANTINA LFA — CHAT GERAL',
     hub_cargando: 'CARREGANDO HUB...',
     dash_perfil: 'PERFIL',
+    hub_modo_arena_title:  'ARENA 1VS1',
+    hub_modo_arena_desc:   'Torneios relâmpago individuais.',
+    hub_modo_liga_title:   'LIGA 1VS1',
+    hub_modo_liga_desc:    'Ligas longas oficiais de temporada.',
+    hub_modo_coop_title:   'CO-OP 2VS2',
+    hub_modo_coop_desc:    'Torneios em duplas.',
+    hub_modo_clubes_title: 'LIGA CLUBES',
+    hub_modo_clubes_desc:  'Compita com seu clube oficial.',
+    hub_pronto:            'EM BREVE',
+    dash_tab_arena:        'ARENA 1VS1',
+    dash_tab_ranking:      'RANKING',
+    dash_tab_tv:           'LFA TV',
+    dash_tab_ping:         'PING',
   },
   en: {
     slogan1: 'AUTOMATED FOOTBALL LEAGUE', slogan2: 'DOMINATE THE PITCH',
@@ -125,6 +165,19 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     hub_cantina: 'LFA CANTINA — GENERAL CHAT',
     hub_cargando: 'LOADING HUB...',
     dash_perfil: 'PROFILE',
+    hub_modo_arena_title:  'ARENA 1VS1',
+    hub_modo_arena_desc:   'Individual flash tournaments.',
+    hub_modo_liga_title:   'LEAGUE 1VS1',
+    hub_modo_liga_desc:    'Official full-season leagues.',
+    hub_modo_coop_title:   'CO-OP 2VS2',
+    hub_modo_coop_desc:    'Pair tournaments.',
+    hub_modo_clubes_title: 'CLUB LEAGUE',
+    hub_modo_clubes_desc:  'Compete with your official club.',
+    hub_pronto:            'COMING SOON',
+    dash_tab_arena:        'ARENA 1VS1',
+    dash_tab_ranking:      'RANKING',
+    dash_tab_tv:           'LFA TV',
+    dash_tab_ping:         'PING',
   },
 };
 

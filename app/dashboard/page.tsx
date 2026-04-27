@@ -120,16 +120,16 @@ function DashboardContent() {
         </Link>
         <span style={{ color: "#30363d", display: 'flex', alignItems: 'center' }}>|</span>
         <button onClick={() => setTab('arena')} style={{ background:'transparent', border:'none', borderBottom: tab==='arena' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='arena' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          ⚔️ ARENA 1VS1
+          ⚔️ {t.dash_tab_arena}
         </button>
         <button onClick={() => setTab('ranking')} style={{ background:'transparent', border:'none', borderBottom: tab==='ranking' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ranking' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          📊 RANKING
+          📊 {t.dash_tab_ranking}
         </button>
         <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          📺 LFA TV
+          📺 {t.dash_tab_tv}
         </button>
         <button onClick={() => setTab('ping')} style={{ background:'transparent', border:'none', borderBottom: tab==='ping' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ping' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          📡 PING
+          📡 {t.dash_tab_ping}
         </button>
 
         <div style={{ flex: 1 }} />

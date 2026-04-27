@@ -22,46 +22,6 @@ interface UserData {
 /* ─── Constante CEO UID ───────────────────────────────── */
 const DUEÑO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 
-/* ─── Modos de juego ──────────────────────────────────── */
-const MODOS = [
-  {
-    id: 'arena',
-    route: '/dashboard',
-    title: 'ARENA 1VS1',
-    desc: 'Torneos relámpago individuales.',
-    icon: '⚔️',
-    color: '#00ff88',
-    proximamente: false,
-  },
-  {
-    id: 'ligas',
-    route: '/pro',
-    title: 'LIGA 1VS1',
-    desc: 'Ligas largas oficiales de temporada.',
-    icon: '📅',
-    color: '#009ee3',
-    proximamente: false,
-  },
-  {
-    id: 'coop',
-    route: '',
-    title: 'CO-OP 2VS2',
-    desc: 'Torneos en parejas. El Capitán registra al equipo y sube los resultados.',
-    icon: '🤝',
-    color: '#ff6b00',
-    proximamente: true,
-  },
-  {
-    id: 'clubes',
-    route: '',
-    title: 'LIGA CLUBES',
-    desc: 'Compite en la Primera División con tu club oficial.',
-    icon: '🛡️',
-    color: '#ffd700',
-    proximamente: true,
-  },
-];
-
 export default function HubPage() {
   const router                         = useRouter();
   const { lang, setLang, t }           = useLang();
@@ -69,6 +29,14 @@ export default function HubPage() {
   const [esAdmin,  setEsAdmin]         = useState(false);
   const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
+
+  /* ─── Modos de juego (dinámicos con i18n) ─────────── */
+  const MODOS = [
+    { id: 'arena',   route: '/dashboard', title: t.hub_modo_arena_title,   desc: t.hub_modo_arena_desc,   icon: '⚔️', color: '#00ff88', proximamente: false },
+    { id: 'ligas',   route: '/pro',       title: t.hub_modo_liga_title,    desc: t.hub_modo_liga_desc,    icon: '📅', color: '#009ee3', proximamente: false },
+    { id: 'coop',    route: '',           title: t.hub_modo_coop_title,    desc: t.hub_modo_coop_desc,    icon: '🤝', color: '#ff6b00', proximamente: true  },
+    { id: 'clubes',  route: '',           title: t.hub_modo_clubes_title,  desc: t.hub_modo_clubes_desc,  icon: '🛡️', color: '#ffd700', proximamente: true  },
+  ];
 
   /* ── Auth guard ─────────────────────────────────────── */
   useEffect(() => {
@@ -265,7 +233,7 @@ export default function HubPage() {
                 {/* Badge PRÓXIMAMENTE */}
                 {modo.proximamente && (
                   <span style={{ position: 'absolute', top: 14, right: -28, background: '#444', color: '#ccc', fontFamily: "'Orbitron',sans-serif", fontSize: '0.55rem', fontWeight: 'bold', padding: '4px 38px', transform: 'rotate(45deg)', letterSpacing: 1 }}>
-                    PRONTO
+                    {t.hub_pronto}
                   </span>
                 )}
                 <span style={{ fontSize: '2.8rem', marginBottom: 12, filter: modo.proximamente ? 'grayscale(1) opacity(0.4)' : `drop-shadow(0 0 8px ${modo.color}80)` }}>{modo.icon}</span>
