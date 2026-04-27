@@ -352,7 +352,7 @@ export default function BilleteraPage() {
                   { n: '1', t: 'Enviá USDT a nuestra wallet', d: 'Binance Pay — alias somoslfa. También aceptamos TRC20 o BEP20. Escaneá el QR de abajo.' },
                   { n: '2', t: 'Elegí tu pack de coins', d: 'Hacé clic en "RECARGAR COINS" y elegí el pack. Recibirás coins + bonus según el pack.' },
                   { n: '3', t: 'Completá el formulario con comprobante', d: 'Ingresá el ID de referencia, tu alias Binance y adjuntá captura de pantalla del pago (obligatorio).' },
-                  { n: '4', t: 'Revisión manual CEO — hasta 24 hs', d: 'El equipo LFA verifica el comprobante y la transacción. Al aprobar, las coins se acreditan en tu cuenta.' },
+                  { n: '4', t: 'Verificación automática al instante', d: 'LFA verifica tu pago con Binance al instante. Si todo coincide, las coins se acreditan de inmediato. Si hay algún problema, el equipo lo resuelve en 24 hs.' },
                 ].map(s => (
                   <div key={s.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1c2028' }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(243,186,47,0.12)', border: '1px solid rgba(243,186,47,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#f3ba2f', fontSize: '0.7rem', flexShrink: 0 }}>{s.n}</div>
@@ -413,11 +413,11 @@ export default function BilleteraPage() {
               {/* CTA → /recargar */}
               <div style={{ background: '#161b22', border: '1px solid rgba(243,186,47,0.3)', borderRadius: 16, padding: 'clamp(16px,3vw,22px)', textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.82rem', fontWeight: 900, marginBottom: 10 }}>⚡ RECARGAR COINS</div>
-                <p style={{ color: '#8b949e', fontSize: '0.78rem', margin: '0 0 18px' }}>Elegí tu pack, completá el formulario con comprobante y el equipo LFA verificará tu pago en hasta 24 hs.</p>
+                <p style={{ color: '#8b949e', fontSize: '0.78rem', margin: '0 0 18px' }}>Elegí tu pack y completá el formulario con tu comprobante. LFA verifica tu pago con Binance al instante y las coins se acreditan de inmediato.</p>
                 <button onClick={() => router.push('/recargar')} style={{ width: '100%', padding: '15px', background: '#f3ba2f', color: '#0b0e14', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.9rem', cursor: 'pointer', letterSpacing: 0.5 }}>
                   ⚡ IR A RECARGAR COINS →
                 </button>
-                <p style={{ color: '#8b949e', fontSize: '0.68rem', marginTop: 12 }}>📸 Requiere comprobante (captura de pantalla del pago). Revisión manual CEO.</p>
+                <p style={{ color: '#8b949e', fontSize: '0.68rem', marginTop: 12 }}>⚡ Verificación automática con Binance. Acreditación instantánea.</p>
               </div>
             </div>
           )}
