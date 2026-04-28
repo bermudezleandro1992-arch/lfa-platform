@@ -2283,13 +2283,21 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
                 db.collection('usuarios').doc(p1).get(),
                 db.collection('usuarios').doc(p2).get(),
             ]);
+            const tournamentGame = ((tournament?.game || tournament?.juego || '') + '').toUpperCase();
+            const useKonamiId = tournamentGame.includes('EFOOTBALL') || tournamentGame.includes('E-FOOTBALL');
             if (p1Snap.exists) {
                 matchData2.p1_username = p1Snap.data().nombre;
-                matchData2.p1_ea_id    = p1Snap.data().ea_id || p1Snap.data().konami_id;
+                matchData2.p1_ea_id    = useKonamiId
+                    ? (p1Snap.data().konami_id || p1Snap.data().ea_id)
+                    : (p1Snap.data().ea_id    || p1Snap.data().konami_id);
+                if (useKonamiId) matchData2.p1_konami_id = p1Snap.data().konami_id;
             }
             if (p2Snap.exists) {
                 matchData2.p2_username = p2Snap.data().nombre;
-                matchData2.p2_ea_id    = p2Snap.data().ea_id || p2Snap.data().konami_id;
+                matchData2.p2_ea_id    = useKonamiId
+                    ? (p2Snap.data().konami_id || p2Snap.data().ea_id)
+                    : (p2Snap.data().ea_id    || p2Snap.data().konami_id);
+                if (useKonamiId) matchData2.p2_konami_id = p2Snap.data().konami_id;
             }
         } catch {}
 
@@ -2375,5 +2383,44 @@ exports.botBracketManual = functions.https.onRequest(async (req, res) => {
         res.json({ ok: true, message: 'Bracket scheduler ejecutado manualmente.' });
     } catch (err) {
         res.status(403).json({ error: err.message });
+    }
+});
+
+// ─── Trigger: avance instantáneo cuando el BOT dice OK ───────────────────────
+// Escucha cambios en matches. Si bot_verification.verdict pasa a 'OK' y el
+// match sigue en PENDING_RESULT (sin disputa), adelanta el bracket de inmediato.
+exports.onMatchBotVerify = onDocumentUpdated({
+    document: 'matches/{matchId}',
+    region:   'us-central1',
+}, async (event) => {
+    const before = event.data.before.data();
+    const after  = event.data.after.data();
+
+    // Solo actuar cuando verdict cambia a 'OK' y estaba vacío antes
+    const verdictBefore = before?.bot_verification?.verdict;
+    const verdictAfter  = after?.bot_verification?.verdict;
+    if (verdictAfter !== 'OK' || verdictBefore === 'OK') return;
+    if (after.status !== 'PENDING_RESULT') return;
+
+    // Verificar que no haya disputa activa
+    const disputaSnap = await db.collection('disputas')
+        .where('matchId', '==', event.data.after.id)
+        .where('status', '==', 'PENDING')
+        .limit(1).get();
+    if (!disputaSnap.empty) {
+        console.log(`[BOT] Match ${event.data.after.id} tiene disputa activa — no auto-avanzo.`);
+        return;
+    }
+
+    const tournamentId = after.tournamentId;
+    if (!tournamentId) return;
+    const tournamentDoc = await db.collection('tournaments').doc(tournamentId).get();
+    if (!tournamentDoc.exists) return;
+
+    console.log(`[BOT] onMatchBotVerify: BOT dijo OK en match ${event.data.after.id}. Avanzando bracket...`);
+    try {
+        await advanceBracket(event.data.after, after, tournamentDoc, tournamentDoc.data());
+    } catch (err) {
+        console.error(`[BOT] Error en onMatchBotVerify:`, err.message);
     }
 });

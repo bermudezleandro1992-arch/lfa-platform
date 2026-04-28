@@ -44,6 +44,8 @@ export default function MatchRoom({ matchId }: Props) {
   const [message,       setMessage]       = useState("");
   const [timeLeft,      setTimeLeft]      = useState(0);
   const [copied,        setCopied]        = useState(false);
+  const [misGoles,      setMisGoles]      = useState("");
+  const [rivalGoles,    setRivalGoles]    = useState("");
 
   const uid = auth.currentUser?.uid;
 
@@ -84,10 +86,10 @@ export default function MatchRoom({ matchId }: Props) {
     if (!file || !match) return;
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setMessage('? Solo se aceptan im�genes JPEG, PNG o WebP.'); return;
+      setMessage('❌ Solo se aceptan imágenes JPEG, PNG o WebP.'); return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setMessage('? La imagen no puede superar 5 MB.'); return;
+      setMessage('❌ La imagen no puede superar 5 MB.'); return;
     }
 
     setUploading(true); setMessage("? Comprimiendo imagen...");
@@ -130,25 +132,25 @@ export default function MatchRoom({ matchId }: Props) {
         else
           setMessage(`?? Revisi�n manual requerida. Confianza: ${Math.round((verif.confidence || 0) * 100)}%. El Staff validar� en breve.`);
       } catch {
-        setMessage("? Resultado subido. Tu rival tiene 5 minutos para disputar.");
+        setMessage("✅ Resultado subido. Tu rival tiene unos minutos para disputar.");
       } finally {
         setBotChecking(false);
       }
     } catch (err: unknown) {
-      setMessage(`? ${err instanceof Error ? err.message : "Error al subir resultado"}`);
+      setMessage(`❌ ${err instanceof Error ? err.message : "Error al subir resultado"}`);
       setUploading(false);
     }
   };
 
   const handleDispute = async () => {
-    if (!disputeReason.trim()) { setMessage("? Escrib� el motivo de la disputa."); return; }
+    if (!disputeReason.trim()) { setMessage("❌ Escribí el motivo de la disputa."); return; }
     setDisputing(true); setMessage("");
     try {
       await callApi("/api/disputeMatch", { matchId, reason: disputeReason });
-      setMessage("?? Disputa enviada. El Staff revisar� el caso. El resultado queda suspendido hasta la resoluci�n.");
+      setMessage("⚖️ Disputa enviada. El Staff revisará el caso. El resultado queda suspendido hasta la resolución.");
       setDisputeReason("");
     } catch (err: unknown) {
-      setMessage(`? ${err instanceof Error ? err.message : "Error al disputar"}`);
+      setMessage(`❌ ${err instanceof Error ? err.message : "Error al disputar"}`);
     } finally {
       setDisputing(false);
     }
@@ -182,12 +184,12 @@ export default function MatchRoom({ matchId }: Props) {
   const bvColor    = bv?.verdict === "OK" ? "#00ff88" : bv?.verdict === "SUSPICIOUS" ? "#ff4757" : "#f3ba2f";
 
   const roundLabels: Record<string, string> = {
-    round_1: "?? Round 1", round_2: "?? Round 2", round_3: "?? Cuartos",
-    round_4: "?? Semifinal", final: "?? FINAL",
+    round_1: "🎮 Round 1", round_2: "🎮 Round 2", round_3: "🎮 Cuartos",
+    round_4: "🎮 Semifinal", final: "🏆 FINAL",
   };
   const statusLabel: Record<string, string> = {
-    WAITING: "? Esperando resultado", PENDING_RESULT: "?? Verificando resultado...",
-    DISPUTE: "?? En disputa � Staff notificado", FINISHED: "? Finalizado",
+    WAITING: "🟢 Esperando resultado", PENDING_RESULT: "⏳ Verificando resultado...",
+    DISPUTE: "⚖️ En disputa — Staff notificado", FINISHED: "✅ Finalizado",
   };
   const statusColor: Record<string, string> = {
     WAITING: "#00ff88", PENDING_RESULT: "#f3ba2f", DISPUTE: "#ff4757", FINISHED: "#8b949e",
@@ -210,7 +212,7 @@ export default function MatchRoom({ matchId }: Props) {
 
         {/* HEADER */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h1 style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "clamp(1.1rem,4vw,1.5rem)", fontWeight: 900, margin: "0 0 4px" }}>?? SALA DE MATCH</h1>
+          <h1 style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "clamp(1.1rem,4vw,1.5rem)", fontWeight: 900, margin: "0 0 4px" }}>🎮 SALA DE MATCH</h1>
           <p style={{ color: "#8b949e", fontSize: "0.78rem", margin: "4px 0" }}>{roundLabels[match.round] || match.round}</p>
           <span style={{ display: "inline-block", marginTop: 8, padding: "4px 14px", background: `${statusColor[match.status]}20`, color: statusColor[match.status], border: `1px solid ${statusColor[match.status]}50`, borderRadius: 99, fontSize: "0.72rem", fontWeight: 700, fontFamily: "'Orbitron',sans-serif" }}>
             {statusLabel[match.status] || match.status}
@@ -223,11 +225,11 @@ export default function MatchRoom({ matchId }: Props) {
             {/* P1 */}
             <div style={{ textAlign: "center" }}>
               <div style={{ width: 56, height: 56, background: "rgba(255,215,0,0.1)", border: "2px solid #ffd700", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", margin: "0 auto 8px" }}>
-                {isP1 ? "??" : "??"}
+                {isP1 ? "👤" : "👤"}
               </div>
               <div style={{ fontWeight: 900, fontSize: "0.88rem", marginBottom: 4, wordBreak: "break-word" as const }}>{match.p1_username ?? "Jugador 1"}</div>
-              {match.p1_ea_id && <div style={{ fontFamily: "monospace", color: "#ffd700", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{match.p1_ea_id}</div>}
-              {match.winner === match.p1 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>?? GANADOR</div>}
+              {match.p1_ea_id && <div style={{ fontFamily: "monospace", color: "#ffd700", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{isEfootball ? "⚽" : "🎮"} {match.p1_ea_id}</div>}
+              {match.winner === match.p1 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>🏆 GANADOR</div>}
             </div>
             {/* Score */}
             <div style={{ textAlign: "center", minWidth: 70 }}>
@@ -238,11 +240,11 @@ export default function MatchRoom({ matchId }: Props) {
             {/* P2 */}
             <div style={{ textAlign: "center" }}>
               <div style={{ width: 56, height: 56, background: "rgba(0,158,227,0.1)", border: "2px solid #009ee3", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", margin: "0 auto 8px" }}>
-                {isP2 ? "??" : "??"}
+                {isP2 ? "👤" : "👤"}
               </div>
               <div style={{ fontWeight: 900, fontSize: "0.88rem", marginBottom: 4, wordBreak: "break-word" as const }}>{match.p2_username ?? "Jugador 2"}</div>
-              {match.p2_ea_id && <div style={{ fontFamily: "monospace", color: "#009ee3", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{match.p2_ea_id}</div>}
-              {match.winner === match.p2 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>?? GANADOR</div>}
+              {match.p2_ea_id && <div style={{ fontFamily: "monospace", color: "#009ee3", fontSize: "0.7rem", wordBreak: "break-all" as const }}>{isEfootball ? "⚽" : "🎮"} {match.p2_ea_id}</div>}
+              {match.winner === match.p2 && <div style={{ color: "#00ff88", fontSize: "0.72rem", marginTop: 4, fontWeight: 700 }}>🏆 GANADOR</div>}
             </div>
           </div>
         </div>
@@ -251,24 +253,24 @@ export default function MatchRoom({ matchId }: Props) {
         {bv && (
           <div style={{ ...card, borderColor: `${bvColor}50`, background: `${bvColor}08` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: "1.3rem" }}>{bv.verdict === "OK" ? "?" : bv.verdict === "SUSPICIOUS" ? "??" : "??"}</span>
+              <span style={{ fontSize: "1.3rem" }}>{bv.verdict === "OK" ? "✅" : bv.verdict === "SUSPICIOUS" ? "🚨" : "🔍"}</span>
               <div>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.72rem", color: bvColor, fontWeight: 700 }}>
-                  BOT IA � {bv.verdict} � {Math.round((bv.confidence || 0) * 100)}% confianza
+                  BOT IA 🤖 {bv.verdict} — {Math.round((bv.confidence || 0) * 100)}% confianza
                 </div>
                 <div style={{ color: "#8b949e", fontSize: "0.68rem" }}>
-                  {bv.game && `Juego: ${bv.game}`}{bv.scoreFound && ` � Marcador detectado: ${bv.scoreFound}`}
+                  {bv.game && `Juego: ${bv.game}`}{bv.scoreFound && ` — Marcador detectado: ${bv.scoreFound}`}
                 </div>
               </div>
             </div>
             {bv.verdict === "SUSPICIOUS" && (
               <p style={{ color: "#ff4757", fontSize: "0.72rem", marginTop: 8, marginBottom: 0 }}>
-                ?? El BOT detect� irregularidades. El Staff revisar� el caso. Se aplicar�n sanciones Fair Play si se confirma fraude.
+                🚨 El BOT detectó irregularidades. El Staff revisará el caso. Se aplicarán sanciones Fair Play si se confirma fraude.
               </p>
             )}
             {bv.verdict === "MANUAL" && (
               <p style={{ color: "#f3ba2f", fontSize: "0.72rem", marginTop: 8, marginBottom: 0 }}>
-                ?? El BOT no pudo verificar con suficiente confianza. Un Staff revisar� la imagen. El resultado se confirma en breve.
+                🔍 El BOT no pudo verificar con suficiente confianza. Un Staff revisará la imagen. El resultado se confirma en breve.
               </p>
             )}
           </div>
@@ -278,7 +280,7 @@ export default function MatchRoom({ matchId }: Props) {
         {match.screenshot_url && match.status !== "WAITING" && (
           <div style={card}>
             <div style={{ color: "#8b949e", fontSize: "0.68rem", fontFamily: "'Orbitron',sans-serif", marginBottom: 8 }}>
-              ?? SCREENSHOT � VISIBLE PARA TODOS
+              📸 SCREENSHOT — VISIBLE PARA TODOS
             </div>
             <img
               src={match.screenshot_url} alt="Screenshot resultado"
@@ -286,7 +288,7 @@ export default function MatchRoom({ matchId }: Props) {
               style={{ width: "100%", borderRadius: 12, border: "1px solid #30363d", display: "block", cursor: "pointer" }}
             />
             <div style={{ color: "#8b949e", fontSize: "0.68rem", marginTop: 6, textAlign: "center" }}>
-              Subido por {match.reported_by === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")} � Toc� para ver en pantalla completa
+              Subido por {match.reported_by === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")} — Tocá para ver en pantalla completa
             </div>
           </div>
         )}
@@ -335,7 +337,7 @@ export default function MatchRoom({ matchId }: Props) {
         {/* DISPUTA */}
         {canDispute && (
           <div style={{ ...card, borderColor: "rgba(255,71,87,0.4)", background: "rgba(255,71,87,0.05)" }}>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ff4757", fontSize: "0.82rem", fontWeight: 700, marginBottom: 8 }}>?? TU RIVAL REPORT� VICTORIA</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ff4757", fontSize: "0.82rem", fontWeight: 700, marginBottom: 8 }}>⚠️ TU RIVAL REPORTÓ VICTORIA</div>
             <p style={{ color: "#8b949e", fontSize: "0.78rem", marginBottom: 14 }}>
               Si el resultado es incorrecto ten�s <strong style={{ color: "#ffd700" }}>5 minutos</strong> para disputarlo.
               Si no lo disput�s, el resultado se confirma autom�ticamente.
@@ -357,10 +359,10 @@ export default function MatchRoom({ matchId }: Props) {
               style={{ width: "100%", background: "#0b0e14", border: "1px solid #30363d", color: "white", borderRadius: 10, padding: "11px 14px", fontSize: "0.8rem", resize: "none", height: 88, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
             />
             <p style={{ color: "#f3ba2f", fontSize: "0.68rem", marginBottom: 10 }}>
-              ?? Las disputas sin fundamento descuentan puntos de Fair Play.
+              ⚠️ Las disputas sin fundamento descuentan puntos de Fair Play.
             </p>
             <button onClick={handleDispute} disabled={disputing} style={{ ...btnStyle("#ff4757"), opacity: disputing ? 0.6 : 1 }}>
-              {disputing ? "? ENVIANDO..." : "?? DISPUTAR RESULTADO"}
+              {disputing ? "⏳ ENVIANDO..." : "⚖️ DISPUTAR RESULTADO"}
             </button>
           </div>
         )}
@@ -368,7 +370,7 @@ export default function MatchRoom({ matchId }: Props) {
         {/* TIEMPO VENCIDO (rival, sin disputa) */}
         {match.status === "PENDING_RESULT" && isPlayer && match.reported_by !== uid && timeLeft === 0 && (
           <div style={{ ...card, borderColor: "rgba(0,255,136,0.3)", background: "rgba(0,255,136,0.05)", textAlign: "center" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 8 }}>?</div>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}>⌛</div>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#00ff88", fontSize: "0.82rem", fontWeight: 700 }}>Tiempo de disputa vencido</div>
             <p style={{ color: "#8b949e", fontSize: "0.78rem", marginTop: 8 }}>
               El resultado se confirmar� autom�ticamente en el pr�ximo ciclo del BOT.
@@ -379,11 +381,11 @@ export default function MatchRoom({ matchId }: Props) {
         {/* DISPUTA ACTIVA */}
         {match.status === "DISPUTE" && (
           <div style={{ ...card, borderColor: "rgba(145,70,255,0.4)", background: "rgba(145,70,255,0.05)", textAlign: "center" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 8 }}>??</div>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}>⚖️</div>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#9146FF", fontSize: "0.82rem", fontWeight: 700 }}>DISPUTA ACTIVA</div>
             <p style={{ color: "#8b949e", fontSize: "0.78rem", marginTop: 8 }}>
-              Un administrador est� revisando el caso.<br />
-              <span style={{ color: "#f3ba2f" }}>?? Se aplicar�n sanciones Fair Play seg�n el veredicto.</span>
+              Un administrador está revisando el caso.<br />
+              <span style={{ color: "#f3ba2f" }}>⚠️ Se aplicarán sanciones Fair Play según el veredicto.</span>
             </p>
           </div>
         )}
@@ -391,13 +393,13 @@ export default function MatchRoom({ matchId }: Props) {
         {/* FINALIZADO */}
         {match.status === "FINISHED" && (
           <div style={{ ...card, background: "linear-gradient(135deg,rgba(0,255,136,0.05),rgba(255,215,0,0.03))", borderColor: "rgba(0,255,136,0.3)", textAlign: "center" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>??</div>
+            <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🏆</div>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "1rem", fontWeight: 900, marginBottom: 8 }}>PARTIDO FINALIZADO</div>
             <div style={{ color: "#00ff88", fontWeight: 700, fontSize: "0.9rem", marginBottom: 12 }}>
               Ganador: {match.winner === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")}
             </div>
             <p style={{ color: "#8b949e", fontSize: "0.75rem" }}>
-              El BOT LFA generar� el pr�ximo match autom�ticamente. �Suerte en la siguiente ronda!
+              El BOT LFA generará el próximo match automáticamente. ¡Suerte en la siguiente ronda!
             </p>
           </div>
         )}
@@ -406,9 +408,9 @@ export default function MatchRoom({ matchId }: Props) {
         {message && (
           <div style={{
             padding: "12px 16px", borderRadius: 12, textAlign: "center", fontSize: "0.8rem", lineHeight: 1.5,
-            background: message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "rgba(0,255,136,0.08)" : message.startsWith("?") ? "rgba(255,71,87,0.08)" : "rgba(243,186,47,0.08)",
-            border: `1px solid ${message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "rgba(0,255,136,0.3)" : message.startsWith("?") ? "rgba(255,71,87,0.3)" : "rgba(243,186,47,0.3)"}`,
-            color: message.startsWith("?") || message.startsWith("??") || message.startsWith("??") ? "#00ff88" : message.startsWith("?") ? "#ff4757" : "#f3ba2f",
+            background: message.startsWith("✅") || message.startsWith("🏆") ? "rgba(0,255,136,0.08)" : message.startsWith("❌") ? "rgba(255,71,87,0.08)" : "rgba(243,186,47,0.08)",
+            border: `1px solid ${message.startsWith("✅") || message.startsWith("🏆") ? "rgba(0,255,136,0.3)" : message.startsWith("❌") ? "rgba(255,71,87,0.3)" : "rgba(243,186,47,0.3)"}`,
+            color: message.startsWith("✅") || message.startsWith("🏆") ? "#00ff88" : message.startsWith("❌") ? "#ff4757" : "#f3ba2f",
           }}>
             {message}
           </div>

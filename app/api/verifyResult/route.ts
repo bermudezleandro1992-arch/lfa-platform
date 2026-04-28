@@ -36,6 +36,8 @@ const FC26_KEYWORDS = [
   'match summary', 'resumen del partido', 'player of the match',
   'goals', 'possession', 'shots', 'passes', 'tackles',
   'ultimate team', 'fut', 'career mode', 'kick off',
+  'ea id', 'fc 27', 'fc27', 'total shots', 'ball possession',
+  'man of the match', 'friendly match', 'online friendly',
 ];
 
 const EFOOTBALL_KEYWORDS = [
@@ -43,6 +45,8 @@ const EFOOTBALL_KEYWORDS = [
   'match result', 'resultado del partido', 'match end',
   'full time', 'penalty shootout', 'tiro penal',
   'stamina', 'condition', 'form', 'myclub',
+  'konami id', 'dream team', 'master league',
+  'online match', 'match finished', 'partida encerrada',
 ];
 
 /* ─── Detectar juego + nivel de coincidencia ────────────── */
@@ -84,17 +88,34 @@ function isResultScreen(text: string, game: 'FC26' | 'EFOOTBALL' | 'UNKNOWN'): b
 
 /* ─── Extraer marcador del texto OCR ────────────────────── */
 function extractScore(text: string): string | null {
-  const match = text.match(/\b([0-9]{1,2})\s*[-:]\s*([0-9]{1,2})\b/);
-  if (match) return `${match[1]}-${match[2]}`;
+  // Intenta capturar marcadores como "2 - 1", "2-1", "02:01", "2 : 1"
+  // Prioriza formatos comunes de pantalla de resultado de videojuego
+  const patterns = [
+    /\b([0-9]{1,2})\s*-\s*([0-9]{1,2})\b/,  // 2-1  o  2 - 1
+    /\b([0-9]{1,2})\s+([0-9]{1,2})\b/,       // "2 1" (sin separador)
+  ];
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) {
+      const a = parseInt(m[1], 10);
+      const b = parseInt(m[2], 10);
+      // Descarta contadores absurdos (>20 goles) y tiempos tipo 90-45
+      if (a <= 20 && b <= 20 && !(a >= 40 || b >= 40)) {
+        return `${a}-${b}`;
+      }
+    }
+  }
   return null;
 }
 
 /* ─── Verificar si los IDs de jugador aparecen en el texto */
 function checkPlayerIds(text: string, id1?: string, id2?: string): { found1: boolean; found2: boolean } {
   const t = text.toLowerCase();
+  // Normalizar IDs: quitar espacios extra y comparar substring
+  const normalize = (id: string) => id.replace(/\s+/g, '').toLowerCase();
   return {
-    found1: id1 ? t.includes(id1.toLowerCase()) : false,
-    found2: id2 ? t.includes(id2.toLowerCase()) : false,
+    found1: id1 ? t.includes(normalize(id1)) : false,
+    found2: id2 ? t.includes(normalize(id2)) : false,
   };
 }
 
@@ -192,7 +213,14 @@ export async function POST(req: NextRequest) {
     const { game, gameKeywordsFound, gameConfidence } = detectGame(rawText);
     const scoreFound    = extractScore(rawText);
     const reportedScore = (match.score ?? '').replace(/\s/g, '');
-    const { found1, found2 } = checkPlayerIds(rawText, match.p1_ea_id, match.p2_ea_id);
+
+    // Seleccionar IDs según el juego del torneo
+    const tournamentGame = ((match.game ?? '') as string).toUpperCase();
+    const useKonamiId   = tournamentGame.includes('EFOOTBALL') || tournamentGame.includes('E-FOOTBALL');
+    const id1 = useKonamiId ? (match.p1_konami_id ?? match.p1_ea_id) : match.p1_ea_id;
+    const id2 = useKonamiId ? (match.p2_konami_id ?? match.p2_ea_id) : match.p2_ea_id;
+    const { found1, found2 } = checkPlayerIds(rawText, id1, id2);
+
     const resultScreen  = isResultScreen(rawText, game);
 
     const safeSearch = response?.safeSearchAnnotation;
@@ -236,24 +264,26 @@ export async function POST(req: NextRequest) {
       verdict = 'MANUAL';
     }
 
+    const idField = useKonamiId ? 'Konami ID' : 'EA ID';
     const details = [
       game !== 'UNKNOWN'
         ? `Juego: ${game} (keywords: ${gameKeywordsFound.slice(0,4).join(', ')})`
         : '⚠️ Juego no identificado — ninguna keyword reconocida en la imagen.',
       resultScreen ? '✅ Pantalla de resultado detectada.' : '⚠️ No parece ser una pantalla de resultado.',
       scoreFound ? `Marcador detectado: ${scoreFound}` : '⚠️ Marcador no legible.',
-      scoreFound && reportedScore
-        ? (scoreFound === reportedScore ? '✅ Coincide con el reportado.' : `❌ NO coincide — reportado: ${reportedScore}`)
+      scoreFound && reportedScore && reportedScore !== 'Pendientevalidación'
+        ? (scoreFound === reportedScore ? '✅ Coincide con el reportado.' : `⚠️ Diferente al reportado: ${reportedScore}`)
         : '',
-      found1 ? `✅ ID jugador 1 (${match.p1_ea_id}) encontrado.` : match.p1_ea_id ? `⚠️ ID jugador 1 NO encontrado.` : '',
-      found2 ? `✅ ID jugador 2 (${match.p2_ea_id}) encontrado.` : match.p2_ea_id ? `⚠️ ID jugador 2 NO encontrado.` : '',
+      found1 ? `✅ ${idField} J1 (${id1}) encontrado.` : id1 ? `⚠️ ${idField} J1 NO encontrado.` : '',
+      found2 ? `✅ ${idField} J2 (${id2}) encontrado.` : id2 ? `⚠️ ${idField} J2 NO encontrado.` : '',
       isEdited ? '🚨 Imagen posiblemente editada (SafeSearch activado).' : '',
     ].filter(Boolean).join(' | ');
 
     const result = { verdict, confidence: Math.round(confidence * 100) / 100, details, game, scoreFound };
 
-    /* ── Guardar en match ───────────────────────────────── */
-    await adminDb.collection('matches').doc(matchId).update({
+    /* ── Guardar en match + auto-resolver si OK ─────────── */
+    const uploadTimestamp = new Date().toISOString();
+    const matchUpdate: Record<string, unknown> = {
       bot_verification: {
         verdict,
         confidence: result.confidence,
@@ -262,9 +292,23 @@ export async function POST(req: NextRequest) {
         found1, found2,
         resultScreen,
         gameKeywordsFound,
-        checkedAt: new Date().toISOString(),
+        idField,
+        checkedAt: uploadTimestamp,
       },
-    });
+    };
+
+    if (verdict === 'OK') {
+      // Auto-resolver: poner deadline en el pasado (30s) para que el
+      // scheduler de Cloud Functions lo procese enseguida.
+      // También actualizamos el score con el detectado por OCR.
+      const { Timestamp } = await import('firebase-admin/firestore');
+      matchUpdate.score             = scoreFound ?? match.score ?? '?-?';
+      matchUpdate.dispute_deadline  = Timestamp.fromMillis(Date.now() + 30_000);
+      matchUpdate.bot_auto_resolve  = true;
+      matchUpdate.updated_at        = FieldValue.serverTimestamp();
+    }
+
+    await adminDb.collection('matches').doc(matchId).update(matchUpdate);
 
     /* ── Log para beta test ─────────────────────────────── */
     await logVisionResult(matchId, screenshotUrl, uid, rawText, result, match);

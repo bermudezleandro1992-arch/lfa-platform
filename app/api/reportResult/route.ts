@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
     const uid     = decoded.uid;
 
-    const { matchId, screenshotUrl } = await req.json();
+    const { matchId, screenshotUrl, reportedScore } = await req.json();
     if (!matchId || !screenshotUrl) {
       return NextResponse.json({ error: 'matchId y screenshotUrl requeridos.' }, { status: 400 });
     }
@@ -44,7 +44,9 @@ export async function POST(req: NextRequest) {
       status:           'PENDING_RESULT',
       reported_by:      uid,
       screenshot_url:   screenshotUrl,
-      score:            'Pendiente validación',
+      score:            typeof reportedScore === 'string' && /^\d{1,2}-\d{1,2}$/.test(reportedScore.trim())
+                          ? reportedScore.trim()
+                          : 'Pendiente validación',
       dispute_deadline: disputeDeadline,
       updated_at:       FieldValue.serverTimestamp(),
     });
@@ -74,7 +76,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success:         true,
-      score:           'Pendiente validación',
+      score:           typeof reportedScore === 'string' && /^\d{1,2}-\d{1,2}$/.test(reportedScore.trim())
+                         ? reportedScore.trim()
+                         : 'Pendiente validación',
       disputeDeadline: deadlineMs,
     });
   } catch (err: unknown) {
