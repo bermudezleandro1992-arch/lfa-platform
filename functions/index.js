@@ -1791,6 +1791,82 @@ exports.weekendSpawn = onSchedule({
     await runWeekendSpawn();
 });
 
+// ─── autoSpawnPaises ────────────────────────────────────────────────────────
+// Runs every hour (junto con autoSpawnHorario).
+// Lee configuracion/spawner_paises → { paises: ["Argentina","México",...] }
+// Por cada país activo crea (si no existen ya):
+//   - 1 sala GRATIS  8j  FC26 + 1 sala GRATIS  8j  eFootball
+//   - 1 sala GRATIS 16j  FC26 + 1 sala GRATIS 16j  eFootball
+//   - 1 sala RECR.  8j  FC26 (500 LFC) + 1 sala RECR. 8j eFootball
+//   - 1 sala RECR. 16j  FC26 (500 LFC) + 1 sala RECR. 16j eFootball
+// = 8 salas por país, 1 de cada combinación (no 2 como las regionales)
+
+const _PAIS_CAPACITIES  = [8, 16];
+const _PAIS_GAMES       = ["FC26", "EFOOTBALL"];
+const _PAIS_TIERS       = [
+    { entry_fee: 0,   tier: "FREE" },
+    { entry_fee: 500, tier: "RECREATIVO" },
+];
+
+async function runPaisSpawnCycle() {
+    const configDoc = await db.collection("configuracion").doc("spawner_paises").get();
+    if (!configDoc.exists) return { created: 0 };
+    const paises = (configDoc.data().paises || []);
+    if (paises.length === 0) return { created: 0 };
+
+    let created = 0;
+    for (const country of paises) {
+        for (const game of _PAIS_GAMES) {
+            for (const capacity of _PAIS_CAPACITIES) {
+                for (const { entry_fee, tier } of _PAIS_TIERS) {
+                    // Verificar si ya existe 1 sala abierta con este país
+                    const snap = await db.collection("tournaments")
+                        .where("game",     "==", game)
+                        .where("capacity", "==", capacity)
+                        .where("entry_fee","==", entry_fee)
+                        .where("country",  "==", country)
+                        .where("status",   "==", "OPEN")
+                        .limit(1)
+                        .get();
+
+                    if (!snap.empty) continue; // ya existe → no crear
+
+                    const ref = db.collection("tournaments").doc();
+                    const prizes = calcPrizes(capacity, entry_fee);
+                    await ref.set({
+                        game,
+                        mode:       game === "FC26" ? "GENERAL_95" : "DREAM_TEAM",
+                        region:     "AMERICA",
+                        country,
+                        tier,
+                        free:       entry_fee === 0,
+                        entry_fee,
+                        prize_pool: calcPrizePool(capacity, entry_fee),
+                        prizes,
+                        capacity,
+                        players:    [],
+                        status:     "OPEN",
+                        spawned:    true,
+                        pais_sala:  true,
+                        created_at: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    created++;
+                }
+            }
+        }
+    }
+    console.log(`[PaisSpawn] Salas creadas: ${created} para ${paises.length} países`);
+    return { created };
+}
+
+exports.autoSpawnPaises = onSchedule({
+    schedule:  "30 * * * *", // cada hora en el minuto :30
+    timeZone:  "America/Buenos_Aires",
+    region:    "us-central1",
+}, async () => {
+    await runPaisSpawnCycle();
+});
+
 // ─── checkWaitingRooms ──────────────────────────────────────────────────────
 // Runs every 5 min. After 10 min with no fill:
 //   - Paid rooms with players → sets waiting_alert_sent + waiting_expires_at

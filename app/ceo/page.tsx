@@ -119,6 +119,22 @@ function slotKey(game: string, mode: string, capacity: number, fee: number) {
   return `${game}|${mode}|${capacity}|${fee}`;
 }
 
+/* ─── Países disponibles para salas por país ─────────────── */
+const PAISES_SPAWN = [
+  { code: 'Argentina',  flag: '🇦🇷' },
+  { code: 'México',     flag: '🇲🇽' },
+  { code: 'Colombia',   flag: '🇨🇴' },
+  { code: 'Chile',      flag: '🇨🇱' },
+  { code: 'Perú',       flag: '🇵🇪' },
+  { code: 'Venezuela',  flag: '🇻🇪' },
+  { code: 'Ecuador',    flag: '🇪🇨' },
+  { code: 'Bolivia',    flag: '🇧🇴' },
+  { code: 'Paraguay',   flag: '🇵🇾' },
+  { code: 'Uruguay',    flag: '🇺🇾' },
+  { code: 'Brasil',     flag: '🇧🇷' },
+  { code: 'España',     flag: '🇪🇸' },
+];
+
 /* ─── Estilos reutilizables ──────────────────────────────── */
 const card: React.CSSProperties = { background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 'clamp(14px,2.5vw,22px)' };
 const inp: React.CSSProperties = { width: '100%', padding: '10px 13px', background: '#0b0e14', border: '1px solid #30363d', color: 'white', borderRadius: 8, marginBottom: 10, fontFamily: "'Roboto',sans-serif", boxSizing: 'border-box', outline: 'none', fontSize: '0.875rem' };
@@ -142,6 +158,7 @@ export default function CeoPage() {
   const [pagosBN,    setPagosBN]    = useState<PagoManual[]>([]);
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [spawnerCfg, setSpawnerCfg] = useState<SpawnerConfig>({});
+  const [paisesActivos, setPaisesActivos] = useState<string[]>([]);
   const [ganancias,  setGanancias]  = useState(0);
   const [visitas,    setVisitas]    = useState(0);
   const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
@@ -246,6 +263,10 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(doc(db,'configuracion','spawner'), d => {
       if (d.exists()) setSpawnerCfg(d.data() as SpawnerConfig);
+    }));
+
+    subs.push(onSnapshot(doc(db,'configuracion','spawner_paises'), d => {
+      if (d.exists()) setPaisesActivos((d.data() as { paises?: string[] }).paises ?? []);
     }));
 
     subs.push(onSnapshot(doc(db,'configuracion','tesoreria'), d => {
@@ -1225,6 +1246,47 @@ export default function CeoPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Spawner por país */}
+            <div style={{ ...card, borderTop:'3px solid #ffd700' }}>
+              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 6px', fontSize:'0.85rem' }}>🌎 SALAS POR PAÍS</h3>
+              <p style={{ color:'#8b949e', fontSize:'0.72rem', marginTop:0, marginBottom:14 }}>
+                Para cada país activado el spawner crea automáticamente <strong style={{color:'white'}}>1 sala GRATIS + 1 sala RECREATIVA (500 LFC)</strong> de 8 y 16 jugadores — para FC 26 y eFootball.
+              </p>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                <span style={{ color:'#8b949e', fontSize:'0.72rem' }}>{paisesActivos.length} / {PAISES_SPAWN.length} países activos</span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button style={sm('#30363d','#8b949e')} onClick={() => setDoc(doc(db,'configuracion','spawner_paises'),{ paises:[] },{ merge:true })}>Desactivar todo</button>
+                  <button style={sm('#ffd700','black')} onClick={() => setDoc(doc(db,'configuracion','spawner_paises'),{ paises: PAISES_SPAWN.map(p=>p.code) },{ merge:true })}>Activar todo</button>
+                </div>
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                {PAISES_SPAWN.map(({ code, flag }) => {
+                  const on = paisesActivos.includes(code);
+                  return (
+                    <button key={code}
+                      onClick={() => {
+                        const next = on ? paisesActivos.filter(p => p !== code) : [...paisesActivos, code];
+                        setDoc(doc(db,'configuracion','spawner_paises'), { paises: next }, { merge: true });
+                      }}
+                      style={{
+                        background: on ? 'rgba(255,215,0,0.12)' : '#0d1117',
+                        border: `1px solid ${on ? '#ffd700' : '#30363d'}`,
+                        color: on ? '#ffd700' : '#484f58',
+                        padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+                        fontSize: '0.78rem', fontWeight: 700, transition: '0.15s',
+                        fontFamily: "'Orbitron',sans-serif", display: 'flex', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <span style={{ fontSize: '1.1rem' }}>{flag}</span> {code}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 14, padding: '10px 14px', background: '#0b0e14', borderRadius: 8, border: '1px solid #30363d', color: '#8b949e', fontSize: '0.7rem' }}>
+                💡 El spawner horario (cada hora) creará las salas por país automáticamente. Las salas aparecerán en Arena 1VS1 con el filtro de país correspondiente.
               </div>
             </div>
           </>}
