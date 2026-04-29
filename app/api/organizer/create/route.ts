@@ -50,14 +50,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Verify organizer role ─────────────────────────────────────────────────
+  const CEO_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
   const userSnap = await adminDb.collection("usuarios").doc(callerUid).get();
-  if (!userSnap.exists || userSnap.data()?.rol !== "organizador") {
+  if (!userSnap.exists || (userSnap.data()?.rol !== "organizador" && callerUid !== CEO_UID)) {
     return NextResponse.json({ error: "Sin permiso de organizador" }, { status: 403 });
   }
   const userData = userSnap.data()!;
 
   // ── Parse & validate body ─────────────────────────────────────────────────
   let body: {
+    nombre_torneo?:      string;
     game:               string;
     mode:               string;
     region:             string;
@@ -66,6 +68,9 @@ export async function POST(req: NextRequest) {
     descripcion?:       string;
     premio_externo?:    boolean;
     premio_descripcion?: string;
+    tipo_premio?:       string;
+    premio_monto?:      number;
+    premio_moneda?:     string;
   };
   try {
     body = await req.json();
@@ -73,7 +78,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
   }
 
-  const { game, mode, region, capacity, entry_fee, descripcion, premio_externo, premio_descripcion } = body;
+  const { game, mode, region, capacity, entry_fee, descripcion, premio_externo, premio_descripcion,
+          nombre_torneo, tipo_premio, premio_monto, premio_moneda } = body;
 
   if (!(VALID_GAMES as readonly string[]).includes(game)) {
     return NextResponse.json({ error: "Juego inválido" }, { status: 400 });
@@ -92,8 +98,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Sanitize free-text fields
-  const safeDesc    = typeof descripcion       === "string" ? descripcion.slice(0, 280)       : "";
-  const safePremio  = typeof premio_descripcion === "string" ? premio_descripcion.slice(0, 200) : "";
+  const safeDesc     = typeof descripcion       === "string" ? descripcion.slice(0, 280)       : "";
+  const safePremio   = typeof premio_descripcion === "string" ? premio_descripcion.slice(0, 200) : "";
+  const safeName     = typeof nombre_torneo      === "string" ? nombre_torneo.slice(0, 80)       : "";
+  const safeMoneda   = typeof premio_moneda      === "string" ? premio_moneda.slice(0, 20)       : "";
+  const safeTipo     = ["coins", "usd", "puntos", "otro"].includes(tipo_premio as string) ? tipo_premio : "coins";
+  const safeMonto    = typeof premio_monto === "number" && premio_monto >= 0 ? premio_monto : 0;
 
   // ── Create tournament document ────────────────────────────────────────────
   try {
@@ -117,14 +127,18 @@ export async function POST(req: NextRequest) {
       tipo:                "organizado",
       manual_advance:      true,
       organizador_uid:     callerUid,
-      organizador_nombre:  userData.nombre  ?? null,
-      organizador_avatar:  userData.avatar_url ?? null,
-      organizador_twitch:  userData.twitch  ?? null,
-      organizador_kick:    userData.kick    ?? null,
-      organizador_youtube: userData.youtube ?? null,
+      organizador_nombre:  userData.nombre      ?? null,
+      organizador_avatar:  userData.avatar_url  ?? null,
+      organizador_twitch:  userData.twitch_canal  ?? null,
+      organizador_kick:    userData.kick_canal    ?? null,
+      organizador_youtube: userData.youtube_canal ?? null,
       descripcion:         safeDesc || null,
+      nombre_torneo:       safeName || null,
       premio_externo:      premio_externo === true,
       premio_descripcion:  safePremio || null,
+      tipo_premio:         safeTipo,
+      premio_monto:        safeMonto,
+      premio_moneda:       safeMoneda || null,
     });
 
     return NextResponse.json({ ok: true, tournamentId: ref.id });

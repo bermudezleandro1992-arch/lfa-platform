@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   collection, query, where, onSnapshot,
-  orderBy, limit, doc, getDoc,
+  limit, doc, getDoc, getDocs,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -25,7 +25,7 @@ interface Match {
   tournamentId:    string;
 }
 
-interface UserInfo { nombre: string; avatar_url?: string; }
+interface UserInfo { nombre: string; avatar_url?: string; celular?: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,8 +47,12 @@ export default function OrganizadorPanel() {
   const [users,        setUsers]        = useState<Record<string, UserInfo>>({});
   const [actionMsg,    setActionMsg]    = useState("");
   const [showCreate,   setShowCreate]   = useState(false);
-  const [subTarget,    setSubTarget]    = useState<{ matchId: string; playerId: string } | null>(null);
-  const [subUid,       setSubUid]       = useState("");
+  const [subTarget,      setSubTarget]      = useState<{ matchId: string; playerId: string } | null>(null);
+  const [subUid,         setSubUid]         = useState("");
+  const [addingPlayer,   setAddingPlayer]   = useState(false);
+  const [searchNick,     setSearchNick]     = useState("");
+  const [searchResults,  setSearchResults]  = useState<{uid:string;nombre:string;avatar_url?:string;celular?:string}[]>([]);
+  const [searchLoading,  setSearchLoading]  = useState(false);
 
   // Auth
   useEffect(() => {
@@ -162,6 +166,43 @@ export default function OrganizadorPanel() {
     } catch (e) { setActionMsg("❌ " + (e as Error).message); }
   }, [callApi, selected, subTarget, subUid]);
 
+  const searchPlayer = useCallback(async () => {
+    if (!searchNick.trim()) return;
+    setSearchLoading(true);
+    setSearchResults([]);
+    try {
+      const snap = await getDocs(query(
+        collection(db, "usuarios"),
+        where("nombre", "==", searchNick.trim()),
+        limit(5)
+      ));
+      const results = snap.docs.map(d => ({
+        uid:       d.id,
+        nombre:    d.data().nombre || d.id.slice(0, 8),
+        avatar_url: d.data().avatar_url,
+        celular:    d.data().celular,
+      }));
+      setSearchResults(results);
+      if (results.length === 0) setActionMsg("⚠️ No se encontró ningún jugador con ese nick exacto.");
+    } catch { setActionMsg("❌ Error al buscar jugador"); }
+    setSearchLoading(false);
+  }, [searchNick]);
+
+  const addPlayer = useCallback(async (playerUid: string) => {
+    setActionMsg("");
+    try {
+      await callApi("/api/organizer/action", {
+        action:       "agregar_jugador",
+        tournamentId: selected!.id,
+        playerId:     playerUid,
+      });
+      setActionMsg("✅ Jugador agregado al torneo");
+      setAddingPlayer(false);
+      setSearchNick("");
+      setSearchResults([]);
+    } catch (e) { setActionMsg("❌ " + (e as Error).message); }
+  }, [callApi, selected]);
+
   const activeMatches   = matches.filter(m => m.status !== "FINISHED");
   const finishedMatches = matches.filter(m => m.status === "FINISHED");
 
@@ -233,7 +274,7 @@ export default function OrganizadorPanel() {
                       fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem",
                       fontWeight: 900, color: isActive ? "#a371f7" : "#c9d1d9", marginBottom: 4,
                     }}>
-                      {t.game} · {t.mode?.replace(/_/g, " ")}
+                      {t.nombre_torneo || `${t.game} · ${t.mode?.replace(/_/g, " ")}`}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.6rem", color: statusColor[t.status] || "#8b949e" }}>
@@ -265,11 +306,29 @@ export default function OrganizadorPanel() {
                 background: "#111318", border: "1px solid #1c2028",
                 borderRadius: 14, padding: "15px 20px", marginBottom: 12,
               }}>
-                <div style={{
-                  fontFamily: "'Orbitron',sans-serif", fontSize: "0.8rem",
-                  fontWeight: 900, color: "#a371f7", marginBottom: 8,
-                }}>
-                  {selected.game} · {selected.mode?.replace(/_/g, " ")} · {selected.capacity}j
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    {selected.nombre_torneo && (
+                      <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.9rem", fontWeight: 900, color: "#a371f7", marginBottom: 4 }}>
+                        {selected.nombre_torneo}
+                      </div>
+                    )}
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.72rem", fontWeight: 700, color: "#6e7681" }}>
+                      {selected.game} · {selected.mode?.replace(/_/g, " ")} · {selected.capacity}j
+                    </div>
+                  </div>
+                  {selected.status === "OPEN" && (
+                    <button
+                      onClick={() => { setAddingPlayer(true); setSearchNick(""); setSearchResults([]); }}
+                      style={{
+                        background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.3)",
+                        color: "#00ff88", fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
+                        fontSize: "0.62rem", padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}>
+                      ➕ AGREGAR JUGADOR
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: "0.72rem", color: "#8b949e" }}>
                   <span>Estado: <strong style={{ color: statusColor[selected.status] || "#c9d1d9" }}>{selected.status}</strong></span>
@@ -296,20 +355,41 @@ export default function OrganizadorPanel() {
                 }}>
                   <div style={{
                     fontFamily: "'Orbitron',sans-serif", fontSize: "0.63rem",
-                    color: "#6e7681", marginBottom: 8,
+                    color: "#6e7681", marginBottom: 10,
                   }}>
-                    JUGADORES INSCRIPTOS ({selected.players.length})
+                    JUGADORES INSCRIPTOS ({selected.players.length}/{selected.capacity})
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {selected.players.map(p => (
-                      <div key={p} style={{
-                        fontSize: "0.68rem", color: "#c9d1d9",
-                        background: "#1c2028", border: "1px solid #30363d",
-                        borderRadius: 8, padding: "3px 10px",
-                      }}>
-                        {users[p]?.nombre || p.slice(0, 8)}
-                      </div>
-                    ))}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {selected.players.map(p => {
+                      const u = users[p];
+                      return (
+                        <div key={p} style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "8px 12px", background: "#0b0e14",
+                          border: "1px solid #1c2028", borderRadius: 10,
+                        }}>
+                          {u?.avatar_url ? (
+                            <img src={u.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#1c2028", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>👤</div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: "0.75rem", color: "#c9d1d9" }}>{u?.nombre || p.slice(0, 8)}</div>
+                            {u?.celular ? (
+                              <a
+                                href={`https://wa.me/${u.celular.replace(/\D/g, "")}`}
+                                target="_blank" rel="noopener noreferrer"
+                                style={{ fontSize: "0.62rem", color: "#25d366", textDecoration: "none" }}
+                              >
+                                📱 {u.celular}
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: "0.6rem", color: "#4a5568" }}>Sin WhatsApp registrado</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -368,8 +448,7 @@ export default function OrganizadorPanel() {
       </div>
 
       {/* ── Substitute modal ── */}
-      {subTarget && (
-        <div style={{
+      {subTarget && (        <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
           zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
         }}>
@@ -418,6 +497,87 @@ export default function OrganizadorPanel() {
                 CONFIRMAR
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Player modal ── */}
+      {addingPlayer && selected && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)",
+          zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{
+            background: "#111318", border: "1px solid rgba(0,255,136,0.4)",
+            borderRadius: 18, padding: 26, maxWidth: 460, width: "100%",
+          }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#00ff88", fontSize: "0.85rem", fontWeight: 900, marginBottom: 6 }}>
+              ➕ AGREGAR JUGADOR
+            </div>
+            <p style={{ color: "#8b949e", fontSize: "0.72rem", marginBottom: 14 }}>
+              Buscá por nick exacto del jugador para agregarlo directamente al torneo (sin pago).
+            </p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input
+                value={searchNick}
+                onChange={e => setSearchNick(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && searchPlayer()}
+                placeholder="Nick exacto del jugador..."
+                style={{
+                  flex: 1, background: "#0b0e14", border: "1px solid #30363d",
+                  color: "white", padding: "10px 12px", borderRadius: 8, outline: "none",
+                  fontFamily: "'Roboto',sans-serif", fontSize: "0.8rem", boxSizing: "border-box" as const,
+                }}
+              />
+              <button
+                onClick={searchPlayer}
+                disabled={searchLoading || !searchNick.trim()}
+                style={{
+                  background: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.4)",
+                  color: "#00ff88", padding: "10px 16px", borderRadius: 8, cursor: "pointer",
+                  fontFamily: "'Orbitron',sans-serif", fontSize: "0.65rem", fontWeight: 900,
+                  opacity: searchLoading || !searchNick.trim() ? 0.5 : 1,
+                }}>
+                {searchLoading ? "⏳" : "🔍 BUSCAR"}
+              </button>
+            </div>
+            {searchResults.map(r => (
+              <div key={r.uid} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                background: "#0b0e14", border: "1px solid #1c2028", borderRadius: 10, marginBottom: 8,
+              }}>
+                {r.avatar_url ? (
+                  <img src={r.avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1c2028", display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "#c9d1d9" }}>{r.nombre}</div>
+                  {r.celular && <div style={{ fontSize: "0.62rem", color: "#25d366" }}>📱 {r.celular}</div>}
+                </div>
+                <button
+                  onClick={() => addPlayer(r.uid)}
+                  style={{
+                    background: "#00ff88", border: "none", color: "#0b0e14",
+                    padding: "7px 14px", borderRadius: 8, cursor: "pointer",
+                    fontFamily: "'Orbitron',sans-serif", fontSize: "0.62rem", fontWeight: 900,
+                  }}>
+                  AGREGAR
+                </button>
+              </div>
+            ))}
+            {searchResults.length === 0 && searchNick && !searchLoading && (
+              <p style={{ color: "#6e7681", fontSize: "0.72rem", textAlign: "center" }}>Sin resultados. El nick debe ser exacto.</p>
+            )}
+            <button
+              onClick={() => { setAddingPlayer(false); setSearchNick(""); setSearchResults([]); }}
+              style={{
+                marginTop: 8, width: "100%", background: "#1c2028", border: "1px solid #30363d",
+                color: "#8b949e", padding: "10px", borderRadius: 8, cursor: "pointer",
+                fontFamily: "'Orbitron',sans-serif", fontSize: "0.65rem",
+              }}>
+              CANCELAR
+            </button>
           </div>
         </div>
       )}
@@ -558,13 +718,17 @@ const GAME_MODES: Record<string, string[]> = {
 
 function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
   const [form, setForm] = useState({
-    game:              "FC26",
-    mode:              "GENERAL_95",
-    region:            "LATAM_SUR",
-    capacity:          8,
-    entry_fee:         0,
-    descripcion:       "",
-    premio_externo:    false,
+    nombre_torneo:      "",
+    game:               "FC26",
+    mode:               "GENERAL_95",
+    region:             "LATAM_SUR",
+    capacity:           8,
+    entry_fee:          0,
+    descripcion:        "",
+    tipo_premio:        "coins" as "coins" | "usd" | "puntos" | "otro",
+    premio_monto:       0,
+    premio_moneda:      "",
+    premio_externo:     false,
     premio_descripcion: "",
   });
   const [loading, setLoading] = useState(false);
@@ -607,6 +771,16 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
         }}>
           ＋ CREAR TORNEO ORGANIZADO
         </div>
+
+        {/* Tournament name */}
+        <Field label="NOMBRE DEL TORNEO (opcional)">
+          <input
+            value={form.nombre_torneo}
+            onChange={e => set("nombre_torneo", e.target.value.slice(0, 80))}
+            placeholder="Ej: Copa Deportivo La Luz · Agosto 2025"
+            style={{ ...sel(), outline: "none" }}
+          />
+        </Field>
 
         {/* Game */}
         <Field label="JUEGO">
@@ -670,22 +844,49 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
           />
         </Field>
 
-        {/* External prize */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <input type="checkbox" id="extPrize"
-            checked={form.premio_externo}
-            onChange={e => set("premio_externo", e.target.checked)}
-          />
-          <label htmlFor="extPrize" style={{ fontSize: "0.75rem", color: "#c9d1d9", cursor: "pointer" }}>
-            Yo manejo el premio (externo / físico)
-          </label>
-        </div>
-        {form.premio_externo && (
-          <Field label="DESCRIPCIÓN DEL PREMIO">
+        {/* Prize type */}
+        <Field label="TIPO DE PREMIO">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {([
+              { v: "coins",  label: "🪙 LFA Coins" },
+              { v: "puntos", label: "⭐ Puntos Tienda" },
+              { v: "usd",    label: "💵 USD" },
+              { v: "otro",   label: "🏆 Moneda Local" },
+            ] as const).map(({ v, label }) => (
+              <button key={v} onClick={() => set("tipo_premio", v)} style={pill(form.tipo_premio === v)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </Field>
+        {(form.tipo_premio === "usd" || form.tipo_premio === "otro") && (
+          <div style={{ display: "grid", gridTemplateColumns: form.tipo_premio === "otro" ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 14 }}>
+            <Field label="MONTO DEL PREMIO" inline>
+              <input
+                type="number" min={0} value={form.premio_monto}
+                onChange={e => set("premio_monto", Math.max(0, Number(e.target.value)))}
+                placeholder="Ej: 50"
+                style={{ ...sel(), outline: "none" }}
+              />
+            </Field>
+            {form.tipo_premio === "otro" && (
+              <Field label="MONEDA" inline>
+                <input
+                  value={form.premio_moneda}
+                  onChange={e => set("premio_moneda", e.target.value.slice(0, 20))}
+                  placeholder="Ej: ARS, PEN, CLP…"
+                  style={{ ...sel(), outline: "none" }}
+                />
+              </Field>
+            )}
+          </div>
+        )}
+        {(form.tipo_premio === "usd" || form.tipo_premio === "otro" || form.tipo_premio === "puntos") && (
+          <Field label="DESCRIPCIÓN DEL PREMIO (opcional)">
             <input
               value={form.premio_descripcion}
               onChange={e => set("premio_descripcion", e.target.value.slice(0, 200))}
-              placeholder="Ej: Gift card de $10 USD para el ganador"
+              placeholder="Ej: Gift card para el campeón"
               style={{ ...sel(), outline: "none" }}
             />
           </Field>

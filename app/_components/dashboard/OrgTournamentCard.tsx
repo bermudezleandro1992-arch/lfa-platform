@@ -72,40 +72,46 @@ export default function OrgTournamentCard({ tournament: t }: Props) {
         background:   "rgba(163,113,247,0.06)",
         padding:      "11px 16px",
         borderBottom: `1px solid ${ts.border}`,
-        display:      "flex",
-        alignItems:   "center",
-        gap:          12,
-        flexWrap:     "wrap",
       }}>
-        {t.organizador_avatar ? (
-          <img src={t.organizador_avatar} alt=""
-            style={{ width: 34, height: 34, borderRadius: "50%", border: `2px solid ${ts.dot}`, objectFit: "cover", flexShrink: 0 }} />
-        ) : (
+        {/* Tournament name (if set) */}
+        {t.nombre_torneo && (
           <div style={{
-            width: 34, height: 34, borderRadius: "50%", background: ts.dot + "20",
-            border: `2px solid ${ts.dot}`, display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: "1rem", flexShrink: 0,
-          }}>🎙️</div>
+            fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: "0.85rem",
+            color: "#ffffff", marginBottom: 8, lineHeight: 1.2,
+          }}>
+            {t.nombre_torneo}
+          </div>
         )}
+        {/* Organizer row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {t.organizador_avatar ? (
+            <img src={t.organizador_avatar} alt=""
+              style={{ width: 30, height: 30, borderRadius: "50%", border: `2px solid #a371f7`, objectFit: "cover", flexShrink: 0 }} />
+          ) : (
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%", background: "rgba(163,113,247,0.15)",
+              border: `2px solid #a371f7`, display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: "0.9rem", flexShrink: 0,
+            }}>🎙️</div>
+          )}
 
-        <div style={{ flex: 1, minWidth: 120 }}>
-          <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: "0.73rem", color: ts.dot }}>
-            {t.organizador_nombre || "ORGANIZADOR"}
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <div style={{ fontSize: "0.65rem", color: "#6e7681" }}>Organizado por</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: "0.7rem", color: "#a371f7" }}>
+              {t.organizador_nombre || "ORGANIZADOR"}
+            </div>
           </div>
-          <div style={{ fontSize: "0.6rem", color: "#8b949e", marginTop: 1 }}>
-            📸 Resultados revisados en tiempo real
-          </div>
+
+          {streaming.map(s => (
+            <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
+              style={{
+                fontSize: "0.65rem", color: s.color, border: `1px solid ${s.color}40`,
+                padding: "3px 8px", borderRadius: 6, textDecoration: "none", whiteSpace: "nowrap",
+              }}>
+              {s.icon} {s.label}
+            </a>
+          ))}
         </div>
-
-        {streaming.map(s => (
-          <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
-            style={{
-              fontSize: "0.65rem", color: s.color, border: `1px solid ${s.color}40`,
-              padding: "3px 8px", borderRadius: 6, textDecoration: "none", whiteSpace: "nowrap",
-            }}>
-            {s.icon} {s.label}
-          </a>
-        ))}
       </div>
 
       {/* Tournament info */}
@@ -163,7 +169,31 @@ export default function OrgTournamentCard({ tournament: t }: Props) {
 
         {/* Prize info */}
         <div style={{ marginBottom: 12 }}>
-          {t.premio_externo ? (
+          {t.tipo_premio === "usd" ? (
+            <div style={{
+              fontSize: "0.72rem", color: "#00ff88",
+              background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)",
+              borderRadius: 8, padding: "8px 12px",
+            }}>
+              💵 Premio: ${t.premio_monto?.toLocaleString()} USD{t.premio_descripcion ? ` · ${t.premio_descripcion}` : ""}
+            </div>
+          ) : t.tipo_premio === "puntos" ? (
+            <div style={{
+              fontSize: "0.72rem", color: "#00d4ff",
+              background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.2)",
+              borderRadius: 8, padding: "8px 12px",
+            }}>
+              ⭐ Ganás puntos LFA para la tienda{t.premio_descripcion ? ` · ${t.premio_descripcion}` : ""}
+            </div>
+          ) : t.tipo_premio === "otro" ? (
+            <div style={{
+              fontSize: "0.72rem", color: "#ffd700",
+              background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.2)",
+              borderRadius: 8, padding: "8px 12px",
+            }}>
+              🏆 {t.premio_monto ? `${t.premio_monto.toLocaleString()} ${t.premio_moneda || ""}` : ""}{t.premio_descripcion ? ` · ${t.premio_descripcion}` : " · Premio del organizador"}
+            </div>
+          ) : t.premio_externo ? (
             <div style={{
               fontSize: "0.72rem", color: "#ffd700",
               background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.2)",

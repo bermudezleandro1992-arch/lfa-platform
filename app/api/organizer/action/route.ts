@@ -198,16 +198,17 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Verify organizer role ─────────────────────────────────────────────────
+  const CEO_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
   const userSnap = await adminDb.collection("usuarios").doc(callerUid).get();
-  if (!userSnap.exists || userSnap.data()?.rol !== "organizador") {
+  if (!userSnap.exists || (userSnap.data()?.rol !== "organizador" && callerUid !== CEO_UID)) {
     return NextResponse.json({ error: "Sin permiso de organizador" }, { status: 403 });
   }
 
-  // ── Parse body ────────────────────────────────────────────────────────────
+  // ── Parse body ────────────────────────────────────────────────────────────────
   let body: {
-    action:        "avanzar" | "expulsar" | "sustituir";
+    action:        "avanzar" | "expulsar" | "sustituir" | "agregar_jugador";
     tournamentId:  string;
-    matchId:       string;
+    matchId?:      string;
     playerId:      string;
     substituteId?: string;
   };
@@ -219,25 +220,31 @@ export async function POST(req: NextRequest) {
 
   const { action, tournamentId, matchId, playerId, substituteId } = body;
 
-  if (!action || !tournamentId || !matchId || !playerId) {
+  if (!action || !tournamentId || !playerId) {
     return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
+  }
+  if (action !== "agregar_jugador" && !matchId) {
+    return NextResponse.json({ error: "Falta matchId" }, { status: 400 });
+  }
+  if (action !== "agregar_jugador" && !matchId) {
+    return NextResponse.json({ error: "Falta matchId" }, { status: 400 });
   }
 
   // Validate string inputs to prevent injection
-  for (const val of [tournamentId, matchId, playerId, substituteId ?? ""]) {
+  for (const val of [tournamentId, matchId ?? "", playerId, substituteId ?? ""]) {
     if (val && !/^[\w\-]{1,128}$/.test(val)) {
       return NextResponse.json({ error: "Parámetro inválido" }, { status: 400 });
     }
   }
 
-  // ── Fetch tournament and verify ownership ─────────────────────────────────
+  // ── Fetch tournament and verify ownership ───────────────────────────────────────
   const tSnap = await adminDb.collection("tournaments").doc(tournamentId).get();
   if (!tSnap.exists) {
     return NextResponse.json({ error: "Torneo no encontrado" }, { status: 404 });
   }
   const tournament = tSnap.data()!;
 
-  if (tournament.organizador_uid !== callerUid) {
+  if (tournament.organizador_uid !== callerUid && callerUid !== CEO_UID) {
     return NextResponse.json({ error: "No sos el organizador de este torneo" }, { status: 403 });
   }
   if (tournament.tipo !== "organizado") {
@@ -245,7 +252,25 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Fetch match ───────────────────────────────────────────────────────────
-  const mSnap = await adminDb.collection("matches").doc(matchId).get();
+  // agregar_jugador doesn't need a match
+  if (action === "agregar_jugador") {
+    if (tournament.players.includes(playerId)) {
+      return NextResponse.json({ error: "El jugador ya está inscripto" }, { status: 400 });
+    }
+    if (tournament.players.length >= tournament.capacity) {
+      return NextResponse.json({ error: "El torneo está lleno" }, { status: 400 });
+    }
+    const pSnap = await adminDb.collection("usuarios").doc(playerId).get();
+    if (!pSnap.exists) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+    await adminDb.collection("tournaments").doc(tournamentId).update({
+      players: FieldValue.arrayUnion(playerId),
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  const mSnap = await adminDb.collection("matches").doc(matchId!).get();
   if (!mSnap.exists) {
     return NextResponse.json({ error: "Partido no encontrado" }, { status: 404 });
   }

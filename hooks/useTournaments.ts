@@ -25,6 +25,7 @@ export interface Tournament {
   created_at:   any;
   // Organized tournament fields
   tipo?:                 "automatico" | "organizado";
+  nombre_torneo?:        string;
   organizador_uid?:      string;
   organizador_nombre?:   string;
   organizador_avatar?:   string;
@@ -34,6 +35,9 @@ export interface Tournament {
   descripcion?:          string;
   premio_externo?:       boolean;
   premio_descripcion?:   string;
+  tipo_premio?:          'coins' | 'usd' | 'puntos' | 'otro';
+  premio_monto?:         number;
+  premio_moneda?:        string;
   manual_advance?:       boolean;
 }
 
