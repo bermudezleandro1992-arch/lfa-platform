@@ -26,7 +26,8 @@ export default function HubPage() {
   const router                         = useRouter();
   const { lang, setLang, t }           = useLang();
   const [userData, setUserData]        = useState<UserData | null>(null);
-  const [esAdmin,  setEsAdmin]         = useState(false);
+  const [esAdmin,       setEsAdmin]       = useState(false);
+  const [esOrganizador, setEsOrganizador] = useState(false);
   const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
 
@@ -49,6 +50,7 @@ export default function HubPage() {
           const d = snap.data() as UserData;
           setUserData(d);
           setEsAdmin(user.uid === DUEÑO_UID || d.rol === 'soporte');
+          setEsOrganizador(d.rol === 'organizador' || user.uid === DUEÑO_UID);
         }
         setUid(user.uid);
       } catch { /* sin red */ }
@@ -105,6 +107,11 @@ export default function HubPage() {
             {esAdmin && (
               <a href="/ceo" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#ff4757', border: '1px solid #ff475750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(255,71,87,0.06)' }}>
                 ⚙️ CEO
+              </a>
+            )}
+            {esOrganizador && (
+              <a href="/organizador" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#a371f7', border: '1px solid #a371f750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(163,113,247,0.06)' }}>
+                🎙️ MI PANEL
               </a>
             )}
             {/* Billetera */}
