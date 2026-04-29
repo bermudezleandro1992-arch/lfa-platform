@@ -28,6 +28,7 @@ export default function HomePage() {
     partidas_hoy: 0, en_vivo: 0, jugando_ahora: 0,
     fc26_vivo: 0, efb_vivo: 0, torneos_activos: 0,
   });
+  const [slideIndex, setSlideIndex] = useState(0);
   const loginRef = useRef<HTMLDivElement>(null);
 
   const MODOS = [
@@ -54,6 +55,12 @@ export default function HomePage() {
     fetchStats();
     const interval = setInterval(fetchStats, 30_000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Rotador de slides del panel (0=efootball, 1=fc26, 2=general)
+  useEffect(() => {
+    const t = setInterval(() => setSlideIndex(i => (i + 1) % 3), 5000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -135,131 +142,216 @@ export default function HomePage() {
         </section>
 
         {/* ══════════════════════════════════════════════
-            LIVE ACTIVITY PANEL
+            GAME CARDS — rotating showcase
         ══════════════════════════════════════════════ */}
-        <section style={{ padding: 'clamp(20px,4vw,40px) 20px 0', maxWidth: 900, margin: '0 auto' }}>
+        <section style={{ padding: 'clamp(20px,4vw,40px) 20px 0', maxWidth: 960, margin: '0 auto' }}>
+
+          {/* Indicadores de slide */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+            {['eFOOTBALL', 'FC 26', 'PLATAFORMA'].map((label, i) => (
+              <button
+                key={label}
+                onClick={() => setSlideIndex(i)}
+                style={{
+                  padding: '4px 14px', borderRadius: 30, fontSize: '0.62rem', cursor: 'pointer',
+                  fontFamily: "'Orbitron',sans-serif", fontWeight: 900, letterSpacing: 1,
+                  border: `1px solid ${slideIndex === i ? (i === 0 ? '#ffd700' : i === 1 ? '#009ee3' : '#00ff88') : '#30363d'}`,
+                  background: slideIndex === i
+                    ? (i === 0 ? 'rgba(255,215,0,0.12)' : i === 1 ? 'rgba(0,158,227,0.12)' : 'rgba(0,255,136,0.10)')
+                    : 'transparent',
+                  color: slideIndex === i ? (i === 0 ? '#ffd700' : i === 1 ? '#009ee3' : '#00ff88') : '#4a5568',
+                  transition: 'all 0.3s',
+                }}
+              >{label}</button>
+            ))}
+          </div>
+
+          {/* ── SLIDE 0: eFOOTBALL ── */}
           <div style={{
-            background: 'linear-gradient(135deg, #0d1117 0%, #0f1923 100%)',
-            border: '1px solid #1c2028',
-            borderRadius: 18,
-            overflow: 'hidden',
-            boxShadow: '0 0 40px rgba(0,255,136,0.04)',
-          }}>
-            {/* Header */}
+            display: slideIndex === 0 ? 'grid' : 'none',
+            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
+            gap: 16,
+            animation: slideIndex === 0 ? 'slideIn 0.4s ease' : 'none',
+          }} className="slide-grid">
+
+            {/* Logo / identidad */}
             <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 22px', borderBottom: '1px solid #1c2028',
-              background: 'rgba(255,255,255,0.02)', flexWrap: 'wrap', gap: 10,
+              background: 'linear-gradient(135deg,#0d1117,#111a12)',
+              border: '1px solid #ffd70030', borderRadius: 16,
+              padding: 'clamp(20px,4vw,32px)',
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 12,
+              position: 'relative', overflow: 'hidden',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{
-                  width: 9, height: 9, borderRadius: '50%', background: '#00ff88', display: 'inline-block',
-                  boxShadow: '0 0 8px #00ff88', animation: 'livePulse 1.5s ease-in-out infinite',
-                }} />
-                <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#00ff88', letterSpacing: 2 }}>
-                  EN VIVO AHORA
-                </span>
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 60% at 50% 30%, rgba(255,215,0,0.06), transparent)', pointerEvents: 'none' }} />
+              {/* Logo eFOOTBALL SVG inline */}
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#ffd700" strokeWidth="2"/>
+                <polygon points="32,10 38,26 55,26 42,36 47,52 32,42 17,52 22,36 9,26 26,26" fill="#ffd700"/>
+              </svg>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1rem,3vw,1.4rem)', fontWeight: 900, color: '#ffd700', letterSpacing: 2, textAlign: 'center' }}>eFOOTBALL</div>
+              <div style={{ background: 'rgba(255,215,0,0.12)', border: '1px solid #ffd70040', borderRadius: 30, padding: '4px 14px', fontSize: '0.65rem', fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontWeight: 700, letterSpacing: 1 }}>
+                🌐 CROSSPLAY · PS/XBOX/PC/MOBILE
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{
-                  background: 'rgba(0,158,227,0.1)', border: '1px solid #009ee330',
-                  borderRadius: 30, padding: '3px 12px',
-                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#009ee3', fontWeight: 700,
-                }}>
-                  ⚽ FC 26 · CROSSPLAY
-                </span>
-                <span style={{
-                  background: 'rgba(255,215,0,0.08)', border: '1px solid #ffd70030',
-                  borderRadius: 30, padding: '3px 12px',
-                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#ffd700', fontWeight: 700,
-                }}>
-                  🏅 eFOOTBALL · CROSSPLAY
-                </span>
+              <div style={{ color: '#8b949e', fontSize: '0.73rem', textAlign: 'center', lineHeight: 1.6, marginTop: 4 }}>
+                Gratis en todas las plataformas.<br/>Torneos verificados con bot LFA.
               </div>
             </div>
 
-            {/* Grid de stats */}
+            {/* Stats de eFOOTBALL */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: 0,
+              background: '#0d1117', border: '1px solid #ffd70020', borderRadius: 16,
+              padding: 'clamp(16px,3vw,28px)',
+              display: 'flex', flexDirection: 'column', gap: 14,
             }}>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#ffd700', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10 }}>
+                📊 EN VIVO — eFOOTBALL LFA
+              </div>
               {[
-                {
-                  label: 'PARTIDAS HOY',
-                  value: stats.partidas_hoy,
-                  icon: '📋',
-                  color: '#8b949e',
-                  sub: 'torneos completados',
-                },
-                {
-                  label: 'PARTIDAS EN VIVO',
-                  value: stats.en_vivo,
-                  icon: '🔴',
-                  color: '#ff4757',
-                  sub: 'en este momento',
-                  live: true,
-                },
-                {
-                  label: 'JUGANDO AHORA',
-                  value: stats.jugando_ahora,
-                  icon: '🎮',
-                  color: '#00ff88',
-                  sub: 'jugadores activos',
-                },
-                {
-                  label: 'TORNEOS ABIERTOS',
-                  value: stats.torneos_activos,
-                  icon: '🏆',
-                  color: '#ffd700',
-                  sub: 'disponibles ahora',
-                },
-              ].map((s, i) => (
-                <div key={s.label} style={{
-                  padding: 'clamp(16px,3vw,24px) clamp(14px,2.5vw,22px)',
-                  borderRight: i < 3 ? '1px solid #1c2028' : 'none',
-                  borderBottom: '0',
-                  position: 'relative',
-                }}>
-                  <div style={{ fontSize: '0.6rem', fontFamily: "'Orbitron',sans-serif", color: '#4a5568', letterSpacing: 2, marginBottom: 10 }}>{s.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.6rem,4vw,2.4rem)', fontWeight: 900, color: s.live && s.value > 0 ? '#ff4757' : s.color, lineHeight: 1 }}>
-                      {s.value}
-                    </span>
+                { l: 'PARTIDAS EN VIVO', v: stats.efb_vivo, c: '#ffd700', live: true },
+                { l: 'TORNEOS ABIERTOS', v: stats.torneos_activos, c: '#ffd700' },
+                { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
+                { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
+              ].map(row => (
+                <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {row.live && row.v > 0 && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', display: 'inline-block', animation: 'livePulse 1s ease-in-out infinite', flexShrink: 0 }} />}
+                    <span style={{ fontSize: '0.65rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1 }}>{row.l}</span>
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#4a5568' }}>{s.sub}</div>
-                  {s.live && s.value > 0 && (
-                    <div style={{ position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: '50%', background: '#ff4757', animation: 'livePulse 1s ease-in-out infinite' }} />
-                  )}
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{row.v > 0 ? row.v.toLocaleString('es-AR') : '—'}</span>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Game breakdown */}
+          {/* ── SLIDE 1: FC 26 ── */}
+          <div style={{
+            display: slideIndex === 1 ? 'grid' : 'none',
+            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
+            gap: 16,
+            animation: slideIndex === 1 ? 'slideIn 0.4s ease' : 'none',
+          }} className="slide-grid">
+
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
-              borderTop: '1px solid #1c2028',
+              background: 'linear-gradient(135deg,#0d1117,#0d1520)',
+              border: '1px solid #009ee330', borderRadius: 16,
+              padding: 'clamp(20px,4vw,32px)',
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 12,
+              position: 'relative', overflow: 'hidden',
             }}>
-              <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 12, borderRight: '1px solid #1c2028' }}>
-                <span style={{ fontSize: '1.4rem' }}>⚽</span>
-                <div>
-                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#009ee3', fontWeight: 900, letterSpacing: 1 }}>FC 26 — CROSSPLAY</div>
-                  <div style={{ color: '#e6edf3', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '1rem' }}>
-                    {stats.fc26_vivo} <span style={{ fontSize: '0.62rem', color: '#4a5568', fontWeight: 400 }}>partidas en vivo</span>
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 60% at 50% 30%, rgba(0,158,227,0.07), transparent)', pointerEvents: 'none' }} />
+              {/* Logo FC26 SVG inline */}
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" fill="#0d2040" stroke="#009ee3" strokeWidth="2"/>
+                <text x="50%" y="52%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontWeight="900" fontSize="22" fill="#009ee3">FC</text>
+                <text x="50%" y="74%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontWeight="900" fontSize="14" fill="#ffffff">26</text>
+              </svg>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1rem,3vw,1.4rem)', fontWeight: 900, color: '#009ee3', letterSpacing: 2, textAlign: 'center' }}>EA SPORTS FC 26</div>
+              <div style={{ background: 'rgba(0,158,227,0.12)', border: '1px solid #009ee340', borderRadius: 30, padding: '4px 14px', fontSize: '0.65rem', fontFamily: "'Orbitron',sans-serif", color: '#009ee3', fontWeight: 700, letterSpacing: 1 }}>
+                🌐 CROSSPLAY · PS/XBOX/PC
+              </div>
+              <div style={{ color: '#8b949e', fontSize: '0.73rem', textAlign: 'center', lineHeight: 1.6, marginTop: 4 }}>
+                El fútbol más realista del mercado.<br/>Competí con premios en LFA.
+              </div>
+            </div>
+
+            <div style={{
+              background: '#0d1117', border: '1px solid #009ee320', borderRadius: 16,
+              padding: 'clamp(16px,3vw,28px)',
+              display: 'flex', flexDirection: 'column', gap: 14,
+            }}>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#009ee3', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10 }}>
+                📊 EN VIVO — FC 26 LFA
+              </div>
+              {[
+                { l: 'PARTIDAS EN VIVO', v: stats.fc26_vivo, c: '#009ee3', live: true },
+                { l: 'TORNEOS ABIERTOS', v: stats.torneos_activos, c: '#009ee3' },
+                { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
+                { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
+              ].map(row => (
+                <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {row.live && row.v > 0 && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#009ee3', display: 'inline-block', animation: 'livePulse 1s ease-in-out infinite', flexShrink: 0 }} />}
+                    <span style={{ fontSize: '0.65rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1 }}>{row.l}</span>
                   </div>
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{row.v > 0 ? row.v.toLocaleString('es-AR') : '—'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── SLIDE 2: PLATAFORMA (stats generales) ── */}
+          <div style={{
+            display: slideIndex === 2 ? 'block' : 'none',
+            animation: slideIndex === 2 ? 'slideIn 0.4s ease' : 'none',
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg,#0d1117,#0d1117)',
+              border: '1px solid #1c2028', borderRadius: 16, overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '14px 22px', borderBottom: '1px solid #1c2028',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00ff88', display: 'inline-block', boxShadow: '0 0 8px #00ff88', animation: 'livePulse 1.5s ease-in-out infinite' }} />
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#00ff88', letterSpacing: 2 }}>PLATAFORMA LFA — EN VIVO</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid #ffd70030', borderRadius: 20, padding: '3px 10px', fontSize: '0.58rem', color: '#ffd700', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>⭐ eFOOTBALL</span>
+                  <span style={{ background: 'rgba(0,158,227,0.08)', border: '1px solid #009ee330', borderRadius: 20, padding: '3px 10px', fontSize: '0.58rem', color: '#009ee3', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>⚽ FC 26</span>
                 </div>
               </div>
-              <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: '1.4rem' }}>🏅</span>
-                <div>
-                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#ffd700', fontWeight: 900, letterSpacing: 1 }}>eFOOTBALL — CROSSPLAY</div>
-                  <div style={{ color: '#e6edf3', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '1rem' }}>
-                    {stats.efb_vivo} <span style={{ fontSize: '0.62rem', color: '#4a5568', fontWeight: 400 }}>partidas en vivo</span>
+
+              {/* Grid 4 stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
+                {[
+                  { icon: '🏆', label: 'TORNEOS TOTALES', value: stats.torneos, color: '#ffd700' },
+                  { icon: '👥', label: 'JUGADORES', value: stats.jugadores, color: '#00ff88' },
+                  { icon: '🔴', label: 'EN VIVO AHORA', value: stats.en_vivo, color: '#ff4757', live: true },
+                  { icon: '📋', label: 'PARTIDAS HOY', value: stats.partidas_hoy, color: '#8b949e' },
+                ].map((s, i) => (
+                  <div key={s.label} style={{
+                    padding: 'clamp(14px,2.5vw,22px) clamp(12px,2vw,20px)',
+                    borderRight: i < 3 ? '1px solid #1c2028' : 'none',
+                    position: 'relative',
+                  }}>
+                    <div style={{ fontSize: '0.58rem', fontFamily: "'Orbitron',sans-serif", color: '#4a5568', letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: '1.4rem' }}>{s.icon}</span>
+                      <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.4rem,3.5vw,2rem)', fontWeight: 900, color: s.live && s.value > 0 ? '#ff4757' : s.color, lineHeight: 1 }}>
+                        {s.value > 0 ? s.value.toLocaleString('es-AR') : '—'}
+                      </span>
+                    </div>
+                    {s.live && s.value > 0 && <div style={{ position: 'absolute', top: 12, right: 12, width: 7, height: 7, borderRadius: '50%', background: '#ff4757', animation: 'livePulse 1s ease-in-out infinite' }} />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desglose por juego */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #1c2028' }}>
+                <div style={{ padding: 'clamp(10px,2vw,16px) clamp(14px,2.5vw,22px)', display: 'flex', alignItems: 'center', gap: 12, borderRight: '1px solid #1c2028' }}>
+                  <svg width="32" height="32" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#1a1a1a" stroke="#ffd700" strokeWidth="2"/><polygon points="32,10 38,26 55,26 42,36 47,52 32,42 17,52 22,36 9,26 26,26" fill="#ffd700"/></svg>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#ffd700', fontWeight: 900, letterSpacing: 1 }}>eFOOTBALL</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: '#e6edf3', fontSize: 'clamp(0.9rem,2vw,1.1rem)' }}>
+                      {stats.efb_vivo} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: 'clamp(10px,2vw,16px) clamp(14px,2.5vw,22px)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <svg width="32" height="32" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#0d2040" stroke="#009ee3" strokeWidth="2"/><text x="50%" y="52%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="22" fill="#009ee3">FC</text><text x="50%" y="74%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="14" fill="#ffffff">26</text></svg>
+                  <div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#009ee3', fontWeight: 900, letterSpacing: 1 }}>EA SPORTS FC 26</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: '#e6edf3', fontSize: 'clamp(0.9rem,2vw,1.1rem)' }}>
+                      {stats.fc26_vivo} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
         </section>
 
         {/* ══════════════════════════════════════════════
@@ -318,6 +410,18 @@ export default function HomePage() {
         @keyframes livePulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-grid {
+          grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+        }
+        @media (max-width: 540px) {
+          .slide-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
         .login-box { width: 100%; max-width: 320px; }
         input.caja-texto {
