@@ -23,7 +23,11 @@ export default function HomePage() {
   const { lang, setLang, t } = useLang();
   const [showIntro,    setShowIntro]   = useState(true);
   const [authChecked,  setAuthChecked] = useState(false);
-  const [stats, setStats] = useState({ jugadores: 0, torneos: 0 });
+  const [stats, setStats] = useState({
+    jugadores: 0, torneos: 0,
+    partidas_hoy: 0, en_vivo: 0, jugando_ahora: 0,
+    fc26_vivo: 0, efb_vivo: 0, torneos_activos: 0,
+  });
   const loginRef = useRef<HTMLDivElement>(null);
 
   const MODOS = [
@@ -41,10 +45,15 @@ export default function HomePage() {
 
   // Cargar stats públicos (server-side vía API route — bypasea App Check)
   useEffect(() => {
-    fetch('/api/stats')
-      .then(r => r.ok ? r.json() : { jugadores: 0, torneos: 0 })
-      .then(data => setStats({ jugadores: data.jugadores ?? 0, torneos: data.torneos ?? 0 }))
-      .catch(() => {});
+    const fetchStats = () => {
+      fetch('/api/stats')
+        .then(r => r.ok ? r.json() : {})
+        .then(data => setStats(s => ({ ...s, ...data })))
+        .catch(() => {});
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -126,6 +135,134 @@ export default function HomePage() {
         </section>
 
         {/* ══════════════════════════════════════════════
+            LIVE ACTIVITY PANEL
+        ══════════════════════════════════════════════ */}
+        <section style={{ padding: 'clamp(20px,4vw,40px) 20px 0', maxWidth: 900, margin: '0 auto' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #0d1117 0%, #0f1923 100%)',
+            border: '1px solid #1c2028',
+            borderRadius: 18,
+            overflow: 'hidden',
+            boxShadow: '0 0 40px rgba(0,255,136,0.04)',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 22px', borderBottom: '1px solid #1c2028',
+              background: 'rgba(255,255,255,0.02)', flexWrap: 'wrap', gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  width: 9, height: 9, borderRadius: '50%', background: '#00ff88', display: 'inline-block',
+                  boxShadow: '0 0 8px #00ff88', animation: 'livePulse 1.5s ease-in-out infinite',
+                }} />
+                <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#00ff88', letterSpacing: 2 }}>
+                  EN VIVO AHORA
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{
+                  background: 'rgba(0,158,227,0.1)', border: '1px solid #009ee330',
+                  borderRadius: 30, padding: '3px 12px',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#009ee3', fontWeight: 700,
+                }}>
+                  ⚽ FC 26 · CROSSPLAY
+                </span>
+                <span style={{
+                  background: 'rgba(255,215,0,0.08)', border: '1px solid #ffd70030',
+                  borderRadius: 30, padding: '3px 12px',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#ffd700', fontWeight: 700,
+                }}>
+                  🏅 eFOOTBALL · CROSSPLAY
+                </span>
+              </div>
+            </div>
+
+            {/* Grid de stats */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gap: 0,
+            }}>
+              {[
+                {
+                  label: 'PARTIDAS HOY',
+                  value: stats.partidas_hoy,
+                  icon: '📋',
+                  color: '#8b949e',
+                  sub: 'torneos completados',
+                },
+                {
+                  label: 'PARTIDAS EN VIVO',
+                  value: stats.en_vivo,
+                  icon: '🔴',
+                  color: '#ff4757',
+                  sub: 'en este momento',
+                  live: true,
+                },
+                {
+                  label: 'JUGANDO AHORA',
+                  value: stats.jugando_ahora,
+                  icon: '🎮',
+                  color: '#00ff88',
+                  sub: 'jugadores activos',
+                },
+                {
+                  label: 'TORNEOS ABIERTOS',
+                  value: stats.torneos_activos,
+                  icon: '🏆',
+                  color: '#ffd700',
+                  sub: 'disponibles ahora',
+                },
+              ].map((s, i) => (
+                <div key={s.label} style={{
+                  padding: 'clamp(16px,3vw,24px) clamp(14px,2.5vw,22px)',
+                  borderRight: i < 3 ? '1px solid #1c2028' : 'none',
+                  borderBottom: '0',
+                  position: 'relative',
+                }}>
+                  <div style={{ fontSize: '0.6rem', fontFamily: "'Orbitron',sans-serif", color: '#4a5568', letterSpacing: 2, marginBottom: 10 }}>{s.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.6rem,4vw,2.4rem)', fontWeight: 900, color: s.live && s.value > 0 ? '#ff4757' : s.color, lineHeight: 1 }}>
+                      {s.value}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.65rem', color: '#4a5568' }}>{s.sub}</div>
+                  {s.live && s.value > 0 && (
+                    <div style={{ position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: '50%', background: '#ff4757', animation: 'livePulse 1s ease-in-out infinite' }} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Game breakdown */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr',
+              borderTop: '1px solid #1c2028',
+            }}>
+              <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 12, borderRight: '1px solid #1c2028' }}>
+                <span style={{ fontSize: '1.4rem' }}>⚽</span>
+                <div>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#009ee3', fontWeight: 900, letterSpacing: 1 }}>FC 26 — CROSSPLAY</div>
+                  <div style={{ color: '#e6edf3', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '1rem' }}>
+                    {stats.fc26_vivo} <span style={{ fontSize: '0.62rem', color: '#4a5568', fontWeight: 400 }}>partidas en vivo</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '1.4rem' }}>🏅</span>
+                <div>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#ffd700', fontWeight: 900, letterSpacing: 1 }}>eFOOTBALL — CROSSPLAY</div>
+                  <div style={{ color: '#e6edf3', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '1rem' }}>
+                    {stats.efb_vivo} <span style={{ fontSize: '0.62rem', color: '#4a5568', fontWeight: 400 }}>partidas en vivo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════════
             MODOS DE JUEGO
         ══════════════════════════════════════════════ */}
         <section style={{ padding: 'clamp(40px,8vw,80px) 20px', maxWidth: 900, margin: '0 auto' }}>
@@ -178,6 +315,10 @@ export default function HomePage() {
       </div>
 
       <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.85); }
+        }
         .login-box { width: 100%; max-width: 320px; }
         input.caja-texto {
           width: 100%;
