@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
+import type { DocumentData }         from 'firebase-admin/firestore';
 import { writeLedgerEntry }          from '@/lib/ledger';
 import { RegionDetectionResult }     from '@/lib/types';
 
@@ -206,11 +207,21 @@ export async function POST(req: NextRequest) {
       const reservaRef = adminDb.collection('reservas_torneo').doc(`${uid}_${tournamentId}`);
       tx.set(reservaRef, { estado: 'completado', completadoAt: FieldValue.serverTimestamp() }, { merge: true });
 
-      return { newBalance: newBal };
+      return { newBalance: newBal, newPlayers, capacity: t.capacity, game: (t.game ?? '') as string, tData: t };
     });
 
     // Marcar lock como completado (idempotencia permanente)
     await idempotencyRef.set({ uid, tournamentId, status: 'completed', completedAt: Date.now() });
+
+    // ── Auto-start: si la sala se llenó, generar round_1 y activar ──────────
+    if (result.newPlayers.length >= result.capacity) {
+      try {
+        await autoStartTournament(tournamentId, result.newPlayers, result.game, result.tData);
+      } catch (e) {
+        // No bloquea la respuesta al usuario — se puede reintentar desde el CEO
+        console.error('[AutoStart] Error al iniciar torneo:', e);
+      }
+    }
 
     return NextResponse.json({ success: true, newBalance: result.newBalance, message: '¡Inscripción exitosa!' });
     // Lock se mantiene como 'completed' — protección permanente contra reinscripción
@@ -220,4 +231,84 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : 'Error interno';
     return NextResponse.json({ error: msg }, { status: 400 });
   }
+}
+
+// ── Auto-start: genera round_1 y pone el torneo ACTIVE ──────────────────────
+async function autoStartTournament(
+  tournamentId: string,
+  players:      string[],
+  game:         string,
+  tData:        DocumentData,
+) {
+  const tournamentRef = adminDb.collection('tournaments').doc(tournamentId);
+
+  // Protección contra doble-arranque (race condition entre jugadores)
+  const started = await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(tournamentRef);
+    if (!snap.exists || snap.data()!.status !== 'OPEN') return false;
+    tx.update(tournamentRef, { status: 'STARTING' });   // lock temporal
+    return true;
+  });
+  if (!started) return;
+
+  const isEfb = game.toUpperCase().includes('EFOOTBALL') || game.toUpperCase().includes('E-FOOTBALL');
+
+  // Obtener nombres e IDs de juego de cada jugador
+  const playerDocs = await Promise.all(
+    players.map(p => adminDb.collection('usuarios').doc(p).get())
+  );
+  const infoMap: Record<string, { nombre: string; gameId: string }> = {};
+  playerDocs.forEach(snap => {
+    if (snap.exists) {
+      const d = snap.data()!;
+      infoMap[snap.id] = {
+        nombre: d.nombre || snap.id.slice(0, 10),
+        gameId: isEfb ? (d.konami_id || '') : (d.ea_id || ''),
+      };
+    }
+  });
+
+  // Mezclar jugadores (shuffle Fisher-Yates)
+  const shuffled = [...players];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const batch    = adminDb.batch();
+  const matchIds: string[] = [];
+
+  for (let i = 0; i + 1 < shuffled.length; i += 2) {
+    const p1 = shuffled[i];
+    const p2 = shuffled[i + 1];
+    const matchRef = adminDb.collection('matches').doc();
+    matchIds.push(matchRef.id);
+    batch.set(matchRef, {
+      p1,
+      p2,
+      p1_username: infoMap[p1]?.nombre || p1.slice(0, 10),
+      p2_username: infoMap[p2]?.nombre || p2.slice(0, 10),
+      p1_ea_id:   infoMap[p1]?.gameId || '',
+      p2_ea_id:   infoMap[p2]?.gameId || '',
+      score:      '',
+      winner:     null,
+      status:     'WAITING',
+      round:      'round_1',
+      tournamentId,
+      game:       tData.game  || '',
+      entry_fee:  tData.entry_fee  || 0,
+      prize_pool: tData.prize_pool || 0,
+      created_at: FieldValue.serverTimestamp(),
+    });
+  }
+
+  batch.update(tournamentRef, {
+    status:        'ACTIVE',
+    current_round: 'round_1',
+    match_ids:     matchIds,
+    started_at:    FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+  console.log(`[AutoStart] Torneo ${tournamentId} ACTIVO — ${players.length} jugadores, ${matchIds.length} matches (round_1)`);
 }

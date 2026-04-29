@@ -40,9 +40,9 @@ const TIER_STYLES: Record<string, { dot: string; border: string; badgeBg: string
 };
 
 function getTierKey(entryFee: number): string {
-  if (entryFee === 0)     return "FREE";
-  if (entryFee < 1000)   return "RECREATIVO";
-  if (entryFee < 10000)  return "COMPETITIVO";
+  if (entryFee === 0)      return "FREE";
+  if (entryFee <= 1000)    return "RECREATIVO";
+  if (entryFee <= 8000)    return "COMPETITIVO";
   return "ELITE";
 }
 

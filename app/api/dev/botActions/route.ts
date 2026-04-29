@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
       const capacity: number         = t.capacity;
       const needed                   = capacity - currentPlayers.length;
 
-      if (needed <= 0) {
-        return NextResponse.json({ error: 'La sala ya está llena.' }, { status: 400 });
+      if (needed < 0) {
+        return NextResponse.json({ error: 'La sala supera la capacidad.' }, { status: 400 });
       }
 
       /* Create bot user docs */
