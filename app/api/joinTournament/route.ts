@@ -58,6 +58,15 @@ export async function POST(req: NextRequest) {
 
     const tPre   = tPreSnap.data()!;
     const uPre   = uPreSnap.data()!;
+
+    // ── No permitir dos torneos simultáneos ──────────────────────────
+    const existingSnap = await adminDb.collection('tournaments')
+      .where('players', 'array-contains', uid)
+      .where('status', 'in', ['OPEN', 'ACTIVE'])
+      .limit(1).get();
+    if (!existingSnap.empty && existingSnap.docs[0].id !== tournamentId) {
+      return NextResponse.json({ error: 'Ya estás en un torneo activo. Finalizá ese torneo antes de unirte a otro.' }, { status: 400 });
+    }
     const isFree = tPre.entry_fee === 0;
     const coins  = (uPre.number ?? uPre.coins ?? 0) as number;
 
@@ -158,15 +167,6 @@ export async function POST(req: NextRequest) {
         const authUser = await adminAuth.getUser(uid);
         if (!authUser.emailVerified) throw new Error('Verificá tu email para acceder a torneos gratuitos.');
         if (txCoins > 5_000)         throw new Error('Con más de 5,000 Coins no podés acceder a salas gratuitas.');
-        // Límite diario: sin índice compuesto — filtramos en memoria
-        const freeSnap = await adminDb.collection('transactions')
-          .where('userId', '==', uid).where('type', '==', 'FREE_ENTRY').limit(10).get();
-        const since = Date.now() - 86_400_000;
-        const recentFree = freeSnap.docs.filter(d => {
-          const ts = (d.data().timestamp as { toMillis?: () => number })?.toMillis?.() ?? 0;
-          return ts >= since;
-        });
-        if (recentFree.length >= 2) throw new Error('Límite diario: máximo 2 torneos gratuitos por día.');
       } else {
         // Idempotencia: verificar que no haya una tx de entrada duplicada reciente
         const dupCheck = await adminDb.collection('transactions')

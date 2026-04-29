@@ -18,7 +18,6 @@ export interface Translations {
   btn_entrar:  string;
   o_accede:    string;
   btn_google:  string;
-  btn_facebook: string;
   btn_instalar: string;
   leido_todo:   string;
   foot_titulo:  string;
@@ -108,7 +107,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     email: 'Correo Electrónico', pass: 'Contraseña (Registro: 8+ caract, mayúscula, símbolo)',
     obligatorio: '⚠️ Obligatorio: EA ID (para FC26) o Konami ID (para eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: '¿Olvidaste tu contraseña?', btn_entrar: 'ENTRAR / REGISTRARSE',
-    o_accede: 'O ACCEDÉ CON', btn_google: 'Continuar con Google', btn_facebook: 'Facebook',
+    o_accede: 'O ACCEDÉ CON', btn_google: 'Continuar con Google',
     btn_instalar: '📲 INSTALAR APP LFA',
     leido_todo: 'Acepto el Reglamento, Términos, Privacidad y Reembolsos.',
     foot_titulo: 'LFA - Liga de Fútbol Automatizada',
@@ -161,7 +160,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     home_como_title:  '¿CÓMO FUNCIONA?',
     home_como_sub:    'Simple, rápido, transparente',
     home_paso1_title: 'REGISTRATE',
-    home_paso1_desc:  'Creá tu cuenta gratis con email, Google o Facebook en menos de 1 minuto.',
+    home_paso1_desc:  'Creá tu cuenta gratis con email o Google en menos de 1 minuto.',
     home_paso2_title: 'ELEGÍ UN TORNEO',
     home_paso2_desc:  'Salas de 2, 4, 6, 8 y 16 jugadores todo el día — 32 y 64 los fines de semana. Gratis o con LFA Coin, la moneda de SOMOS LFA.',
     home_paso3_title: 'JUGÁ Y COBRÁ',
@@ -182,7 +181,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     email: 'E-mail', pass: 'Senha (mín. 8 e 1 Maiúscula)',
     obligatorio: '⚠️ Obrigatório: EA ID (para FC26) ou Konami ID (para eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: 'Esqueceu sua senha?', btn_entrar: 'ENTRAR / REGISTRAR',
-    o_accede: 'OU ACESSE COM', btn_google: 'Continuar com o Google', btn_facebook: 'Facebook',
+    o_accede: 'OU ACESSE COM', btn_google: 'Continuar com o Google',
     btn_instalar: '📲 INSTALAR APP LFA',
     leido_todo: 'Aceito o Regulamento, Termos, Privacidade e Reembolsos.',
     foot_titulo: 'LFA - Liga de Futebol Automatizada',
@@ -235,7 +234,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     home_como_title:  'COMO FUNCIONA?',
     home_como_sub:    'Simples, rápido, transparente',
     home_paso1_title: 'CADASTRE-SE',
-    home_paso1_desc:  'Crie sua conta grátis com email, Google ou Facebook em menos de 1 minuto.',
+    home_paso1_desc:  'Crie sua conta grátis com email ou Google em menos de 1 minuto.',
     home_paso2_title: 'ESCOLHA UM TORNEIO',
     home_paso2_desc:  'Salas de 2, 4, 6, 8 e 16 jogadores todo o dia — 32 e 64 nos fins de semana. Grátis ou com LFA Coin, a moeda da SOMOS LFA.',
     home_paso3_title: 'JOGUE E RECEBA',
@@ -256,7 +255,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     email: 'Email Address', pass: 'Password (min 8 & 1 Uppercase)',
     obligatorio: '⚠️ Required: EA ID (for FC26) or Konami ID (for eFootball)', id_jugador: 'EA ID (FC26) / Konami ID (eFootball)',
     olvide_pass: 'Forgot your password?', btn_entrar: 'LOGIN / REGISTER',
-    o_accede: 'OR ACCESS WITH', btn_google: 'Continue with Google', btn_facebook: 'Facebook',
+    o_accede: 'OR ACCESS WITH', btn_google: 'Continue with Google',
     btn_instalar: '📲 INSTALL LFA APP',
     leido_todo: 'I accept the Rules, Terms, Privacy and Refunds.',
     foot_titulo: 'LFA - Automated Football League',
@@ -309,7 +308,7 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     home_como_title:  'HOW DOES IT WORK?',
     home_como_sub:    'Simple, fast, transparent',
     home_paso1_title: 'SIGN UP',
-    home_paso1_desc:  'Create your free account with email, Google or Facebook in less than 1 minute.',
+    home_paso1_desc:  'Create your free account with email or Google in less than 1 minute.',
     home_paso2_title: 'CHOOSE A TOURNAMENT',
     home_paso2_desc:  'Rooms of 2, 4, 6, 8 and 16 players all day — 32 and 64 on weekends. Free or with LFA Coin, the SOMOS LFA currency.',
     home_paso3_title: 'PLAY AND EARN',

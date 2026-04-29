@@ -15,9 +15,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
-  fetchSignInMethodsForEmail,
   GoogleAuthProvider,
-  FacebookAuthProvider,
   signOut,
   type AuthError,
 } from 'firebase/auth';
@@ -31,8 +29,7 @@ import type { RegionDetectionResult } from '@/lib/types';
 // ─────────────────────────────────────────────────────────────────────────────
 // Providers (singleton)
 // ─────────────────────────────────────────────────────────────────────────────
-const googleProvider   = new GoogleAuthProvider();
-const facebookProvider = new FacebookAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,7 +69,6 @@ export default function LoginBox({ t }: LoginBoxProps) {
   const [terms,       setTerms]       = useState(false);
   const [loading,     setLoading]     = useState(false);
   const [loadingGoog, setLoadingGoog] = useState(false);
-  const [loadingFb,   setLoadingFb]   = useState(false);
 
   // Estado modal recuperar contraseña
   const [showRecuperar,   setShowRecuperar]   = useState(false);
@@ -297,96 +293,6 @@ export default function LoginBox({ t }: LoginBoxProps) {
     setLoadingGoog(false);
   }, [terms, platId, alerta, pedirDato]); // eslint-disable-line
 
-  // ── LOGIN FACEBOOK ─────────────────────────────────────────────────────────
-  const loginFacebook = useCallback(async () => {
-    if (!terms) {
-      await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento, Términos y Políticas marcando la casilla antes de entrar.');
-      return;
-    }
-    setLoadingFb(true);
-
-    const datosRed = await analizarRed();
-    if (datosRed.isVpn) {
-      setLoadingFb(false);
-      await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
-      return;
-    }
-    if (datosRed.isBanned) {
-      setLoadingFb(false);
-      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
-      return;
-    }
-
-    const hw = obtenerHardware();
-    const fingerprintId = await getVisitorId();
-
-    try {
-      const result  = await signInWithPopup(auth, facebookProvider);
-      const userRef = doc(db, 'usuarios', result.user.uid);
-      const snap    = await getDoc(userRef);
-
-      if (!snap.exists()) {
-        let id = sanitizarInput(platId);
-        if (!id) {
-          const res = await pedirDato(
-            'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para completar el registro con Facebook:',
-          );
-          if (!res?.trim()) {
-            await signOut(auth);
-            await alerta('REGISTRO CANCELADO', '❌ El ID es obligatorio para competir.', 'error');
-            setLoadingFb(false);
-            return;
-          }
-          id = sanitizarInput(res);
-        }
-        await setDoc(userRef, {
-          nombre:             sanitizarInput(result.user.displayName ?? 'Jugador'),
-          email:              result.user.email ?? '',
-          number:             0,
-          color_carta:        'black',
-          titulos:            0,
-          plataforma_id:      id,
-          ip_conexion:        datosRed.country,
-          ip:                 datosRed.ip ?? '',
-          hw_avanzado:        hw,
-          fingerprint_id:     fingerprintId,
-          pais_codigo:        datosRed.country,
-          region:             datosRed.region,
-          terminos_aceptados: true,
-          last_login:         new Date().toISOString(),
-        });
-      } else {
-        const upd: Record<string, unknown> = {
-          ip_conexion: datosRed.country, hw_avanzado: hw,
-          ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
-          fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
-        };
-        if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
-        await setDoc(userRef, upd, { merge: true });
-      }
-
-      await verificarDivision(result.user.uid);
-    } catch (err) {
-      const e = err as AuthError & { customData?: { email?: string } };
-      if (e.code === 'auth/account-exists-with-different-credential') {
-        const email = e.customData?.email ?? '';
-        let methods: string[] = [];
-        try { methods = email ? await fetchSignInMethodsForEmail(auth, email) : []; } catch { /* ignore */ }
-        const proveedor = methods.includes('google.com') ? 'Google' : methods[0] ?? 'otro proveedor';
-        await alerta(
-          'CUENTA YA REGISTRADA',
-          `Este email ya está registrado con ${proveedor}. Iniciá sesión con ${proveedor} primero y tu cuenta de Facebook se vinculará automáticamente.`,
-          'error',
-        );
-      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-        await alerta('ERROR', 'Error con Facebook: ' + e.message, 'error');
-      }
-    }
-
-    setLoadingFb(false);
-  }, [terms, platId, alerta, pedirDato]); // eslint-disable-line
-
   // ── Verificar división + redirigir ────────────────────────────────────────
   async function verificarDivision(uid: string) {
     try {
@@ -555,21 +461,6 @@ export default function LoginBox({ t }: LoginBoxProps) {
           <span>{loadingGoog ? '🛡️ ESCANEANDO RED...' : t.btn_google}</span>
         </button>
 
-        {/* Facebook */}
-        <button
-          className="btn-main"
-          style={{
-            background: '#1877F2', color: 'white',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-            fontFamily: 'Roboto, sans-serif', fontWeight: 'bold', marginTop: '10px',
-          }}
-          onClick={loginFacebook}
-          disabled={loadingFb}
-        >
-          <FacebookSvgSmall />
-          <span>{loadingFb ? '🛡️ ESCANEANDO RED...' : t.btn_facebook}</span>
-        </button>
-
         {/* Checkbox términos */}
         <div className="terms">
           <input
@@ -621,10 +512,4 @@ function GoogleSvg() {
   );
 }
 
-function FacebookSvgSmall() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-      <path d="M22.675 0H1.325C.593 0 0 .593 0 1.326V22.67C0 23.407.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.323-.593 1.323-1.325V1.326C24 .593 23.407 0 22.675 0z"/>
-    </svg>
-  );
-}
+

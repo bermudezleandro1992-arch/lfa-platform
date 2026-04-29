@@ -1,11 +1,12 @@
 "use client";
 
-import { useState }          from "react";
+import { useState, useEffect } from "react";
 import { collection, query,
-         where, getDocs,
+         where, getDocs, onSnapshot,
          orderBy, limit }    from "firebase/firestore";
 import { db }                from "@/lib/firebase";
-import { GAMES, REGIONS, COUNTRIES_AMERICA_EUROPE } from "@/lib/constants";
+import { GAMES, REGIONS }    from "@/lib/constants";
+import OrgTournamentCard     from "./OrgTournamentCard";
 import type { Game,
               Region,
               GameMode }     from "@/lib/constants";
@@ -30,12 +31,27 @@ export default function BuscarSala() {
   const [mode,    setMode]    = useState<GameMode | "">("");
   const [region,  setRegion]  = useState<Region | "">("");
   const [tier,    setTier]    = useState<TierKey | "">("");
-  const [pais,    setPais]    = useState("");
+  const [orgTournaments, setOrgTournaments] = useState<Tournament[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Tournament[] | null>(null);
   const [searched, setSearched] = useState(false);
 
   const selectedGame = GAMES.find((g) => g.value === game)!;
+
+  // Live organized tournaments
+  useEffect(() => {
+    const q = query(
+      collection(db, "tournaments"),
+      where("tipo",   "==", "organizado"),
+      where("status", "==", "OPEN"),
+      limit(10)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setOrgTournaments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)));
+    });
+    return unsub;
+  }, []);
 
   const buscar = async () => {
     setLoading(true);
@@ -58,11 +74,8 @@ export default function BuscarSala() {
 
       let list: Tournament[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Tournament));
 
-      // Filtrar por país si el jugador seleccionó uno:
-      // Mostrar salas del país elegido O salas sin restricción de país
-      if (pais) {
-        list = list.filter((r) => !(r as unknown as Record<string, unknown>).country || (r as unknown as Record<string, unknown>).country === pais);
-      }
+      // Exclude organized tournaments (shown in their own section)
+      list = list.filter(r => r.tipo !== "organizado");
 
       // Ordenar: menos llenos primero para mejor experiencia de unirse
       list.sort((a, b) => (a.players.length / a.capacity) - (b.players.length / b.capacity));
@@ -134,6 +147,30 @@ export default function BuscarSala() {
           </div>
         </div>
       </div>
+
+      {/* ── TORNEOS ORGANIZADOS / STREAMERS ───────────────────── */}
+      {orgTournaments.length > 0 && (
+        <div className="max-w-2xl mx-auto px-4 pt-6 pb-2">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #a371f730, transparent)" }} />
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a371f7] opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#a371f7]" />
+              </span>
+              <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#a371f7", fontFamily: "'Orbitron',sans-serif" }}>
+                TORNEOS ORGANIZADOS
+              </span>
+            </div>
+            <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #a371f730, transparent)" }} />
+          </div>
+          <div className="flex flex-col gap-4 mb-6">
+            {orgTournaments.map(org => (
+              <OrgTournamentCard key={org.id} tournament={org} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── SELECTOR DE PREFERENCIAS ──────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 pb-6">
@@ -207,22 +244,6 @@ export default function BuscarSala() {
                 );
               })}
             </div>
-          </div>
-
-          {/* ── PAÍS ── */}
-          <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
-            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_country}</p>
-            <select
-              className="inp-focus w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none cursor-pointer"
-              style={{ background: "#161b22", borderColor: "#30363d", color: "#c9d1d9" }}
-              value={pais || ""}
-              onChange={e => setPais(e.target.value)}
-            >
-              <option value="">{t.bs_any_country}</option>
-              {COUNTRIES_AMERICA_EUROPE.map(({ code, name }) => (
-                <option key={code} value={name}>{name}</option>
-              ))}
-            </select>
           </div>
 
           {/* ── NIVEL / TIER ── */}

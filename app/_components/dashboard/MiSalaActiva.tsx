@@ -151,22 +151,17 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
   const spotsLeft = torneo!.capacity - torneo!.players.length;
   return (
     <div
-      onClick={() => router.push(`/match/${torneo!.id}`)}
       style={{
         background: "linear-gradient(135deg, rgba(0,255,136,0.06), rgba(0,0,0,0))",
         border: "1px solid rgba(0,255,136,0.3)",
         borderRadius: 0,
         padding: "12px 20px",
-        cursor: "pointer",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
         flexWrap: "wrap",
-        transition: "0.15s",
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg,rgba(0,255,136,0.12),rgba(0,0,0,0))")}
-      onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg,rgba(0,255,136,0.06),rgba(0,0,0,0))")}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ width: 10, height: 10, borderRadius: "50%", background: st.color, display: "inline-block", boxShadow: `0 0 8px ${st.color}`, animation: "pulse 1.4s ease infinite", flexShrink: 0 }} />
@@ -185,8 +180,8 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <span style={{ fontSize: "0.68rem", color: st.color, fontWeight: 700 }}>{st.text}</span>
-        <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 900, background: "#00ff88", color: "#000", padding: "5px 14px", borderRadius: 20 }}>
-          VER SALA →
+        <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 900, background: "rgba(0,255,136,0.12)", color: "#00ff88", padding: "5px 14px", borderRadius: 20, border: "1px solid rgba(0,255,136,0.3)" }}>
+          ⏳ ESPERANDO JUGADORES
         </span>
       </div>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>

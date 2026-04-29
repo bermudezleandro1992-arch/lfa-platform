@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   collection, query, where, limit, getDocs,
-  addDoc, serverTimestamp, doc, setDoc, getDoc,
+  addDoc, serverTimestamp, doc, setDoc, getDoc, onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -13,6 +13,17 @@ interface Streamer {
   twitch_canal?: string; kick_canal?: string; youtube_canal?: string;
   lfa_tv?: boolean;
   juego_lfa_tv?: 'FC26' | 'EFOOTBALL' | 'AMBOS';
+}
+
+interface LivePlayer {
+  uid: string;
+  nombre?: string;
+  avatar_url?: string;
+  twitch_canal?: string;
+  kick_canal?: string;
+  youtube_canal?: string;
+  matchId?: string;
+  game?: string;
 }
 
 interface CommunityStream {
@@ -68,6 +79,7 @@ export default function LfaTV({ uid }: { uid: string }) {
   const [gameTab,      setGameTab]      = useState<'todos'|'FC26'|'EFOOTBALL'>('todos');
   const [featured,     setFeatured]     = useState<'twitch'|'kick'|'youtube'>('youtube');
   const [parent,       setParent]       = useState('localhost');
+  const [livePlayers,  setLivePlayers]  = useState<LivePlayer[]>([]);
 
   /* Lead modal (aplicar como partner oficial) */
   const [leadOpen,     setLeadOpen]     = useState(false);
@@ -86,6 +98,49 @@ export default function LfaTV({ uid }: { uid: string }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') setParent(window.location.hostname);
+  }, []);
+
+  /* ── Jugadores en partida activa con canal de stream ──── */
+  useEffect(() => {
+    const q = query(
+      collection(db, 'matches'),
+      where('status', 'in', ['WAITING', 'PENDING_RESULT']),
+      limit(30),
+    );
+    const unsub = onSnapshot(q, async (snap) => {
+      if (snap.empty) { setLivePlayers([]); return; }
+      const uids = new Set<string>();
+      const matchByUid: Record<string, { matchId: string; game?: string }> = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const game = data.game as string | undefined;
+        if (data.p1) { uids.add(data.p1); matchByUid[data.p1] = { matchId: d.id, game }; }
+        if (data.p2) { uids.add(data.p2); matchByUid[data.p2] = { matchId: d.id, game }; }
+      });
+      // Filtrar solo los que tienen canales configurados
+      const results: LivePlayer[] = [];
+      for (const uid of uids) {
+        try {
+          const snap2 = await getDoc(doc(db, 'usuarios', uid));
+          if (!snap2.exists()) continue;
+          const data = snap2.data();
+          if (data.twitch_canal || data.kick_canal || data.youtube_canal) {
+            results.push({
+              uid,
+              nombre: data.nombre,
+              avatar_url: data.avatar_url,
+              twitch_canal: data.twitch_canal,
+              kick_canal: data.kick_canal,
+              youtube_canal: data.youtube_canal,
+              matchId: matchByUid[uid]?.matchId,
+              game: matchByUid[uid]?.game,
+            });
+          }
+        } catch { /* ok */ }
+      }
+      setLivePlayers(results);
+    });
+    return unsub;
   }, []);
 
   /* ── Streamers oficiales (lfa_tv === true) ─────────── */
@@ -380,6 +435,50 @@ export default function LfaTV({ uid }: { uid: string }) {
               </button>
             </div>
           </div>
+
+          {/* ── JUGANDO EN VIVO (players en partida con canal) ──── */}
+          {livePlayers.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.82rem', fontWeight: 900, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4757', display: 'inline-block', boxShadow: '0 0 8px #ff4757', animation: 'pulse 1.5s infinite' }} />
+                JUGANDO EN VIVO AHORA
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,240px),1fr))', gap: 12 }}>
+                {livePlayers
+                  .filter(p => gameTab === 'todos' || p.game === gameTab || !p.game)
+                  .map(p => {
+                    const plat = p.twitch_canal ? 'twitch' : p.kick_canal ? 'kick' : 'youtube';
+                    const canal = (p.twitch_canal || p.kick_canal || p.youtube_canal)!;
+                    return (
+                      <div key={p.uid} className="comcard" style={{ background: '#161b22', border: '1px solid rgba(255,71,87,0.35)', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', background: '#0d1117' }}>
+                          <iframe
+                            src={embedUrl(plat, canal, parent)}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                            allowFullScreen title={p.nombre || canal} loading="lazy"
+                          />
+                        </div>
+                        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', background: '#1c2028', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '1rem' }}>👤</span>}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre || canal}</div>
+                            <div style={{ display: 'flex', gap: 5, marginTop: 2, alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.6rem', color: '#ff4757', fontWeight: 700 }}>⚔️ EN PARTIDA</span>
+                              <span style={{ fontSize: '0.6rem', color: PLAT_COLOR[plat], fontWeight: 700 }}>{PLAT_LABEL[plat]}</span>
+                            </div>
+                          </div>
+                          <a href={channelLink(plat, canal)} target="_blank" rel="noopener noreferrer" style={{ color: '#ff4757', textDecoration: 'none', fontSize: '0.65rem', fontWeight: 700, border: '1px solid rgba(255,71,87,0.4)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            Ver ↗
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* ── CANALES DE LA COMUNIDAD ───────────────────── */}
           <div>

@@ -11,6 +11,7 @@ interface Jugador {
   id: string; nombre?: string; avatar_url?: string; region?: string;
   number?: number; fair_play?: number; titulos?: number;
   partidos_jugados?: number; victorias?: number; baneado?: boolean; country?: string;
+  goles?: number; racha_actual?: number; invicta?: number;
 }
 
 function countryFlag(code = '') {
@@ -35,12 +36,14 @@ function getTier(t: number) {
   return         { label: 'NOVATO',  color: '#8b949e', icon: '🆕' };
 }
 
-type SortKey = 'titulos' | 'victorias' | 'number' | 'fair_play';
+type SortKey = 'titulos' | 'victorias' | 'number' | 'fair_play' | 'goles' | 'racha_actual';
 const SORT_OPTS: { key: SortKey; label: string }[] = [
-  { key: 'titulos',   label: '🏆 Títulos'   },
-  { key: 'victorias', label: '✅ Victorias' },
-  { key: 'number',    label: '🪙 Coins'     },
-  { key: 'fair_play', label: '⚖️ Fair Play' },
+  { key: 'titulos',      label: '🏆 Títulos'    },
+  { key: 'victorias',    label: '✅ Victorias'  },
+  { key: 'goles',        label: '⚽ Goles'      },
+  { key: 'racha_actual', label: '🔥 Racha'       },
+  { key: 'number',       label: '🪙 Coins'      },
+  { key: 'fair_play',    label: '⚖️ Fair Play'  },
 ];
 const REGIONS = [
   { value: '',              label: '🌐 Todas'       },
@@ -158,9 +161,11 @@ export default function RankingInline() {
                   const tier = getTier(j.titulos || 0);
                   const bc   = rp === 1 ? '#ffd700' : rp === 2 ? '#a8b2c0' : '#cd7f32';
                   const glow = rp === 1 ? 'rgba(255,215,0,0.35)' : rp === 2 ? 'rgba(168,178,192,0.2)' : 'rgba(205,127,50,0.2)';
-                  const val  = sortKey === 'titulos' ? `🏆 ${j.titulos||0}` :
-                               sortKey === 'victorias' ? `✅ ${j.victorias||0}` :
-                               sortKey === 'number' ? `🪙 ${(j.number||0).toLocaleString()}` : `⚖️ ${j.fair_play??100}%`;
+                  const val  = sortKey === 'titulos'      ? `🏆 ${j.titulos||0}` :
+                               sortKey === 'victorias'    ? `✅ ${j.victorias||0}` :
+                               sortKey === 'goles'        ? `⚽ ${j.goles||0}` :
+                               sortKey === 'racha_actual' ? (j.racha_actual ?? 0) > 0 ? `🔥 +${j.racha_actual}` : `📉 ${j.racha_actual??0}` :
+                               sortKey === 'number'       ? `🪙 ${(j.number||0).toLocaleString()}` : `⚖️ ${j.fair_play??100}%`;
                   return (
                     <div key={j.id} style={{
                       background: '#161b22', border: `2px solid ${bc}40`,
@@ -196,9 +201,9 @@ export default function RankingInline() {
               TOP {Math.min(filtrados.length, 50)} — {filtrados.length} REGISTRADOS
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 480 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 620 }}>
                 <thead>
-                  <tr>{['#','JUGADOR','TIER','REGIÓN','TÍTULOS','VICTORIAS','FP'].map(h => (
+                  <tr>{['#','JUGADOR','TIER','REGIÓN','TÍTULOS','VIC','GOLES','RACHA','FP'].map(h => (
                     <th key={h} style={{ padding: '9px 11px', textAlign: 'left', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', borderBottom: '1px solid #30363d', background: 'rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}</tr>
                 </thead>
@@ -237,6 +242,28 @@ export default function RankingInline() {
                         </td>
                         <td style={{ padding: '10px 11px', borderBottom: '1px solid #1c2028', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: '#ffd700' }}>{j.titulos||0}</td>
                         <td style={{ padding: '10px 11px', borderBottom: '1px solid #1c2028', color: '#00ff88', fontWeight: 700 }}>{j.victorias||0}</td>
+                        <td style={{ padding: '10px 11px', borderBottom: '1px solid #1c2028', color: '#009ee3', fontWeight: 700, fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem' }}>
+                          {j.goles ? `⚽ ${j.goles}` : '—'}
+                        </td>
+                        <td style={{ padding: '10px 11px', borderBottom: '1px solid #1c2028' }}>
+                          {(() => {
+                            const r = j.racha_actual ?? 0;
+                            const inv = j.invicta ?? 0;
+                            if (r === 0 && inv === 0) return <span style={{ color: '#444' }}>—</span>;
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {r !== 0 && (
+                                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.68rem', fontWeight: 900, color: r > 0 ? '#00ff88' : '#ff4757' }}>
+                                    {r > 0 ? `🔥 +${r}` : `📉 ${r}`}
+                                  </span>
+                                )}
+                                {inv > 0 && (
+                                  <span style={{ fontSize: '0.6rem', color: '#ffd700' }}>🛡️ {inv} inv.</span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td style={{ padding: '10px 11px', borderBottom: '1px solid #1c2028' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                             <div style={{ flex: 1, height: 4, background: '#0b0e14', borderRadius: 3, overflow: 'hidden', minWidth: 36 }}>
@@ -249,7 +276,7 @@ export default function RankingInline() {
                     );
                   })}
                   {filtrados.length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#8b949e' }}>
+                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: '#8b949e' }}>
                       <div style={{ fontSize: '2rem', marginBottom: 8 }}>🏆</div>
                       Sin jugadores todavía
                     </td></tr>

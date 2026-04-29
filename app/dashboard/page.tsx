@@ -6,12 +6,14 @@ import { onAuthStateChanged }  from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db }            from '@/lib/firebase';
 import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
+import MiSalaActiva            from '@/app/_components/dashboard/MiSalaActiva';
 import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
 import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 
-const RankingInline  = dynamic(() => import('@/app/_components/dashboard/RankingInline'),  { ssr: false });
-const LfaTV          = dynamic(() => import('@/app/_components/dashboard/LfaTV'),          { ssr: false });
+const RankingInline    = dynamic(() => import('@/app/_components/dashboard/RankingInline'),    { ssr: false });
+const LfaTV            = dynamic(() => import('@/app/_components/dashboard/LfaTV'),            { ssr: false });
+const OrganizadorPanel = dynamic(() => import('@/app/_components/dashboard/OrganizadorPanel'), { ssr: false });
 
 
 export default function DashboardPage() {
@@ -26,14 +28,15 @@ function DashboardContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { lang, setLang, t } = useLang();
-  const [ready, setReady] = useState(false);
-  const [uid,   setUid]   = useState('');
-  const [tab,   setTab]   = useState<'arena'|'ranking'|'tv'>(() => 'arena');
+  const [ready,    setReady]    = useState(false);
+  const [uid,      setUid]      = useState('');
+  const [userRol,  setUserRol]  = useState('');
+  const [tab,      setTab]      = useState<'arena'|'ranking'|'tv'|'organizador'>(() => 'arena');
 
   // Leer ?tab= de la URL al montar
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'ranking' || t === 'tv') setTab(t as 'ranking'|'tv');
+    if (t === 'ranking' || t === 'tv' || t === 'organizador') setTab(t as 'ranking'|'tv'|'organizador');
   }, [searchParams]);
 
   useEffect(() => {
@@ -41,6 +44,11 @@ function DashboardContent() {
       if (!user) { router.replace('/'); return; }
       setUid(user.uid);
       setReady(true);
+      // Fetch user role for conditional tabs
+      try {
+        const snap = await getDoc(doc(db, 'usuarios', user.uid));
+        if (snap.exists()) setUserRol(snap.data().rol ?? '');
+      } catch { /* silencioso */ }
       // Auto-detectar país si el usuario aún no lo tiene
       try {
         const snap = await getDoc(doc(db, 'usuarios', user.uid));
@@ -91,6 +99,11 @@ function DashboardContent() {
         <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           📺 {t.dash_tab_tv}
         </button>
+        {userRol === 'organizador' && (
+          <button onClick={() => setTab('organizador')} style={{ background:'transparent', border:'none', borderBottom: tab==='organizador' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='organizador' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
+            🎙️ ORGANIZADOR
+          </button>
+        )}
 
         <div style={{ flex: 1 }} />
         <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
@@ -102,14 +115,16 @@ function DashboardContent() {
         </div>
       </div>
 
-      {tab === 'arena'   && (
+      {tab === 'arena'        && (
         <>
+          {uid && <MiSalaActiva uid={uid} />}
           <BuscarSala />
           <DashboardFooter />
         </>
       )}
-      {tab === 'ranking' && <RankingInline />}
-      {tab === 'tv'      && <LfaTV uid={uid} />}
+      {tab === 'ranking'      && <RankingInline />}
+      {tab === 'tv'           && <LfaTV uid={uid} />}
+      {tab === 'organizador'  && <OrganizadorPanel />}
 
 
     </>

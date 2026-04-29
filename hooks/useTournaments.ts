@@ -23,6 +23,18 @@ export interface Tournament {
   waiting_alert_sent?:  boolean;
   waiting_expires_at?:  any;
   created_at:   any;
+  // Organized tournament fields
+  tipo?:                 "automatico" | "organizado";
+  organizador_uid?:      string;
+  organizador_nombre?:   string;
+  organizador_avatar?:   string;
+  organizador_twitch?:   string;
+  organizador_kick?:     string;
+  organizador_youtube?:  string;
+  descripcion?:          string;
+  premio_externo?:       boolean;
+  premio_descripcion?:   string;
+  manual_advance?:       boolean;
 }
 
 interface Filters {

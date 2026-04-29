@@ -117,7 +117,8 @@ export default function TournamentCard({ tournament: t }: Props) {
       }
       if (data.newBalance !== undefined) setBalance(data.newBalance);
       setReserva(null);
-      setStep("waiting");
+      // Redirigir al dashboard donde MiSalaActiva muestra la sala activa
+      router.push("/dashboard");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
       setStep("confirm");
@@ -155,7 +156,7 @@ export default function TournamentCard({ tournament: t }: Props) {
                 color:      t.status === "OPEN" ? "#00ff88"             : "#00d4ff",
                 border:     `1px solid ${t.status === "OPEN" ? "rgba(0,255,136,0.3)" : "rgba(0,212,255,0.3)"}`,
               }}>
-              {t.status === "OPEN" ? "● ABIERTO" : "⚔ ACTIVO"}
+              {t.status === "OPEN" ? "● ABIERTO" : "⚔️ SALA JUGANDO"}
             </span>
           </div>
 
@@ -291,9 +292,9 @@ export default function TournamentCard({ tournament: t }: Props) {
               style={isFull || isActive
                 ? { background: "#161b22", color: "#6e7681", cursor: "not-allowed", border: "1px solid #30363d" }
                 : { background: style.btnBg, color: style.btnText, boxShadow: `0 4px 20px ${style.dot}20` }}>
-              {isFull   ? "🔒 SALA LLENA"   :
-               isActive ? "⚔️ EN CURSO"      :
-               isFree   ? "🎮 UNIRSE GRATIS" :
+              {isFull   ? "🔒 SALA LLENA"         :
+               isActive ? "⚔️ SALA JUGANDO"       :
+               isFree   ? "🎮 UNIRSE GRATIS"       :
                           `⚡ UNIRSE — ${t.entry_fee.toLocaleString()} LFC`}
             </button>
           )}
