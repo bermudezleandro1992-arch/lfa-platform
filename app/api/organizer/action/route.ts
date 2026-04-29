@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await advanceBracket(matchId, opponent, tournamentId, tournament);
+      await advanceBracket(matchId!, opponent, tournamentId, tournament);
 
     } else if (action === "sustituir") {
       if (!substituteId) {
