@@ -119,7 +119,7 @@ export default function LfaTV({ uid }: { uid: string }) {
       });
       // Filtrar solo los que tienen canales configurados
       const results: LivePlayer[] = [];
-      for (const uid of uids) {
+      for (const uid of Array.from(uids)) {
         try {
           const snap2 = await getDoc(doc(db, 'usuarios', uid));
           if (!snap2.exists()) continue;
