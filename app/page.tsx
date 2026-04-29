@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, getCountFromServer, collection } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 import IntroOverlay  from '@/app/_components/IntroOverlay';
@@ -39,17 +39,12 @@ export default function HomePage() {
     { n: '03', title: t.home_paso3_title, desc: t.home_paso3_desc },
   ];
 
-  // Cargar stats públicos (sin auth)
+  // Cargar stats públicos (server-side vía API route — bypasea App Check)
   useEffect(() => {
-    Promise.all([
-      getCountFromServer(collection(db, 'usuarios')).catch(() => null),
-      getCountFromServer(collection(db, 'tournaments')).catch(() => null),
-    ]).then(([u, t]) => {
-      setStats({
-        jugadores: u?.data().count ?? 0,
-        torneos:   t?.data().count ?? 0,
-      });
-    });
+    fetch('/api/stats')
+      .then(r => r.ok ? r.json() : { jugadores: 0, torneos: 0 })
+      .then(data => setStats({ jugadores: data.jugadores ?? 0, torneos: data.torneos ?? 0 }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

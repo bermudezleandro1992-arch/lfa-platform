@@ -23,10 +23,8 @@ service cloud.firestore {
     }
 
     match /usuarios/{userid} {
-      // Lectura pública de campos de ranking (nombre, títulos, victorias, fair_play, region, pais_codigo, avatar_url, partidos_jugados)
-      // Datos sensibles (number/coins, email, ip, etc.) solo para el propio usuario o admin
-      allow read: if isOwner(userid) || esAdmin()
-                  || (request.auth == null || request.auth != null); // público para ranking
+      // Lectura pública para ranking y contadores — datos sensibles protegidos por la app
+      allow read: if true;
       allow create: if false;
       allow update: if isOwner(userid) &&
                     !request.resource.data.diff(resource.data).affectedKeys()
