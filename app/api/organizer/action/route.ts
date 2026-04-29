@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
 
       // Update match
       const field = match.p1 === playerId ? "p1" : "p2";
-      batch.update(adminDb.collection("matches").doc(matchId), { [field]: substituteId });
+      batch.update(adminDb.collection("matches").doc(matchId!), { [field]: substituteId });
 
       // Update tournament players array
       const updatedPlayers = tournament.players
