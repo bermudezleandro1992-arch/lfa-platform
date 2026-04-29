@@ -1473,24 +1473,26 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
 // ============================================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-// 55 slots × 2 juegos × 2 modos × 5 regiones = 1100 plantillas
-// GRATIS: fee=0 | RECREATIVO: 500-999 | COMPETITIVO: 1000-9999 | ELITE: 10000+
+// 78 slots × 4 modos × 5 regiones = 1560 plantillas
+// GRATIS: fee=0 | RECREATIVO: 500-1000 | COMPETITIVO: 2000-8000 | ELITE: 10000-20000
 const SALA_SLOTS_SPAWN = [
-    // GRATIS
-    [2, 0],    [4, 0],    [6, 0],    [8, 0],    [16, 0],
-    // RECREATIVO (500–999)
-    [2, 500],  [4, 500],  [6, 500],  [8, 500],  [16, 500],
-    [2, 750],  [4, 750],  [6, 750],  [8, 750],  [16, 750],
-    [2, 999],  [4, 999],  [6, 999],  [8, 999],  [16, 999],
-    // COMPETITIVO (1000–9999)
-    [2, 1000], [4, 1000], [6, 1000], [8, 1000], [16, 1000],
-    [2, 2500], [4, 2500], [6, 2500], [8, 2500], [16, 2500],
-    [2, 5000], [4, 5000], [6, 5000], [8, 5000], [16, 5000],
-    [2, 9999], [4, 9999], [6, 9999], [8, 9999], [16, 9999],
-    // ELITE (10000–20000)
-    [2, 10000],[4, 10000],[6, 10000],[8, 10000],[16, 10000],
-    [2, 15000],[4, 15000],[6, 15000],[8, 15000],[16, 15000],
-    [2, 20000],[4, 20000],[6, 20000],[8, 20000],[16, 20000],
+    // GRATIS (6 combos: 6 tamaños × 1 precio)
+    [2,0],  [4,0],  [6,0],  [8,0],  [12,0], [16,0],
+    // RECREATIVO (18 combos: 6 tamaños × 3 precios)
+    [2,500], [4,500], [6,500], [8,500], [12,500], [16,500],
+    [2,750], [4,750], [6,750], [8,750], [12,750], [16,750],
+    [2,1000],[4,1000],[6,1000],[8,1000],[12,1000],[16,1000],
+    // COMPETITIVO (36 combos: 6 tamaños × 6 precios)
+    [2,2000],[4,2000],[6,2000],[8,2000],[12,2000],[16,2000],
+    [2,3000],[4,3000],[6,3000],[8,3000],[12,3000],[16,3000],
+    [2,4000],[4,4000],[6,4000],[8,4000],[12,4000],[16,4000],
+    [2,5000],[4,5000],[6,5000],[8,5000],[12,5000],[16,5000],
+    [2,6000],[4,6000],[6,6000],[8,6000],[12,6000],[16,6000],
+    [2,8000],[4,8000],[6,8000],[8,8000],[12,8000],[16,8000],
+    // ELITE (18 combos: 6 tamaños × 3 precios)
+    [2,10000],[4,10000],[6,10000],[8,10000],[12,10000],[16,10000],
+    [2,15000],[4,15000],[6,15000],[8,15000],[12,15000],[16,15000],
+    [2,20000],[4,20000],[6,20000],[8,20000],[12,20000],[16,20000],
 ];
 
 const _SPAWN_GAMES = [
@@ -1500,10 +1502,10 @@ const _SPAWN_GAMES = [
 const _SPAWN_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA", "GLOBAL", "EUROPA"];
 
 function getTierFromFee(entry_fee) {
-    if (entry_fee === 0)    return "FREE";
-    if (entry_fee < 1000)  return "RECREATIVO";
-    if (entry_fee < 10000) return "COMPETITIVO";
-    return "ELITE";
+    if (entry_fee === 0)     return "FREE";
+    if (entry_fee <= 1000)   return "RECREATIVO";   // 500, 750, 1000
+    if (entry_fee <= 8000)   return "COMPETITIVO";  // 2000-8000
+    return "ELITE";                                  // 10000-20000
 }
 
 function calcPrizePool(capacity, entry_fee) {
@@ -1551,34 +1553,18 @@ for (const g of _SPAWN_GAMES) {
     }
 }
 
-// Slots activos por defecto (Fase 1 — lanzamiento completo)
-// 80 slots × 5 regiones × 2 salas = 800 salas máx simultáneas
-const DEFAULT_SLOTS_ACTIVOS = [
-    // FC26 — GENERAL_95
-    "FC26|GENERAL_95|2|0",  "FC26|GENERAL_95|4|0",  "FC26|GENERAL_95|6|0",  "FC26|GENERAL_95|8|0",  "FC26|GENERAL_95|16|0",
-    "FC26|GENERAL_95|2|500","FC26|GENERAL_95|4|500","FC26|GENERAL_95|6|500","FC26|GENERAL_95|8|500","FC26|GENERAL_95|16|500",
-    "FC26|GENERAL_95|2|1000","FC26|GENERAL_95|4|1000","FC26|GENERAL_95|6|1000","FC26|GENERAL_95|8|1000","FC26|GENERAL_95|16|1000",
-    "FC26|GENERAL_95|2|2500","FC26|GENERAL_95|4|2500","FC26|GENERAL_95|6|2500","FC26|GENERAL_95|8|2500","FC26|GENERAL_95|16|2500",
-    "FC26|GENERAL_95|2|10000","FC26|GENERAL_95|4|10000","FC26|GENERAL_95|6|10000","FC26|GENERAL_95|8|10000","FC26|GENERAL_95|16|10000",
-    // FC26 — ULTIMATE
-    "FC26|ULTIMATE|2|0",  "FC26|ULTIMATE|4|0",  "FC26|ULTIMATE|6|0",  "FC26|ULTIMATE|8|0",  "FC26|ULTIMATE|16|0",
-    "FC26|ULTIMATE|2|500","FC26|ULTIMATE|4|500","FC26|ULTIMATE|6|500","FC26|ULTIMATE|8|500","FC26|ULTIMATE|16|500",
-    "FC26|ULTIMATE|2|1000","FC26|ULTIMATE|4|1000","FC26|ULTIMATE|6|1000","FC26|ULTIMATE|8|1000","FC26|ULTIMATE|16|1000",
-    "FC26|ULTIMATE|2|2500","FC26|ULTIMATE|4|2500","FC26|ULTIMATE|6|2500","FC26|ULTIMATE|8|2500","FC26|ULTIMATE|16|2500",
-    "FC26|ULTIMATE|2|10000","FC26|ULTIMATE|4|10000","FC26|ULTIMATE|6|10000","FC26|ULTIMATE|8|10000","FC26|ULTIMATE|16|10000",
-    // EFOOTBALL — DREAM_TEAM
-    "EFOOTBALL|DREAM_TEAM|2|0",  "EFOOTBALL|DREAM_TEAM|4|0",  "EFOOTBALL|DREAM_TEAM|6|0",  "EFOOTBALL|DREAM_TEAM|8|0",  "EFOOTBALL|DREAM_TEAM|16|0",
-    "EFOOTBALL|DREAM_TEAM|2|500","EFOOTBALL|DREAM_TEAM|4|500","EFOOTBALL|DREAM_TEAM|6|500","EFOOTBALL|DREAM_TEAM|8|500","EFOOTBALL|DREAM_TEAM|16|500",
-    "EFOOTBALL|DREAM_TEAM|2|1000","EFOOTBALL|DREAM_TEAM|4|1000","EFOOTBALL|DREAM_TEAM|6|1000","EFOOTBALL|DREAM_TEAM|8|1000","EFOOTBALL|DREAM_TEAM|16|1000",
-    "EFOOTBALL|DREAM_TEAM|2|2500","EFOOTBALL|DREAM_TEAM|4|2500","EFOOTBALL|DREAM_TEAM|6|2500","EFOOTBALL|DREAM_TEAM|8|2500","EFOOTBALL|DREAM_TEAM|16|2500",
-    "EFOOTBALL|DREAM_TEAM|2|10000","EFOOTBALL|DREAM_TEAM|4|10000","EFOOTBALL|DREAM_TEAM|6|10000","EFOOTBALL|DREAM_TEAM|8|10000","EFOOTBALL|DREAM_TEAM|16|10000",
-    // EFOOTBALL — GENUINOS
-    "EFOOTBALL|GENUINOS|2|0",  "EFOOTBALL|GENUINOS|4|0",  "EFOOTBALL|GENUINOS|6|0",  "EFOOTBALL|GENUINOS|8|0",  "EFOOTBALL|GENUINOS|16|0",
-    "EFOOTBALL|GENUINOS|2|500","EFOOTBALL|GENUINOS|4|500","EFOOTBALL|GENUINOS|6|500","EFOOTBALL|GENUINOS|8|500","EFOOTBALL|GENUINOS|16|500",
-    "EFOOTBALL|GENUINOS|2|1000","EFOOTBALL|GENUINOS|4|1000","EFOOTBALL|GENUINOS|6|1000","EFOOTBALL|GENUINOS|8|1000","EFOOTBALL|GENUINOS|16|1000",
-    "EFOOTBALL|GENUINOS|2|2500","EFOOTBALL|GENUINOS|4|2500","EFOOTBALL|GENUINOS|6|2500","EFOOTBALL|GENUINOS|8|2500","EFOOTBALL|GENUINOS|16|2500",
-    "EFOOTBALL|GENUINOS|2|10000","EFOOTBALL|GENUINOS|4|10000","EFOOTBALL|GENUINOS|6|10000","EFOOTBALL|GENUINOS|8|10000","EFOOTBALL|GENUINOS|16|10000",
-];
+// Slots activos por defecto — todos los 78 slots por los 4 modos de juego = 312 claves
+const DEFAULT_SLOTS_ACTIVOS = (() => {
+    const keys = [];
+    for (const g of _SPAWN_GAMES) {
+        for (const mode of g.modes) {
+            for (const [cap, fee] of SALA_SLOTS_SPAWN) {
+                keys.push(`${g.game}|${mode}|${cap}|${fee}`);
+            }
+        }
+    }
+    return keys;
+})();
 
 async function runSpawnCycle() {
     const configDoc = await db.collection("configuracion").doc("spawner").get();
@@ -1587,30 +1573,36 @@ async function runSpawnCycle() {
         return { created: 0, checked: 0 };
     }
 
-    // Leer slots activos; si no existe el campo usar los defaults de Fase 1
+    // Leer slots activos; si no existe el campo usar los defaults
     const slotsActivos = configDoc.data().slots_activos || DEFAULT_SLOTS_ACTIVOS;
     const activoSet = new Set(slotsActivos);
 
-    // Filtrar templates a solo los activos (sin región — se aplica a las 3)
+    // Filtrar templates a solo los activos
     const templates = SPAWN_TEMPLATES.filter(tpl =>
         activoSet.has(`${tpl.game}|${tpl.mode}|${tpl.capacity}|${tpl.entry_fee}`)
     );
 
+    // ── Leer TODAS las salas OPEN spawned de una sola vez (1 query) ──────────
+    const openSnap = await db.collection("tournaments")
+        .where("status",  "==", "OPEN")
+        .where("spawned", "==", true)
+        .get();
+
+    // Construir mapa: clave → cantidad existente
+    const existingCount = {};
+    for (const d of openSnap.docs) {
+        const data = d.data();
+        const key = `${data.game}|${data.mode}|${data.capacity}|${data.entry_fee}|${data.region}`;
+        existingCount[key] = (existingCount[key] || 0) + 1;
+    }
+
     let created = 0;
+    const batch = db.batch();
+
     for (const tpl of templates) {
-        const snap = await db.collection("tournaments")
-            .where("game",      "==", tpl.game)
-            .where("mode",      "==", tpl.mode)
-            .where("entry_fee", "==", tpl.entry_fee)
-            .where("capacity",  "==", tpl.capacity)
-            .where("region",    "==", tpl.region)
-            .where("status",    "==", "OPEN")
-            .get();
-
-        const needed = Math.max(0, 2 - snap.size);
-        if (needed === 0) continue;
-
-        const batch = db.batch();
+        const key    = `${tpl.game}|${tpl.mode}|${tpl.capacity}|${tpl.entry_fee}|${tpl.region}`;
+        const count  = existingCount[key] || 0;
+        const needed = Math.max(0, 2 - count);
         for (let i = 0; i < needed; i++) {
             const ref = db.collection("tournaments").doc();
             batch.set(ref, {
@@ -1630,8 +1622,14 @@ async function runSpawnCycle() {
             });
             created++;
         }
-        await batch.commit();
+        // Firestore batch max = 500 writes → flush and start new batch
+        if (created > 0 && created % 490 === 0) {
+            await batch.commit();
+        }
     }
+
+    // Final flush
+    if (created > 0) await batch.commit();
 
     await db.collection("configuracion").doc("spawner").set({
         last_run:     admin.firestore.FieldValue.serverTimestamp(),

@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
       if (match.status === "FINISHED") {
         return NextResponse.json({ error: "Este partido ya finalizó" }, { status: 400 });
       }
-      await advanceBracket(matchId, playerId, tournamentId, tournament);
+      await advanceBracket(matchId!, playerId, tournamentId, tournament);
 
     } else if (action === "expulsar") {
       // Opponent of the expelled player wins by default

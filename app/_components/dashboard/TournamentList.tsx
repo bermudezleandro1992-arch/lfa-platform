@@ -139,8 +139,8 @@ export default function TournamentList() {
             style={{ background: "#161b22", borderColor: "#30363d", color: "#c9d1d9" }}>
             <option value="">💰 Nivel</option>
             <option value="FREE">🎁 GRATIS — Premio por Staff</option>
-            <option value="RECREATIVO">🟢 RECREATIVO — 500-999 LFC (~$0.50-$0.99)</option>
-            <option value="COMPETITIVO">🟡 COMPETITIVO — 1.000-9.999 LFC ($1-$9.99)</option>
+            <option value="RECREATIVO">🟢 RECREATIVO — 500-1.000 LFC (~$0.50-$1)</option>
+            <option value="COMPETITIVO">🟡 COMPETITIVO — 2.000-8.000 LFC ($2-$8)</option>
             <option value="ELITE">🔴 ELITE — 10.000-20.000 LFC ($10-$20)</option>
           </select>
 

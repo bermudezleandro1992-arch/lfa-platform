@@ -18,8 +18,8 @@ import { useLang }           from "@/app/_components/LangDropdown";
 // ─── Tiers disponibles para elegir ───────────────────────────
 const TIERS = [
   { key: "FREE",        label: "GRATIS",      sub: "Premio por Staff",       dot: "#00d4ff" },
-  { key: "RECREATIVO",  label: "RECREATIVO",  sub: "500 – 999 LFC",          dot: "#00ff88" },
-  { key: "COMPETITIVO", label: "COMPETITIVO", sub: "1.000 – 9.999 LFC",      dot: "#ffd700" },
+  { key: "RECREATIVO",  label: "RECREATIVO",  sub: "500 – 1.000 LFC",         dot: "#00ff88" },
+  { key: "COMPETITIVO", label: "COMPETITIVO", sub: "2.000 – 8.000 LFC",        dot: "#ffd700" },
   { key: "ELITE",       label: "ELITE",       sub: "10.000 – 20.000 LFC",    dot: "#ff4757" },
 ] as const;
 

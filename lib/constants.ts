@@ -162,15 +162,15 @@ export const PLATFORMS = [
 // ============================================================
 export const ROOM_TIERS = {
   FREE:        { label: "GRATIS",      color: "cyan",   minCoins: 0,     maxCoins: 0,     coinLabel: "Gratis",              usdLabel: "Premio por Staff" },
-  RECREATIVO:  { label: "RECREATIVO",  color: "green",  minCoins: 500,   maxCoins: 999,   coinLabel: "500 – 999 LFC",       usdLabel: "~$0.50–$0.99" },
-  COMPETITIVO: { label: "COMPETITIVO", color: "yellow", minCoins: 1000,  maxCoins: 9999,  coinLabel: "1.000 – 9.999 LFC",   usdLabel: "$1 – $9.99" },
+  RECREATIVO:  { label: "RECREATIVO",  color: "green",  minCoins: 500,   maxCoins: 1000,  coinLabel: "500 – 1.000 LFC",      usdLabel: "~$0.50–$1" },
+  COMPETITIVO: { label: "COMPETITIVO", color: "yellow", minCoins: 2000,  maxCoins: 8000,  coinLabel: "2.000 – 8.000 LFC",   usdLabel: "$2 – $8" },
   ELITE:       { label: "ELITE",       color: "red",    minCoins: 10000, maxCoins: 20000, coinLabel: "10.000 – 20.000 LFC", usdLabel: "$10 – $20" },
 } as const;
 
 export function getRoomTier(entryFee: number) {
   if (entryFee === 0)    return ROOM_TIERS.FREE;
-  if (entryFee < 1000)   return ROOM_TIERS.RECREATIVO;
-  if (entryFee < 10000)  return ROOM_TIERS.COMPETITIVO;
+  if (entryFee <= 1000)  return ROOM_TIERS.RECREATIVO;
+  if (entryFee <= 8000)  return ROOM_TIERS.COMPETITIVO;
   return ROOM_TIERS.ELITE;
 }
 
@@ -226,7 +226,7 @@ function buildTemplate(
     coins:      Math.floor((prize_pool * d.pct) / 100),
   }));
   const tier: keyof typeof ROOM_TIERS =
-    entry_fee === 0 ? "FREE" : entry_fee < 1000 ? "RECREATIVO" : entry_fee < 10000 ? "COMPETITIVO" : "ELITE";
+    entry_fee === 0 ? "FREE" : entry_fee <= 1000 ? "RECREATIVO" : entry_fee <= 8000 ? "COMPETITIVO" : "ELITE";
   return { id, name, capacity, entry_fee, prize_pool, platform_fee, prizes, tier, free, special };
 }
 

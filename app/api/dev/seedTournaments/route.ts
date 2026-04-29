@@ -39,9 +39,9 @@ export async function POST() {
   }
 
   function getTier(entry: number) {
-    if (entry === 0)   return 'FREE';
-    if (entry < 1000)  return 'RECREATIVO';
-    if (entry < 10000) return 'COMPETITIVO';
+    if (entry === 0)    return 'FREE';
+    if (entry <= 1000)  return 'RECREATIVO';
+    if (entry <= 8000)  return 'COMPETITIVO';
     return 'ELITE';
   }
 
@@ -61,23 +61,29 @@ export async function POST() {
     };
   }
 
-  // ─── 14 salas por modo por región ─────────────────────────────────────────
-  //  2p  REC  (500)       │  6p  FREE  (0)    │  8p  COM  (2000)
-  //  2p  COM  (2000)      │  6p  REC   (500)  │ 12p  REC  (500)
-  //  4p  FREE (0)         │  6p  COM   (2000) │ 12p  COM  (2000)
-  //  4p  REC  (500)       │  8p  FREE  (0)    │ 16p  FREE (0)
-  //                       │  8p  REC   (500)  │ 16p  ELT  (10000)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── 78 salas por modo por región ─────────────────────────────────────────
+  // 6 tamaños × 13 precios = 78 combinaciones
   const SALA_SLOTS: [number, number][] = [
-    [2,  500],   [2,  2000],
-    [4,  0],     [4,  500],
-    [6,  0],     [6,  500],   [6,  2000],
-    [8,  0],     [8,  500],   [8,  2000],
-    [12, 500],   [12, 2000],
-    [16, 0],     [16, 10000],
+    // FREE (6)
+    [2,0],[4,0],[6,0],[8,0],[12,0],[16,0],
+    // RECREATIVO 500–1.000 (18)
+    [2,500],[4,500],[6,500],[8,500],[12,500],[16,500],
+    [2,750],[4,750],[6,750],[8,750],[12,750],[16,750],
+    [2,1000],[4,1000],[6,1000],[8,1000],[12,1000],[16,1000],
+    // COMPETITIVO 2.000–8.000 (36)
+    [2,2000],[4,2000],[6,2000],[8,2000],[12,2000],[16,2000],
+    [2,3000],[4,3000],[6,3000],[8,3000],[12,3000],[16,3000],
+    [2,4000],[4,4000],[6,4000],[8,4000],[12,4000],[16,4000],
+    [2,5000],[4,5000],[6,5000],[8,5000],[12,5000],[16,5000],
+    [2,6000],[4,6000],[6,6000],[8,6000],[12,6000],[16,6000],
+    [2,8000],[4,8000],[6,8000],[8,8000],[12,8000],[16,8000],
+    // ELITE 10.000–20.000 (18)
+    [2,10000],[4,10000],[6,10000],[8,10000],[12,10000],[16,10000],
+    [2,15000],[4,15000],[6,15000],[8,15000],[12,15000],[16,15000],
+    [2,20000],[4,20000],[6,20000],[8,20000],[12,20000],[16,20000],
   ];
 
-  const REGIONS     = ['LATAM_SUR', 'LATAM_NORTE', 'AMERICA'];
+  const REGIONS     = ['LATAM_SUR', 'LATAM_NORTE', 'AMERICA', 'GLOBAL', 'EUROPA'];
   const FC26_MODES  = ['GENERAL_95', 'ULTIMATE'];
   const EFB_MODES   = ['DREAM_TEAM', 'GENUINOS'];
 
@@ -96,16 +102,20 @@ export async function POST() {
     }
   }
 
-  // Firestore batch max = 500 escrituras; 168 < 500
-  const batch = adminDb.batch();
-  for (const data of seeds) {
-    batch.set(adminDb.collection('tournaments').doc(), data);
+  // Firestore batch max = 500 escrituras — 78×5×4 = 1560 salas → múltiples batches
+  const BATCH_SIZE = 499;
+  for (let i = 0; i < seeds.length; i += BATCH_SIZE) {
+    const chunk = seeds.slice(i, i + BATCH_SIZE);
+    const batch = adminDb.batch();
+    for (const data of chunk) {
+      batch.set(adminDb.collection('tournaments').doc(), data);
+    }
+    await batch.commit();
   }
-  await batch.commit();
 
   return NextResponse.json({
     ok: true,
     created: seeds.length,
-    breakdown: `${REGIONS.length} regiones × 2 juegos × 2 modos × 14 salas = ${seeds.length}`,
+    breakdown: `${REGIONS.length} regiones × 4 modos × 78 salas = ${seeds.length}`,
   });
 }
