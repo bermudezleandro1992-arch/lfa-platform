@@ -256,6 +256,11 @@ service cloud.firestore {
       allow write: if false; // solo el servidor via API route
     }
 
+    // Rate limits de feedback — solo servidor Admin SDK
+    match /feedback_rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

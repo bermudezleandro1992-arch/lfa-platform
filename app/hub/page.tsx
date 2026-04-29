@@ -214,8 +214,8 @@ export default function HubPage() {
         {/* ── CONTENIDO ────────────────────────────────── */}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 16px 60px' }}>
 
-          {/* ── FEEDBACK WIDGET ──────────────────────────── */}
-          <div style={{ marginBottom: 28 }}>
+          {/* ── FEEDBACK WIDGET (compacto al final) ─────── */}
+          <div style={{ display: 'none' }}>
             {/* Trigger bar */}
             <button
               onClick={() => { setFbOpen(o => !o); setFbExito(false); setFbError(''); }}
@@ -504,6 +504,121 @@ export default function HubPage() {
               </button>
             ))}
           </div>
+
+          {/* ── FEEDBACK ─────────────────────────────────── */}
+          <div style={{ marginTop: 40, borderTop: '1px solid #1c2028', paddingTop: 28 }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <span style={{ fontSize: '1.1rem' }}>💬</span>
+              <div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#009ee3', letterSpacing: 1 }}>TU OPINIÓN MEJORA LFA</div>
+                <div style={{ fontSize: '0.68rem', color: '#4a5568', marginTop: 1 }}>Sugerencias, bugs, ideas o valoraciones · Tu ayuda es bienvenida</div>
+              </div>
+            </div>
+
+            {fbExito ? (
+              <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid #00ff8830', borderRadius: 12, padding: '20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎉</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.85rem', fontWeight: 900, marginBottom: 4 }}>¡GRACIAS POR TU FEEDBACK!</div>
+                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Lo revisaremos y lo usaremos para mejorar la plataforma. 🙌</div>
+              </div>
+            ) : (
+              <div style={{ background: '#0d1117', border: '1px solid #1c2028', borderRadius: 14, padding: 'clamp(14px,3vw,20px)' }}>
+
+                {/* Pills de tipo */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                  {FB_TIPOS.map(({ key, icon, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setFbTipo(key)}
+                      style={{
+                        padding: '5px 12px', borderRadius: 30, fontSize: '0.72rem', cursor: 'pointer',
+                        border: `1px solid ${fbTipo === key ? '#009ee3' : '#30363d'}`,
+                        background: fbTipo === key ? 'rgba(0,158,227,0.15)' : 'transparent',
+                        color: fbTipo === key ? '#009ee3' : '#8b949e',
+                        fontWeight: fbTipo === key ? 700 : 400,
+                        transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                    >{icon} {label}</button>
+                  ))}
+                </div>
+
+                {/* Estrellas solo si valoracion */}
+                {fbTipo === 'valoracion' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n}
+                        onMouseEnter={() => setFbHover(n)} onMouseLeave={() => setFbHover(0)}
+                        onClick={() => setFbEstrellas(n)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0,
+                          transition: 'transform 0.15s', transform: n <= (fbHover || fbEstrellas) ? 'scale(1.25)' : 'scale(1)',
+                          filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)' }}
+                      >⭐</button>
+                    ))}
+                    <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: 6 }}>
+                      {['','Muy malo','Malo','Regular','Bueno','Excelente'][fbHover || fbEstrellas]}
+                    </span>
+                  </div>
+                )}
+
+                {/* Grid: nombre | mensaje + botón */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px,180px) 1fr', gap: 10, alignItems: 'flex-start' }}>
+                  <input
+                    value={fbNombre} onChange={e => setFbNombre(e.target.value)}
+                    maxLength={60} placeholder="Nick / nombre"
+                    style={{
+                      background: '#161b22', border: '1px solid #30363d', borderRadius: 8,
+                      padding: '9px 12px', color: 'white', fontSize: '0.8rem', outline: 'none',
+                      width: '100%', boxSizing: 'border-box' as const, fontFamily: "'Roboto',sans-serif",
+                    }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ position: 'relative' }}>
+                      <textarea
+                        value={fbMensaje} onChange={e => setFbMensaje(e.target.value)}
+                        maxLength={600} rows={3}
+                        placeholder={
+                          fbTipo === 'bug' ? 'Describí qué pasó y en qué sección...'
+                          : fbTipo === 'sugerencia' ? '¿Qué mejoraría la plataforma?'
+                          : fbTipo === 'valoracion' ? '¿Qué te parece LFA hasta ahora?'
+                          : 'Tu mensaje para el equipo LFA...'
+                        }
+                        style={{
+                          width: '100%', background: '#161b22',
+                          border: `1px solid ${fbError ? '#ff475760' : '#30363d'}`,
+                          borderRadius: 8, padding: '9px 12px 20px', color: 'white',
+                          fontSize: '0.8rem', outline: 'none', resize: 'none',
+                          fontFamily: "'Roboto',sans-serif", lineHeight: 1.5, boxSizing: 'border-box' as const,
+                        }}
+                      />
+                      <span style={{ position: 'absolute', bottom: 6, right: 10, fontSize: '0.62rem', color: fbMensaje.length > 550 ? '#ff4757' : '#4a5568', pointerEvents: 'none' }}>
+                        {fbMensaje.length}/600
+                      </span>
+                    </div>
+                    {fbError && <div style={{ color: '#ff4757', fontSize: '0.72rem' }}>⚠️ {fbError}</div>}
+                    <button
+                      onClick={enviarFeedback}
+                      disabled={fbEnviando || fbMensaje.trim().length < 10}
+                      style={{
+                        padding: '9px 18px', borderRadius: 8, border: 'none', cursor: fbEnviando || fbMensaje.trim().length < 10 ? 'not-allowed' : 'pointer',
+                        background: fbEnviando ? '#1c2028' : 'linear-gradient(135deg,#009ee3,#0077b6)',
+                        color: 'white', fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
+                        fontSize: '0.72rem', letterSpacing: 1,
+                        opacity: fbMensaje.trim().length < 10 ? 0.5 : 1,
+                        boxShadow: fbEnviando || fbMensaje.trim().length < 10 ? 'none' : '0 0 14px rgba(0,158,227,0.3)',
+                        transition: 'all 0.2s', alignSelf: 'flex-end',
+                      }}
+                    >
+                      {fbEnviando ? '⏳ ENVIANDO...' : '📨 ENVIAR →'}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 
