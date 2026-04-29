@@ -250,6 +250,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Feedback de usuarios — escritura solo via servidor (Admin SDK)
+    match /feedback/{docId} {
+      allow read: if esAdmin();
+      allow write: if false; // solo el servidor via API route
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
