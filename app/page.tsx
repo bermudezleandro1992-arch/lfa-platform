@@ -23,12 +23,14 @@ export default function HomePage() {
   const { lang, setLang, t } = useLang();
   const [showIntro,    setShowIntro]   = useState(true);
   const [authChecked,  setAuthChecked] = useState(false);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [stats, setStats] = useState({
     jugadores: 0, torneos: 0,
     partidas_hoy: 0, en_vivo: 0, jugando_ahora: 0,
     fc26_vivo: 0, efb_vivo: 0, torneos_activos: 0,
     fc26_torneos: 0, efb_torneos: 0,
     fc26_jugadores: 0, efb_jugadores: 0,
+    fc26_hoy: 0, efb_hoy: 0,
   });
   const [slideIndex, setSlideIndex] = useState(0);
   const loginRef = useRef<HTMLDivElement>(null);
@@ -51,11 +53,11 @@ export default function HomePage() {
     const fetchStats = () => {
       fetch('/api/stats')
         .then(r => r.ok ? r.json() : {})
-        .then(data => setStats(s => ({ ...s, ...data })))
-        .catch(() => {});
+        .then(data => { setStats(s => ({ ...s, ...data })); setStatsLoaded(true); })
+        .catch(() => { setStatsLoaded(true); });
     };
     fetchStats();
-    const interval = setInterval(fetchStats, 30_000);
+    const interval = setInterval(fetchStats, 15_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -127,25 +129,35 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Stats + regiones activas */}
-          <div style={{ borderTop: '1px solid #1c2028', paddingTop: 28, width: '100%', maxWidth: 680 }}>
-            <div style={{ display: 'flex', gap: 'clamp(18px,4vw,40px)', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 18 }}>
+          {/* Stats en vivo + regiones activas */}
+          <div style={{ width: '100%', maxWidth: 700 }}>
+            {/* Header barra */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00ff88', display: 'inline-block', boxShadow: '0 0 6px #00ff88', animation: 'livePulse 1.5s ease-in-out infinite' }} />
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#00ff88', fontWeight: 900, letterSpacing: 2 }}>ESTADÍSTICAS EN VIVO · LFA</span>
+            </div>
+            {/* Números */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: 14, padding: 'clamp(12px,2vw,20px)', marginBottom: 16 }}>
               {[
-                { v: stats.torneos > 0 ? stats.torneos.toLocaleString('es-AR') : '—', l: 'TORNEOS' },
-                { v: stats.jugadores > 0 ? stats.jugadores.toLocaleString('es-AR') : '—', l: 'JUGADORES' },
-                { v: stats.en_vivo > 0 ? stats.en_vivo.toLocaleString('es-AR') : '—', l: 'EN VIVO' },
-                { v: stats.partidas_hoy > 0 ? stats.partidas_hoy.toLocaleString('es-AR') : '—', l: 'PARTIDAS HOY' },
+                { v: statsLoaded ? stats.torneos : '…', l: 'TORNEOS', c: '#ffd700' },
+                { v: statsLoaded ? stats.jugadores : '…', l: 'JUGADORES', c: '#00ff88' },
+                { v: statsLoaded ? stats.en_vivo : '…', l: 'EN VIVO', c: stats.en_vivo > 0 ? '#ff4757' : '#00ff88', live: true },
+                { v: statsLoaded ? stats.partidas_hoy : '…', l: 'PARTIDAS HOY', c: '#8b949e' },
               ].map(s => (
                 <div key={s.l} style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.1rem,2.5vw,1.5rem)', fontWeight: 900, color: '#00ff88' }}>{s.v}</div>
-                  <div style={{ fontSize: '0.6rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2 }}>{s.l}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    {s.live && statsLoaded && stats.en_vivo > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff4757', display: 'inline-block', animation: 'livePulse 1s ease-in-out infinite' }} />}
+                    <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.1rem,2.5vw,1.6rem)', fontWeight: 900, color: s.c }}>{typeof s.v === 'number' ? s.v.toLocaleString('es-AR') : s.v}</span>
+                  </div>
+                  <div style={{ fontSize: '0.55rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2, marginTop: 2 }}>{s.l}</div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span style={{ fontSize: '0.62rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, alignSelf: 'center' }}>REGIONES ACTIVAS:</span>
+            {/* Regiones */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.58rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, alignSelf: 'center' }}>REGIONES ACTIVAS:</span>
               {['🌎 LATAM SUR', '🌎 LATAM NORTE', '🌍 AMÉRICA', '🌐 GLOBAL', '🇪🇺 EUROPA'].map(r => (
-                <span key={r} style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 20, padding: '3px 10px', fontSize: '0.6rem', color: '#00ff88', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                <span key={r} style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 20, padding: '3px 10px', fontSize: '0.58rem', color: '#00ff88', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
                   {r}
                 </span>
               ))}
@@ -215,21 +227,22 @@ export default function HomePage() {
               padding: 'clamp(16px,3vw,28px)',
               display: 'flex', flexDirection: 'column', gap: 14,
             }}>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#ffd700', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10 }}>
-                📊 EN VIVO — eFOOTBALL LFA
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#ffd700', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: stats.efb_vivo > 0 ? '#ffd700' : '#4a5568', display: 'inline-block', animation: stats.efb_vivo > 0 ? 'livePulse 1s ease-in-out infinite' : 'none' }} />
+                EN VIVO — eFOOTBALL LFA
               </div>
               {[
-                { l: 'PARTIDAS EN VIVO', v: stats.efb_vivo, c: '#ffd700', live: true },
-                { l: 'TORNEOS ABIERTOS', v: stats.efb_torneos, c: '#ffd700' },
-                { l: 'JUGADORES REGISTRADOS', v: stats.efb_jugadores, c: '#e6edf3' },
-                { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
+                { l: 'PARTIDAS EN VIVO',      v: stats.efb_vivo,                          c: '#ffd700', live: true },
+                { l: 'TORNEOS ABIERTOS',       v: stats.efb_torneos,                        c: '#ffd700' },
+                { l: 'JUGADORES EN LFA',       v: stats.efb_jugadores || stats.jugadores,   c: '#e6edf3' },
+                { l: 'PARTIDAS HOY',           v: stats.efb_hoy || stats.partidas_hoy,      c: '#8b949e' },
               ].map(row => (
                 <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {row.live && row.v > 0 && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', display: 'inline-block', animation: 'livePulse 1s ease-in-out infinite', flexShrink: 0 }} />}
                     <span style={{ fontSize: '0.65rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1 }}>{row.l}</span>
                   </div>
-                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{row.v > 0 ? row.v.toLocaleString('es-AR') : '—'}</span>
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{statsLoaded ? row.v.toLocaleString('es-AR') : '…'}</span>
                 </div>
               ))}
             </div>
@@ -271,21 +284,22 @@ export default function HomePage() {
               padding: 'clamp(16px,3vw,28px)',
               display: 'flex', flexDirection: 'column', gap: 14,
             }}>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#009ee3', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10 }}>
-                📊 EN VIVO — FC 26 LFA
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', color: '#009ee3', fontWeight: 900, letterSpacing: 2, borderBottom: '1px solid #1c2028', paddingBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: stats.fc26_vivo > 0 ? '#009ee3' : '#4a5568', display: 'inline-block', animation: stats.fc26_vivo > 0 ? 'livePulse 1s ease-in-out infinite' : 'none' }} />
+                EN VIVO — FC 26 LFA
               </div>
               {[
-                { l: 'PARTIDAS EN VIVO', v: stats.fc26_vivo, c: '#009ee3', live: true },
-                { l: 'TORNEOS ABIERTOS', v: stats.fc26_torneos, c: '#009ee3' },
-                { l: 'JUGADORES REGISTRADOS', v: stats.fc26_jugadores, c: '#e6edf3' },
-                { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
+                { l: 'PARTIDAS EN VIVO',      v: stats.fc26_vivo,                          c: '#009ee3', live: true },
+                { l: 'TORNEOS ABIERTOS',       v: stats.fc26_torneos,                       c: '#009ee3' },
+                { l: 'JUGADORES EN LFA',       v: stats.fc26_jugadores || stats.jugadores,  c: '#e6edf3' },
+                { l: 'PARTIDAS HOY',           v: stats.fc26_hoy || stats.partidas_hoy,     c: '#8b949e' },
               ].map(row => (
                 <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {row.live && row.v > 0 && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#009ee3', display: 'inline-block', animation: 'livePulse 1s ease-in-out infinite', flexShrink: 0 }} />}
                     <span style={{ fontSize: '0.65rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1 }}>{row.l}</span>
                   </div>
-                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{row.v > 0 ? row.v.toLocaleString('es-AR') : '—'}</span>
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: 'clamp(1rem,2.5vw,1.3rem)', color: row.c }}>{statsLoaded ? row.v.toLocaleString('es-AR') : '…'}</span>
                 </div>
               ))}
             </div>
@@ -332,7 +346,7 @@ export default function HomePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: '1.4rem' }}>{s.icon}</span>
                       <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.4rem,3.5vw,2rem)', fontWeight: 900, color: s.live && s.value > 0 ? '#ff4757' : s.color, lineHeight: 1 }}>
-                        {s.value > 0 ? s.value.toLocaleString('es-AR') : '—'}
+                      {statsLoaded ? s.value.toLocaleString('es-AR') : '…'}
                       </span>
                     </div>
                     {s.live && s.value > 0 && <div style={{ position: 'absolute', top: 12, right: 12, width: 7, height: 7, borderRadius: '50%', background: '#ff4757', animation: 'livePulse 1s ease-in-out infinite' }} />}
@@ -347,7 +361,7 @@ export default function HomePage() {
                   <div>
                     <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#ffd700', fontWeight: 900, letterSpacing: 1 }}>eFOOTBALL</div>
                     <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: '#e6edf3', fontSize: 'clamp(0.9rem,2vw,1.1rem)' }}>
-                      {stats.efb_vivo} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
+                      {statsLoaded ? stats.efb_vivo : '…'} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
                     </div>
                   </div>
                 </div>
@@ -356,7 +370,7 @@ export default function HomePage() {
                   <div>
                     <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#009ee3', fontWeight: 900, letterSpacing: 1 }}>EA SPORTS FC 26</div>
                     <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, color: '#e6edf3', fontSize: 'clamp(0.9rem,2vw,1.1rem)' }}>
-                      {stats.fc26_vivo} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
+                      {statsLoaded ? stats.fc26_vivo : '…'} <span style={{ fontSize: '0.6rem', color: '#4a5568', fontWeight: 400 }}>en vivo</span>
                     </div>
                   </div>
                 </div>
