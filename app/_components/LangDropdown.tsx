@@ -347,9 +347,10 @@ export function useLang() {
 interface LangDropdownProps {
   lang:    LangCode;
   setLang: (code: LangCode) => void;
+  inline?: boolean;
 }
 
-export default function LangDropdown({ lang, setLang }: LangDropdownProps) {
+export default function LangDropdown({ lang, setLang, inline }: LangDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref             = useRef<HTMLDivElement>(null);
 
@@ -367,7 +368,7 @@ export default function LangDropdown({ lang, setLang }: LangDropdownProps) {
   return (
     <div
       ref={ref}
-      className="absolute top-[15px] right-[15px] z-50"
+      className={inline ? 'relative z-50 flex items-center' : 'absolute top-[15px] right-[15px] z-50'}
       aria-label="Selector de Idioma"
     >
       {/* Botón principal */}

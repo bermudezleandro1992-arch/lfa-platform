@@ -21,6 +21,8 @@ export async function GET() {
       torneosActivosSnap,
       torneosFC26Snap,
       torneosEFBSnap,
+      fc26JugSnap,
+      efbJugSnap,
     ] = await Promise.all([
       adminDb.collection('usuarios').count().get(),
       adminDb.collection('tournaments').count().get(),
@@ -31,6 +33,8 @@ export async function GET() {
       adminDb.collection('tournaments').where('status', 'in', ['OPEN', 'ACTIVE']).count().get(),
       adminDb.collection('tournaments').where('status', 'in', ['OPEN', 'ACTIVE']).where('game', '==', 'FC26').count().get(),
       adminDb.collection('tournaments').where('status', 'in', ['OPEN', 'ACTIVE']).where('game', '==', 'EFOOTBALL').count().get(),
+      adminDb.collection('usuarios').where('juego_fc26', '==', true).count().get(),
+      adminDb.collection('usuarios').where('juego_efb', '==', true).count().get(),
     ]);
 
     const vivosTotal = matchesVivoSnap.data().count ?? 0;
@@ -46,12 +50,15 @@ export async function GET() {
       torneos_activos: torneosActivosSnap.data().count ?? 0,
       fc26_torneos:    torneosFC26Snap.data().count ?? 0,
       efb_torneos:     torneosEFBSnap.data().count ?? 0,
+      fc26_jugadores:  fc26JugSnap.data().count ?? 0,
+      efb_jugadores:   efbJugSnap.data().count ?? 0,
     });
   } catch {
     return NextResponse.json({
       jugadores: 0, torneos: 0, partidas_hoy: 0,
       en_vivo: 0, jugando_ahora: 0, fc26_vivo: 0, efb_vivo: 0,
       torneos_activos: 0, fc26_torneos: 0, efb_torneos: 0,
+      fc26_jugadores: 0, efb_jugadores: 0,
     });
   }
 }

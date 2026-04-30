@@ -14,17 +14,26 @@ interface Jugador {
   goles?: number; racha_actual?: number; invicta?: number;
 }
 
-function countryFlag(code = '') {
-  if (!code || code.length !== 2) return '';
-  const o = 0x1F1E6 - 65;
-  return String.fromCodePoint(code.toUpperCase().charCodeAt(0)+o, code.toUpperCase().charCodeAt(1)+o);
+function FlagImg({ code }: { code?: string }) {
+  if (!code || code.length !== 2) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/20x15/${code.toLowerCase()}.png`}
+      alt={code}
+      width={18}
+      height={14}
+      style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 3, borderRadius: 2, flexShrink: 0 }}
+      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  );
 }
 const RL: Record<string, string> = {
   LATAM_SUR: 'LATAM Sur', LATAM_NORTE: 'LATAM Norte',
-  AMERICA: 'América', GLOBAL: 'Global',
+  AMERICA: 'América', GLOBAL: 'Global', EUROPA: 'Europa',
 };
 const FLAG: Record<string, string> = {
-  LATAM_SUR: '🌎', LATAM_NORTE: '🌎', AMERICA: '🌍', GLOBAL: '🌐',
+  LATAM_SUR: '🌎', LATAM_NORTE: '🌎', AMERICA: '🌍', GLOBAL: '🌐', EUROPA: '🇪🇺',
 };
 
 function getTier(t: number) {
@@ -50,6 +59,8 @@ const REGIONS = [
   { value: 'LATAM_SUR',    label: '🌎 LATAM Sur'   },
   { value: 'LATAM_NORTE',  label: '🌎 LATAM Norte' },
   { value: 'AMERICA',      label: '🌍 América'      },
+  { value: 'GLOBAL',       label: '🌐 Global'       },
+  { value: 'EUROPA',       label: '🇪🇺 Europa'       },
 ];
 
 function PosIcon({ pos }: { pos: number }) {
@@ -180,7 +191,7 @@ export default function RankingInline() {
                       </div>
                       <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.68rem', fontWeight: 900, color: j.id === uid ? '#00ff88' : 'white', lineHeight: 1.2 }}>
                         <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                          {j.country && <span style={{ marginRight: 3 }}>{countryFlag(j.country)}</span>}
+                          <FlagImg code={j.country} />
                           {(j.nombre||'ANÓNIMO').toUpperCase()}
                         </Link>
                         {j.id === uid && <div style={{ color: '#00ff88', fontSize: '0.55rem' }}>← TÚ</div>}
@@ -223,7 +234,7 @@ export default function RankingInline() {
                             <div>
                               <div style={{ fontWeight: 700, color: esYo ? '#00ff88' : 'white', fontSize: '0.78rem' }}>
                                 <Link href={`/jugador/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                                  {j.country && <span style={{ marginRight: 3 }}>{countryFlag(j.country)}</span>}
+                                  <FlagImg code={j.country} />
                                   {(j.nombre||'ANÓNIMO').toUpperCase()}
                                 </Link>
                                 {esYo && <span style={{ marginLeft: 6, color: '#00ff88', fontSize: '0.58rem' }}>← TÚ</span>}

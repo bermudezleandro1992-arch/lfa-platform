@@ -110,8 +110,8 @@ function DashboardContent() {
           👤 {t.dash_perfil}
         </Link>
         {/* Idioma */}
-        <div style={{ position: 'relative', minHeight: 46, minWidth: 90, borderLeft: '1px solid #1c2028' }}>
-          <LangDropdown lang={lang} setLang={setLang} />
+        <div style={{ borderLeft: '1px solid #1c2028', display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 4 }}>
+          <LangDropdown lang={lang} setLang={setLang} inline />
         </div>
       </div>
 

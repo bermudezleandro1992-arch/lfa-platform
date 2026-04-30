@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
 import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
@@ -17,6 +17,9 @@ interface UserData {
   number: number;
   rol?: string;
   avatar_url?: string;
+  juego_fc26?: boolean;
+  juego_efb?: boolean;
+  region?: string;
 }
 
 /* ─── Constante CEO UID ───────────────────────────────── */
@@ -39,6 +42,12 @@ export default function HubPage() {
   const [esOrganizador, setEsOrganizador] = useState(false);
   const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
+
+  /* ─── Estado juego + región ──────────────────────────── */
+  const [userGames,    setUserGames]    = useState({ fc26: false, efb: false });
+  const [userRegion,   setUserRegion]   = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg,   setProfileMsg]   = useState('');
 
   /* ─── Feedback state ─────────────────────────────────── */
   const [fbOpen,     setFbOpen]     = useState(false);
@@ -72,6 +81,9 @@ export default function HubPage() {
           setEsAdmin(user.uid === DUEÑO_UID || d.rol === 'soporte');
           setEsOrganizador(d.rol === 'organizador' || user.uid === DUEÑO_UID);
           setFbNombre(d.nombre || '');
+          // Cargar preferencias de juego y región
+          setUserGames({ fc26: !!d.juego_fc26, efb: !!d.juego_efb });
+          setUserRegion(d.region || '');
         }
         setUid(user.uid);
       } catch { /* sin red */ }
@@ -79,6 +91,24 @@ export default function HubPage() {
     });
     return unsub;
   }, [router]);
+
+  /* ── Guardar perfil de juego ─────────────────────── */
+  async function saveProfile() {
+    if (!uid) return;
+    setSavingProfile(true);
+    try {
+      await updateDoc(doc(db, 'usuarios', uid), {
+        juego_fc26: userGames.fc26,
+        juego_efb:  userGames.efb,
+        region:     userRegion || null,
+      });
+      setProfileMsg('✅ ¡Perfil de juego guardado!');
+    } catch {
+      setProfileMsg('⚠️ Error al guardar. Intentá de nuevo.');
+    }
+    setSavingProfile(false);
+    setTimeout(() => setProfileMsg(''), 3500);
+  }
 
   /* ── Logout ─────────────────────────────────────────── */
   async function handleLogout() {
@@ -202,12 +232,14 @@ export default function HubPage() {
               onMouseEnter={e => (e.currentTarget.style.background = '#c0392b')}
               onMouseLeave={e => (e.currentTarget.style.background = '#ff4757')}
             >
-              ⏻ {t.hub_salir}
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                <line x1="12" y1="2" x2="12" y2="12"/>
+              </svg>
+              {t.hub_salir}
             </button>
             {/* Idioma */}
-            <div style={{ position: 'relative', minHeight: 46, minWidth: 90, flexShrink: 0 }}>
-              <LangDropdown lang={lang} setLang={setLang} />
-            </div>
+            <LangDropdown lang={lang} setLang={setLang} inline />
           </div>
         </header>
 
@@ -505,6 +537,96 @@ export default function HubPage() {
             ))}
           </div>
 
+          {/* ── PERFIL DE JUEGO + REGIÓN ─────────────────── */}
+          <div style={{ marginTop: 32, background: '#0d1117', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(20px,4vw,28px)', animation: 'fadeUp .4s ease' }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: '#00ff88', letterSpacing: 2, marginBottom: 6 }}>
+              🎮 COMPLETÁ TU PERFIL LFA
+            </div>
+            <div style={{ color: '#8b949e', fontSize: '0.72rem', marginBottom: 20 }}>
+              Seleccioná tu juego y región. Esto permite contar a los jugadores de cada comunidad de forma separada.
+            </div>
+
+            {/* Juego */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2, marginBottom: 10 }}>¿QUÉ JUEGO USÁS?</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'efb' as const,  label: '⭐ eFOOTBALL',    color: '#ffd700' },
+                  { key: 'fc26' as const, label: '⚽ EA SPORTS FC 26', color: '#009ee3' },
+                ].map(({ key, label, color }) => (
+                  <button
+                    key={key}
+                    onClick={() => setUserGames(g => ({ ...g, [key]: !g[key] }))}
+                    style={{
+                      padding: '10px 20px', borderRadius: 30, cursor: 'pointer',
+                      border: `2px solid ${userGames[key] ? color : '#30363d'}`,
+                      background: userGames[key] ? `${color}18` : 'rgba(255,255,255,0.03)',
+                      color: userGames[key] ? color : '#8b949e',
+                      fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.75rem',
+                      transition: 'all 0.2s',
+                      boxShadow: userGames[key] ? `0 0 12px ${color}40` : 'none',
+                    }}
+                  >
+                    {label} {userGames[key] ? '✓' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Región */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2, marginBottom: 10 }}>TU REGIÓN</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { value: 'LATAM_SUR',   label: '🌎 LATAM Sur'   },
+                  { value: 'LATAM_NORTE', label: '🌎 LATAM Norte'  },
+                  { value: 'AMERICA',     label: '🌍 América'       },
+                  { value: 'GLOBAL',      label: '🌐 Global'        },
+                  { value: 'EUROPA',      label: '🇪🇺 Europa'        },
+                ].map(r => (
+                  <button
+                    key={r.value}
+                    onClick={() => setUserRegion(v => v === r.value ? '' : r.value)}
+                    style={{
+                      padding: '7px 16px', borderRadius: 20, cursor: 'pointer',
+                      border: `1px solid ${userRegion === r.value ? '#00ff88' : '#30363d'}`,
+                      background: userRegion === r.value ? 'rgba(0,255,136,0.12)' : 'transparent',
+                      color: userRegion === r.value ? '#00ff88' : '#8b949e',
+                      fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Botón guardar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <button
+                onClick={saveProfile}
+                disabled={savingProfile}
+                style={{
+                  padding: '10px 28px', borderRadius: 10, border: 'none', cursor: savingProfile ? 'not-allowed' : 'pointer',
+                  background: savingProfile ? '#1c2028' : 'linear-gradient(135deg,#00ff88,#00a859)',
+                  color: '#0b0e14', fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
+                  fontSize: '0.75rem', letterSpacing: 1,
+                  boxShadow: savingProfile ? 'none' : '0 0 16px rgba(0,255,136,0.3)',
+                  transition: 'all 0.2s',
+                  opacity: savingProfile ? 0.6 : 1,
+                }}
+              >
+                {savingProfile ? '⏳ GUARDANDO...' : '💾 GUARDAR'}
+              </button>
+              {profileMsg && (
+                <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', color: profileMsg.startsWith('✅') ? '#00ff88' : '#ff4757' }}>
+                  {profileMsg}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* ── FEEDBACK ─────────────────────────────────── */}
           <div style={{ marginTop: 40, borderTop: '1px solid #1c2028', paddingTop: 28 }}>
 
@@ -627,6 +749,10 @@ export default function HubPage() {
           0% { opacity: 1; }
           50% { opacity: 0.7; }
           100% { opacity: 1; }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </>

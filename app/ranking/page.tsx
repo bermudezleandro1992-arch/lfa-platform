@@ -19,21 +19,23 @@ interface Jugador {
 function FlagImg({ code }: { code?: string }) {
   if (!code || code.length !== 2) return null;
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`https://flagcdn.com/20x15/${code.toLowerCase()}.png`}
       alt={code}
-      style={{ display:'inline-block', verticalAlign:'middle', marginRight:4, borderRadius:2 }}
-      width={20} height={15}
+      width={20}
+      height={15}
+      style={{ display:'inline-block', verticalAlign:'middle', marginRight:4, borderRadius:2, width:20, height:15, flexShrink:0 }}
       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
     />
   );
 }
 const RL: Record<string, string> = {
   LATAM_SUR: 'LATAM Sur', LATAM_NORTE: 'LATAM Norte',
-  AMERICA: 'América', GLOBAL: 'Global',
+  AMERICA: 'América', GLOBAL: 'Global', EUROPA: 'Europa',
 };
 const FLAG: Record<string, string> = {
-  LATAM_SUR: '🌎', LATAM_NORTE: '🌎', AMERICA: '🌍', GLOBAL: '🌐',
+  LATAM_SUR: '🌎', LATAM_NORTE: '🌎', AMERICA: '🌍', GLOBAL: '🌐', EUROPA: '🇪🇺',
 };
 
 function getTier(t: number) {
@@ -60,6 +62,7 @@ const REGIONS = [
   { value: 'LATAM_NORTE', label: '🌎 LATAM Norte'  },
   { value: 'AMERICA',     label: '🌍 América'       },
   { value: 'GLOBAL',      label: '🌐 Global'        },
+  { value: 'EUROPA',      label: '🇪🇺 Europa'        },
 ];
 
 /* ── Posición decorativa ─────────────────────────────── */

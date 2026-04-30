@@ -28,6 +28,7 @@ export default function HomePage() {
     partidas_hoy: 0, en_vivo: 0, jugando_ahora: 0,
     fc26_vivo: 0, efb_vivo: 0, torneos_activos: 0,
     fc26_torneos: 0, efb_torneos: 0,
+    fc26_jugadores: 0, efb_jugadores: 0,
   });
   const [slideIndex, setSlideIndex] = useState(0);
   const loginRef = useRef<HTMLDivElement>(null);
@@ -125,21 +126,6 @@ export default function HomePage() {
               {t.home_ya_tengo}
             </button>
           </div>
-
-          {/* Stats bar */}
-          <div style={{ display: 'flex', gap: 'clamp(20px,5vw,48px)', flexWrap: 'wrap', justifyContent: 'center', borderTop: '1px solid #1c2028', paddingTop: 28 }}>
-            {[
-              { v: stats.torneos > 0 ? stats.torneos.toLocaleString('es-AR') : '—', l: 'TORNEOS' },
-              { v: stats.jugadores > 0 ? stats.jugadores.toLocaleString('es-AR') : '—', l: 'JUGADORES' },
-              { v: 'FC26 + EFB', l: 'JUEGOS' },
-              { v: 'LATAM', l: 'NORTE Y SUR' },
-            ].map(s => (
-              <div key={s.l} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.2rem,3vw,1.6rem)', fontWeight: 900, color: '#00ff88' }}>{s.v}</div>
-                <div style={{ fontSize: '0.65rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2 }}>{s.l}</div>
-              </div>
-            ))}
-          </div>
         </section>
 
         {/* ══════════════════════════════════════════════
@@ -210,7 +196,7 @@ export default function HomePage() {
               {[
                 { l: 'PARTIDAS EN VIVO', v: stats.efb_vivo, c: '#ffd700', live: true },
                 { l: 'TORNEOS ABIERTOS', v: stats.efb_torneos, c: '#ffd700' },
-                { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
+                { l: 'JUGADORES REGISTRADOS', v: stats.efb_jugadores, c: '#e6edf3' },
                 { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
               ].map(row => (
                 <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -266,7 +252,7 @@ export default function HomePage() {
               {[
                 { l: 'PARTIDAS EN VIVO', v: stats.fc26_vivo, c: '#009ee3', live: true },
                 { l: 'TORNEOS ABIERTOS', v: stats.fc26_torneos, c: '#009ee3' },
-                { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
+                { l: 'JUGADORES REGISTRADOS', v: stats.fc26_jugadores, c: '#e6edf3' },
                 { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
               ].map(row => (
                 <div key={row.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
