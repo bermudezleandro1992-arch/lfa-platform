@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createHash } from "crypto";
 
 const VALID_GAMES   = ["FC26", "EFOOTBALL"] as const;
 const VALID_MODES   = ["GENERAL_95", "ULTIMATE", "DREAM_TEAM", "GENUINOS"] as const;
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     tipo_premio?:       string;
     premio_monto?:      number;
     premio_moneda?:     string;
+    password?:          string;
   };
   try {
     body = await req.json();
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { game, mode, region, capacity, entry_fee, descripcion, premio_externo, premio_descripcion,
-          nombre_torneo, tipo_premio, premio_monto, premio_moneda } = body;
+          nombre_torneo, tipo_premio, premio_monto, premio_moneda, password } = body;
 
   if (!(VALID_GAMES as readonly string[]).includes(game)) {
     return NextResponse.json({ error: "Juego inválido" }, { status: 400 });
@@ -104,6 +106,15 @@ export async function POST(req: NextRequest) {
   const safeMoneda   = typeof premio_moneda      === "string" ? premio_moneda.slice(0, 20)       : "";
   const safeTipo     = ["coins", "usd", "puntos", "otro"].includes(tipo_premio as string) ? tipo_premio : "coins";
   const safeMonto    = typeof premio_monto === "number" && premio_monto >= 0 ? premio_monto : 0;
+
+  // Password hash (SHA-256, server-side only)
+  let passwordHash: string | null = null;
+  if (typeof password === "string" && password.trim().length > 0) {
+    if (password.length < 3 || password.length > 50) {
+      return NextResponse.json({ error: "La contraseña debe tener entre 3 y 50 caracteres" }, { status: 400 });
+    }
+    passwordHash = createHash("sha256").update(password.trim()).digest("hex");
+  }
 
   // ── Create tournament document ────────────────────────────────────────────
   try {
@@ -139,6 +150,8 @@ export async function POST(req: NextRequest) {
       tipo_premio:         safeTipo,
       premio_monto:        safeMonto,
       premio_moneda:       safeMoneda || null,
+      has_password:        passwordHash !== null,
+      ...(passwordHash ? { password_hash: passwordHash } : {}),
     });
 
     return NextResponse.json({ ok: true, tournamentId: ref.id });

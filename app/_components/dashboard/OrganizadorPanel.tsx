@@ -730,6 +730,7 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
     premio_moneda:      "",
     premio_externo:     false,
     premio_descripcion: "",
+    password:           "",
   });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
@@ -843,6 +844,22 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
             style={{ ...sel(), resize: "vertical" as const }}
           />
         </Field>
+
+        {/* Password (optional) */}
+        <Field label="CONTRASEÑA (opcional — sala privada)">
+          <input
+            type="text"
+            value={form.password}
+            onChange={e => set("password", e.target.value.slice(0, 50))}
+            placeholder="Dejá vacío para sala pública"
+            style={{ ...sel(), outline: "none" }}
+          />
+        </Field>
+        {form.password.trim() && (
+          <div style={{ marginBottom: 12, padding: "8px 12px", background: "rgba(163,113,247,0.06)", border: "1px solid rgba(163,113,247,0.3)", borderRadius: 8, fontSize: "0.68rem", color: "#a371f7" }}>
+            🔒 Los jugadores necesitarán esta contraseña para unirse: <strong>{form.password}</strong>
+          </div>
+        )}
 
         {/* Prize type */}
         <Field label="TIPO DE PREMIO">

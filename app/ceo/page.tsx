@@ -129,7 +129,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -146,6 +146,17 @@ export default function CeoPage() {
   const [leads,      setLeads]      = useState<{id:string;nombre?:string;email?:string;celular?:string;juego?:string;mensaje?:string;fecha?:{toDate?:()=>Date};uid?:string}[]>([]);
   const [tesoreria,  setTesoreria]  = useState<{usdt_total?:number;usdt_retirado?:number;usdt_pendiente_retiro?:number;depositos_count?:number}>({});
   const [visionLogs, setVisionLogs] = useState<{id:string;matchId?:string;verdict?:string;confidence?:number;game?:string;scoreFound?:string;scoreReported?:string;details?:string;rawTextSample?:string;screenshotUrl?:string;timestamp?:{toDate?:()=>Date}}[]>([]);
+
+  /* ── Tienda productos ────────────────────────────────────── */
+  interface TiendaProducto {
+    id: string; nombre: string; descripcion?: string; imagen_url?: string;
+    precio_pts: number; disponible: boolean; categoria: string;
+    creado_at?: { toDate?: () => Date };
+  }
+  const [tiendaProds,    setTiendaProds]    = useState<TiendaProducto[]>([]);
+  const [tiendaForm,     setTiendaForm]     = useState<Partial<TiendaProducto>>({ nombre:'', precio_pts:0, disponible:true, categoria:'MONEDAS' });
+  const [tiendaEditing,  setTiendaEditing]  = useState<string|null>(null);
+  const [tiendaMsg,      setTiendaMsg]      = useState('');
 
   /* ── Disputas ────────────────────────────────────────────── */
   interface Disputa {
@@ -277,6 +288,12 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(query(collection(db,'disputas'), orderBy('created_at','desc'), limit(50)), snap => {
       const l: Disputa[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as Disputa)); setDisputas(l);
+    }));
+
+    subs.push(onSnapshot(query(collection(db,'tienda_productos'), orderBy('creado_at','desc'), limit(100)), snap => {
+      const l: TiendaProducto[] = [];
+      snap.forEach(d => l.push({ id: d.id, ...d.data() } as TiendaProducto));
+      setTiendaProds(l);
     }));
 
     return () => subs.forEach(u => u());
@@ -563,7 +580,7 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
@@ -574,6 +591,7 @@ export default function CeoPage() {
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
     { id:'leads',     label:'🎙️ Streamers', badge: leads.length },
     { id:'vision',    label:'🔬 Vision AI', badge: visionLogs.filter(v => v.verdict === 'SUSPICIOUS').length },
+    { id:'tienda',    label:'🛒 Tienda',    badge: 0 },
   ];
 
   /* ═══ RENDER ════════════════════════════════════════════════ */
@@ -1567,6 +1585,169 @@ export default function CeoPage() {
       )}
 
       {/* ══ VISION AI LOG ═══════════════════════════════════════ */}
+      {tab === 'tienda' && (() => {
+        const TIENDA_CATS = ['MONEDAS','ENTRADAS','VIDEOJUEGOS','HARDWARE','CONSOLAS','ESPECIAL'];
+        const tfSet = (k: string, v: unknown) => setTiendaForm(p => ({ ...p, [k]: v }));
+        const tiendaSave = async () => {
+          setTiendaMsg('');
+          const { nombre, precio_pts, disponible, categoria } = tiendaForm;
+          if (!nombre?.trim()) { setTiendaMsg('❌ El nombre es obligatorio'); return; }
+          if (typeof precio_pts !== 'number' || precio_pts < 0) { setTiendaMsg('❌ Precio inválido'); return; }
+          try {
+            const payload = {
+              nombre:      nombre.trim().slice(0, 100),
+              descripcion: (tiendaForm.descripcion || '').trim().slice(0, 300),
+              imagen_url:  (tiendaForm.imagen_url  || '').trim().slice(0, 500),
+              precio_pts:  precio_pts,
+              disponible:  !!disponible,
+              categoria:   categoria || 'MONEDAS',
+            };
+            if (tiendaEditing) {
+              await updateDoc(doc(db, 'tienda_productos', tiendaEditing), payload);
+              setTiendaMsg('✅ Producto actualizado');
+            } else {
+              await addDoc(collection(db, 'tienda_productos'), { ...payload, creado_at: serverTimestamp() });
+              setTiendaMsg('✅ Producto creado');
+            }
+            setTiendaForm({ nombre:'', precio_pts:0, disponible:true, categoria:'MONEDAS' });
+            setTiendaEditing(null);
+          } catch { setTiendaMsg('❌ Error al guardar'); }
+        };
+        const tiendaDelete = async (id: string) => {
+          if (!confirm('¿Eliminar este producto?')) return;
+          try { await deleteDoc(doc(db,'tienda_productos',id)); setTiendaMsg('✅ Eliminado'); }
+          catch { setTiendaMsg('❌ Error al eliminar'); }
+        };
+        const tiendaEdit = (p: TiendaProducto) => {
+          setTiendaEditing(p.id);
+          setTiendaForm({ nombre: p.nombre, descripcion: p.descripcion||'', imagen_url: p.imagen_url||'', precio_pts: p.precio_pts, disponible: p.disponible, categoria: p.categoria });
+        };
+        const tiendaToggle = async (p: TiendaProducto) => {
+          try { await updateDoc(doc(db,'tienda_productos',p.id), { disponible: !p.disponible }); }
+          catch { setTiendaMsg('❌ Error'); }
+        };
+        return (
+          <>
+            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#f3ba2f', margin:'0 0 6px', fontSize:'0.9rem' }}>
+              🛒 GESTIÓN DE TIENDA DE PUNTOS
+            </h2>
+            <p style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:16 }}>
+              Administrá los productos canjeables con LFA Puntos. Los cambios se reflejan en tiempo real en la tienda.
+            </p>
+
+            {tiendaMsg && (
+              <div style={{ marginBottom:12, padding:'10px 14px', borderRadius:8, fontSize:'0.78rem',
+                background: tiendaMsg.startsWith('✅') ? 'rgba(0,255,136,0.08)' : 'rgba(255,71,87,0.08)',
+                border: `1px solid ${tiendaMsg.startsWith('✅') ? '#00ff8840':'#ff475740'}`,
+                color: tiendaMsg.startsWith('✅') ? '#00ff88':'#ff4757' }}>
+                {tiendaMsg}
+              </div>
+            )}
+
+            {/* Form */}
+            <div style={{ ...card, borderTop:'3px solid #f3ba2f', marginBottom:20 }}>
+              <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#f3ba2f', fontSize:'0.78rem', fontWeight:900, marginBottom:14 }}>
+                {tiendaEditing ? '✏️ EDITAR PRODUCTO' : '＋ NUEVO PRODUCTO'}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:10, marginBottom:10 }}>
+                <div>
+                  <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>NOMBRE *</label>
+                  <input value={tiendaForm.nombre||''} onChange={e=>tfSet('nombre',e.target.value.slice(0,100))}
+                    style={{ width:'100%', background:'#0b0e14', border:'1px solid #30363d', color:'white', padding:'8px 10px', borderRadius:6, outline:'none', fontSize:'0.78rem', boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>CATEGORÍA</label>
+                  <select value={tiendaForm.categoria||'MONEDAS'} onChange={e=>tfSet('categoria',e.target.value)}
+                    style={{ width:'100%', background:'#0b0e14', border:'1px solid #30363d', color:'white', padding:'8px 10px', borderRadius:6, outline:'none', fontSize:'0.78rem', boxSizing:'border-box' as const }}>
+                    {TIENDA_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>PRECIO (PTS) *</label>
+                  <input type="number" min={0} value={tiendaForm.precio_pts??0} onChange={e=>tfSet('precio_pts',Math.max(0,Number(e.target.value)))}
+                    style={{ width:'100%', background:'#0b0e14', border:'1px solid #30363d', color:'white', padding:'8px 10px', borderRadius:6, outline:'none', fontSize:'0.78rem', boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>DISPONIBLE</label>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:6 }}>
+                    <button onClick={()=>tfSet('disponible',!tiendaForm.disponible)}
+                      style={{ padding:'5px 16px', borderRadius:20, border:'1px solid', cursor:'pointer', fontSize:'0.72rem', fontWeight:700,
+                        background: tiendaForm.disponible ? 'rgba(0,255,136,0.15)':'rgba(255,71,87,0.1)',
+                        borderColor: tiendaForm.disponible ? '#00ff88':'#ff4757',
+                        color: tiendaForm.disponible ? '#00ff88':'#ff4757' }}>
+                      {tiendaForm.disponible ? '✅ SÍ' : '❌ NO'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginBottom:10 }}>
+                <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>DESCRIPCIÓN (opcional)</label>
+                <input value={tiendaForm.descripcion||''} onChange={e=>tfSet('descripcion',e.target.value.slice(0,300))}
+                  placeholder="Descripción del producto..."
+                  style={{ width:'100%', background:'#0b0e14', border:'1px solid #30363d', color:'white', padding:'8px 10px', borderRadius:6, outline:'none', fontSize:'0.78rem', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ color:'#8b949e', fontSize:'0.65rem', display:'block', marginBottom:3 }}>URL DE IMAGEN (opcional)</label>
+                <input value={tiendaForm.imagen_url||''} onChange={e=>tfSet('imagen_url',e.target.value.slice(0,500))}
+                  placeholder="https://... (imagen del producto)"
+                  style={{ width:'100%', background:'#0b0e14', border:'1px solid #30363d', color:'white', padding:'8px 10px', borderRadius:6, outline:'none', fontSize:'0.78rem', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={tiendaSave}
+                  style={{ background:'#f3ba2f', color:'#0b0e14', border:'none', padding:'9px 24px', borderRadius:8, cursor:'pointer', fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'0.7rem' }}>
+                  {tiendaEditing ? '💾 ACTUALIZAR' : '＋ CREAR'}
+                </button>
+                {tiendaEditing && (
+                  <button onClick={()=>{ setTiendaEditing(null); setTiendaForm({ nombre:'', precio_pts:0, disponible:true, categoria:'MONEDAS' }); }}
+                    style={{ background:'#1c2028', color:'#8b949e', border:'1px solid #30363d', padding:'9px 20px', borderRadius:8, cursor:'pointer', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem' }}>
+                    CANCELAR
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Products list */}
+            <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#8b949e', fontSize:'0.65rem', marginBottom:10 }}>
+              PRODUCTOS EN TIENDA ({tiendaProds.length})
+            </div>
+            {tiendaProds.length === 0 ? (
+              <div style={{ ...card, textAlign:'center', color:'#6e7681', padding:40 }}>
+                <div style={{ fontSize:'2rem', marginBottom:8 }}>🛒</div>
+                <div>No hay productos creados todavía.</div>
+              </div>
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:12 }}>
+                {tiendaProds.map(p => (
+                  <div key={p.id} style={{ ...card, borderTop:`3px solid ${p.disponible ? '#f3ba2f':'#30363d'}`, opacity: p.disponible ? 1 : 0.6, position:'relative' }}>
+                    {p.imagen_url && (
+                      <img src={p.imagen_url} alt={p.nombre}
+                        style={{ width:'100%', height:120, objectFit:'cover', borderRadius:8, marginBottom:10, border:'1px solid #1c2028' }} />
+                    )}
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', fontWeight:900, color: p.disponible ? '#f3ba2f':'#6e7681', marginBottom:4 }}>
+                      {p.nombre}
+                    </div>
+                    <div style={{ fontSize:'0.62rem', color:'#8b949e', marginBottom:6 }}>
+                      {p.categoria} {p.descripcion && `· ${p.descripcion.slice(0,80)}${p.descripcion.length>80?'…':''}`}
+                    </div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1rem', fontWeight:900, color:'#f3ba2f', marginBottom:10 }}>
+                      ⭐ {p.precio_pts.toLocaleString()} pts
+                    </div>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                      <button onClick={()=>tiendaToggle(p)}
+                        style={{ ...sm(p.disponible ? '#ff4757':'#00ff88'), fontSize:'0.6rem' }}>
+                        {p.disponible ? '🔒 Deshabilitar' : '✅ Habilitar'}
+                      </button>
+                      <button onClick={()=>tiendaEdit(p)} style={sm('#f3ba2f')}>✏️ Editar</button>
+                      <button onClick={()=>tiendaDelete(p.id)} style={sm('#ff4757')}>🗑️ Borrar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
       {tab === 'vision' && <>
         <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:'0 0 6px', fontSize:'0.9rem' }}>🔬 VISION AI — LOG BETA TEST ({visionLogs.length} análisis)</h2>
         <p style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:16 }}>

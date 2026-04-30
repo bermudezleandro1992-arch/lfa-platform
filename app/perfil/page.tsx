@@ -10,6 +10,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
 import { COUNTRIES_AMERICA_EUROPE } from '@/lib/constants';
+import { LfaCoin } from '@/app/_components/LfaCoin';
 import Link from 'next/link';
 
 /* ─── Tipos ──────────────────────────────────────────── */
@@ -22,7 +23,7 @@ interface UserData {
   nombre_real?: string; celular?: string;
   ciudad?: string; provincia?: string; pais?: string; id_consola?: string; ea_id?: string; konami_id?: string;
   country?: string; countryName?: string;
-  referidos?: string[]; coins_referidos?: number;
+  referidos?: string[]; coins_referidos?: number; puntos_gratis?: number;
   twitch_canal?: string; kick_canal?: string; youtube_canal?: string;
 }
 interface TxItem {
@@ -213,6 +214,7 @@ export default function PerfilPage() {
   const wr       = partidos > 0 ? Math.round((victs / partidos) * 100) : 0;
   const fp       = userData.fair_play ?? 100;
   const coins    = userData.number || 0;
+  const puntos   = userData.puntos_gratis || 0;
   const refCode  = uid.slice(0, 8).toUpperCase();
   const refCount = (userData.referidos || []).length;
   const coinsRef = userData.coins_referidos || 0;
@@ -277,13 +279,14 @@ export default function PerfilPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(80px,1fr))', gap: 8 }}>
                   {[
-                    { l: 'TÍTULOS',   v: titulos,                           c: badge.color },
-                    { l: 'WIN RATE',  v: `${wr}%`,                         c: wr >= 60 ? '#00ff88' : wr >= 40 ? '#ffd700' : '#ff4757' },
-                    { l: 'FAIR PLAY', v: `${fp}%`,                         c: fp >= 80 ? '#00ff88' : fp >= 50 ? '#ffd700' : '#ff4757' },
-                    { l: 'COINS',     v: `🪙${coins.toLocaleString()}`,    c: '#ffd700' },
+                    { l: 'TÍTULOS',   v: <>{titulos}</>,                                                                                          c: badge.color },
+                    { l: 'WIN RATE',  v: <>{wr}%</>,                                                                                              c: wr >= 60 ? '#00ff88' : wr >= 40 ? '#ffd700' : '#ff4757' },
+                    { l: 'FAIR PLAY', v: <>{fp}%</>,                                                                                              c: fp >= 80 ? '#00ff88' : fp >= 50 ? '#ffd700' : '#ff4757' },
+                    { l: 'COINS',     v: <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><LfaCoin size={16} />{coins.toLocaleString()}</span>, c: '#ffd700' },
+                    { l: 'LFA PTS',   v: <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><span style={{ fontSize:'0.9rem' }}>⭐</span>{puntos.toLocaleString()}</span>, c: '#f3ba2f' },
                   ].map(s => (
                     <div key={s.l} style={{ background: '#0b0e14', borderRadius: 10, padding: '9px 10px', border: '1px solid #30363d', textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(0.9rem,2vw,1.2rem)', fontWeight: 900, color: s.c }}>{s.v}</div>
+                      <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(0.85rem,2vw,1.15rem)', fontWeight: 900, color: s.c, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.v}</div>
                       <div style={{ color: '#8b949e', fontSize: '0.57rem', marginTop: 2, fontFamily: "'Orbitron',sans-serif" }}>{s.l}</div>
                     </div>
                   ))}
@@ -470,14 +473,15 @@ export default function PerfilPage() {
           {/* ══ TAB BILLETERA ══ */}
           {tab === 'billetera' && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 18 }}>
-                {[
-                  { l: 'SALDO ACTUAL',     v: `🪙 ${coins.toLocaleString()}`,   c: '#00ff88' },
-                  { l: 'GANADO REFERIDOS', v: `🪙 ${coinsRef.toLocaleString()}`, c: '#ffd700' },
-                  { l: 'PARTIDOS JUGADOS', v: String(partidos),                  c: '#009ee3' },
-                ].map(s => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginBottom: 18 }}>
+                {([
+                  { l: 'SALDO ACTUAL',     v: <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><LfaCoin size={22} />{coins.toLocaleString()}</span>,   c: '#00ff88' },
+                  { l: 'GANADO REFERIDOS', v: <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><LfaCoin size={22} />{coinsRef.toLocaleString()}</span>, c: '#ffd700' },
+                  { l: 'LFA PUNTOS',       v: <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><span style={{fontSize:'1.2rem'}}>⭐</span>{puntos.toLocaleString()}</span>, c: '#f3ba2f' },
+                  { l: 'PARTIDOS JUGADOS', v: <>{partidos}</>,                  c: '#009ee3' },
+                ] as { l: string; v: React.ReactNode; c: string }[]).map(s => (
                   <div key={s.l} style={{ background: '#161b22', border: '1px solid #30363d', borderLeft: `3px solid ${s.c}`, borderRadius: 12, padding: '14px 16px' }}>
-                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.3rem', fontWeight: 900, color: s.c }}>{s.v}</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.3rem', fontWeight: 900, color: s.c, display:'flex', alignItems:'center' }}>{s.v}</div>
                     <div style={{ color: '#8b949e', fontSize: '0.62rem', marginTop: 4, fontFamily: "'Orbitron',sans-serif" }}>{s.l}</div>
                   </div>
                 ))}
@@ -499,8 +503,8 @@ export default function PerfilPage() {
                         <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{tx.descripcion}</div>
                         <div style={{ color: '#8b949e', fontSize: '0.68rem' }}>{tx.fecha?.toDate?.()?.toLocaleString() || '—'}</div>
                       </div>
-                      <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.95rem', color: tx.tipo === 'entrada' ? '#00ff88' : '#ff4757', whiteSpace: 'nowrap' }}>
-                        {tx.tipo === 'entrada' ? '+' : '-'}🪙{tx.monto.toLocaleString()}
+                      <div style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.95rem', color: tx.tipo === 'entrada' ? '#00ff88' : '#ff4757', whiteSpace: 'nowrap', display:'flex', alignItems:'center', gap:3 }}>
+                        {tx.tipo === 'entrada' ? '+' : '-'}<LfaCoin size={15} />{tx.monto.toLocaleString()}
                       </div>
                     </div>
                   ))
@@ -514,13 +518,13 @@ export default function PerfilPage() {
           {tab === 'referidos' && (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: 12, marginBottom: 18 }}>
-                {[
-                  { l: 'AMIGOS INVITADOS', v: String(refCount),                  c: '#9146FF' },
-                  { l: 'COINS GANADAS',    v: `🪙 ${coinsRef.toLocaleString()}`, c: '#ffd700' },
-                  { l: 'GANÁS POR INVITE', v: '🪙 50',                           c: '#00ff88' },
-                ].map(s => (
+                {([
+                  { l: 'AMIGOS INVITADOS', v: <>{refCount}</>,                   c: '#9146FF' },
+                  { l: 'COINS GANADAS',    v: <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><LfaCoin size={20} />{coinsRef.toLocaleString()}</span>, c: '#ffd700' },
+                  { l: 'GANÁS POR INVITE', v: <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><LfaCoin size={20} />50</span>, c: '#00ff88' },
+                ] as { l: string; v: React.ReactNode; c: string }[]).map(s => (
                   <div key={s.l} style={{ background: '#161b22', border: '1px solid #30363d', borderLeft: `3px solid ${s.c}`, borderRadius: 12, padding: '14px 16px' }}>
-                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.4rem', fontWeight: 900, color: s.c }}>{s.v}</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.4rem', fontWeight: 900, color: s.c, display:'flex', alignItems:'center' }}>{s.v}</div>
                     <div style={{ color: '#8b949e', fontSize: '0.61rem', marginTop: 4, fontFamily: "'Orbitron',sans-serif" }}>{s.l}</div>
                   </div>
                 ))}

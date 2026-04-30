@@ -61,11 +61,12 @@ function useCountdown(expiresAt: string | null) {
 }
 
 export default function TournamentCard({ tournament: t }: Props) {
-  const [step,    setStep]    = useState<"idle" | "confirm" | "joining" | "waiting">("idle");
-  const [error,   setError]   = useState("");
-  const [balance, setBalance] = useState<number | null>(null);
-  const [uid,     setUid]     = useState<string | null>(null);
-  const [reserva, setReserva] = useState<Reserva | null>(null);
+  const [step,     setStep]     = useState<"idle" | "confirm" | "password" | "joining" | "waiting">("idle");
+  const [error,    setError]    = useState("");
+  const [balance,  setBalance]  = useState<number | null>(null);
+  const [uid,      setUid]      = useState<string | null>(null);
+  const [reserva,  setReserva]  = useState<Reserva | null>(null);
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
   const tierKey    = getTierKey(t.entry_fee);
@@ -101,27 +102,34 @@ export default function TournamentCard({ tournament: t }: Props) {
     setStep("joining"); setError("");
     try {
       const token = await auth.currentUser!.getIdToken();
+      const body: Record<string, unknown> = { tournamentId: t.id };
+      if (t.has_password && password) body.password = password;
       const res   = await fetch("/api/joinTournament", {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ tournamentId: t.id }),
+        body:    JSON.stringify(body),
       });
-      const data = await res.json() as { error?: string; newBalance?: number; reserva?: Reserva };
+      const data = await res.json() as { error?: string; newBalance?: number; reserva?: Reserva; message?: string };
       if (!res.ok) {
         if (data.error === "SALDO_INSUFICIENTE" && data.reserva) {
           setReserva(data.reserva);
           setStep("idle");
           return;
         }
+        if (data.error === "REQUIERE_CONTRASEÑA") {
+          setStep("password");
+          return;
+        }
         throw new Error(data.error ?? "Error desconocido");
       }
       if (data.newBalance !== undefined) setBalance(data.newBalance);
       setReserva(null);
+      setPassword("");
       // Redirigir al dashboard donde MiSalaActiva muestra la sala activa
       router.push("/dashboard");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
-      setStep("confirm");
+      setStep(t.has_password ? "password" : "confirm");
     }
   }, [uid, t.id, router]);
 
@@ -234,6 +242,34 @@ export default function TournamentCard({ tournament: t }: Props) {
             </div>
           )}
 
+          {/* ── PASSWORD STEP ──────────────────────────── */}
+          {step === "password" && (
+            <div className="rounded-xl p-3 flex flex-col gap-2.5" style={{ background: "#0b0e14", border: `1px solid rgba(163,113,247,0.4)` }}>
+              <p className="text-xs font-black uppercase tracking-widest text-center" style={{ color: "#a371f7" }}>🔒 TORNEO PRIVADO</p>
+              <p className="text-[10px] text-center" style={{ color: "#8b949e" }}>Este torneo requiere contraseña para unirse.</p>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && password.trim() && handleJoin()}
+                placeholder="Contraseña del torneo..."
+                className="w-full rounded-lg text-xs py-2 px-3 outline-none"
+                style={{ background: "#161b22", border: "1px solid #30363d", color: "white" }}
+              />
+              {error && <p className="text-[10px] text-center" style={{ color: "#ff4757" }}>{error}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => { setStep("idle"); setError(""); setPassword(""); }}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold border"
+                  style={{ background: "#161b22", borderColor: "#30363d", color: "#8b949e" }}>Cancelar</button>
+                <button onClick={handleJoin} disabled={!password.trim()}
+                  className="flex-1 py-2 rounded-xl text-xs font-black"
+                  style={{ background: "#a371f7", color: "white", opacity: password.trim() ? 1 : 0.5, cursor: password.trim() ? "pointer" : "default" }}>
+                  🔓 INGRESAR
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── MODAL DE CONFIRMACION ──────────────────── */}
           {step === "confirm" && (
             <div className="rounded-xl p-3 flex flex-col gap-2.5" style={{ background: "#0b0e14", border: `1px solid ${style.border}` }}>
@@ -286,15 +322,21 @@ export default function TournamentCard({ tournament: t }: Props) {
           {/* ── BOTON PRINCIPAL ────────────────────────── */}
           {step === "idle" && !reservaActiva && (
             <button
-              onClick={() => { if (!uid) return router.push("/"); if (isFull || isActive) return; setStep("confirm"); }}
+              onClick={() => {
+                if (!uid) return router.push("/");
+                if (isFull || isActive) return;
+                if (t.has_password) { setStep("password"); return; }
+                setStep("confirm");
+              }}
               disabled={isFull || isActive}
               className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
               style={isFull || isActive
                 ? { background: "#161b22", color: "#6e7681", cursor: "not-allowed", border: "1px solid #30363d" }
                 : { background: style.btnBg, color: style.btnText, boxShadow: `0 4px 20px ${style.dot}20` }}>
-              {isFull   ? "🔒 SALA LLENA"         :
-               isActive ? "⚔️ SALA JUGANDO"       :
-               isFree   ? "🎮 UNIRSE GRATIS"       :
+              {isFull   ? "🔒 SALA LLENA"              :
+               isActive ? "⚔️ SALA JUGANDO"            :
+               t.has_password ? "🔑 SALA PRIVADA"      :
+               isFree   ? "🎮 UNIRSE GRATIS"            :
                           `⚡ UNIRSE — ${t.entry_fee.toLocaleString()} LFC`}
             </button>
           )}

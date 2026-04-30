@@ -39,6 +39,7 @@ export interface Tournament {
   premio_monto?:         number;
   premio_moneda?:        string;
   manual_advance?:       boolean;
+  has_password?:         boolean;
 }
 
 interface Filters {

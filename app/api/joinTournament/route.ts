@@ -6,6 +6,7 @@ import type { DocumentData }         from 'firebase-admin/firestore';
 import { writeLedgerEntry }          from '@/lib/ledger';
 import { RegionDetectionResult }     from '@/lib/types';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimiter';
+import { createHash }                from 'crypto';
 
 const REGION_COMPAT: Record<string, string[]> = {
   LATAM_SUR:   ['LATAM_SUR',   'AMERICA', 'GLOBAL'],
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (!checkRateLimit(`join_ip:${ip}`, 30, 3_600_000))
       return NextResponse.json({ error: 'Demasiados intentos desde esta red.' }, { status: 429 });
 
-    const { tournamentId } = await req.json();
+    const { tournamentId, password } = await req.json();
     if (!tournamentId) {
       return NextResponse.json({ error: 'tournamentId requerido.' }, { status: 400 });
     }
@@ -67,6 +68,17 @@ export async function POST(req: NextRequest) {
 
     const tPre   = tPreSnap.data()!;
     const uPre   = uPreSnap.data()!;
+
+    // ── Password check for organizer tournaments ──────────────────────
+    if (tPre.has_password && tPre.password_hash) {
+      if (!password || typeof password !== 'string') {
+        return NextResponse.json({ error: 'REQUIERE_CONTRASEÑA', message: 'Este torneo requiere contraseña para unirse.' }, { status: 403 });
+      }
+      const providedHash = createHash('sha256').update(password.trim()).digest('hex');
+      if (providedHash !== tPre.password_hash) {
+        return NextResponse.json({ error: 'Contraseña incorrecta.' }, { status: 403 });
+      }
+    }
 
     // ── No permitir dos torneos simultáneos ──────────────────────────
     const existingSnap = await adminDb.collection('tournaments')
