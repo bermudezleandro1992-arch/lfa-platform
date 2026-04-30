@@ -5,6 +5,7 @@ import { FieldValue }                from 'firebase-admin/firestore';
 import type { DocumentData }         from 'firebase-admin/firestore';
 import { writeLedgerEntry }          from '@/lib/ledger';
 import { RegionDetectionResult }     from '@/lib/types';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimiter';
 
 const REGION_COMPAT: Record<string, string[]> = {
   LATAM_SUR:   ['LATAM_SUR',   'AMERICA', 'GLOBAL'],
@@ -25,6 +26,13 @@ export async function POST(req: NextRequest) {
     }
     const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
     const uid     = decoded.uid;
+
+    // Rate limit: max 15 joins per hour per user + 30 per IP
+    const ip = getClientIp(req);
+    if (!checkRateLimit(`join:${uid}`, 15, 3_600_000))
+      return NextResponse.json({ error: 'Demasiados intentos. Esperá un momento.' }, { status: 429 });
+    if (!checkRateLimit(`join_ip:${ip}`, 30, 3_600_000))
+      return NextResponse.json({ error: 'Demasiados intentos desde esta red.' }, { status: 429 });
 
     const { tournamentId } = await req.json();
     if (!tournamentId) {

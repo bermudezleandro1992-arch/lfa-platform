@@ -76,10 +76,13 @@ export default function MatchRoom({ matchId }: Props) {
   const [showBrackets,   setShowBrackets]   = useState(false);
   const [showConfetti,   setShowConfetti]   = useState(false);
   const [prevWinner,     setPrevWinner]     = useState<string | null>(null);
+  const [ceoForcing,     setCeoForcing]     = useState(false);
   const chatBottomRef  = useRef<HTMLDivElement>(null);
 
   const uid      = auth.currentUser?.uid;
   const userName = auth.currentUser?.displayName || "Jugador";
+  const CEO_UID  = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
+  const isCeo    = uid === CEO_UID;
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "matches", matchId), (snap) => {
@@ -251,6 +254,19 @@ export default function MatchRoom({ matchId }: Props) {
     finally { setSendingChat(false); }
   };
 
+  const handleCeoForce = async (side: "p1" | "p2") => {
+    if (!match || !isCeo) return;
+    const label = side === "p1" ? (match.p1_username || "P1") : (match.p2_username || "P2");
+    if (!confirm(`⚡ CEO Override: forzar ganador → ${label}?`)) return;
+    setCeoForcing(true); setMessage("");
+    try {
+      await callApi("/api/ceo/forceWinner", { matchId, winnerSide: side });
+      setMessage(`✅ CEO Override: ${label} avanza. Bracket actualizado.`);
+    } catch (err: unknown) {
+      setMessage(`❌ ${err instanceof Error ? err.message : "Error al forzar ganador"}`);
+    } finally { setCeoForcing(false); }
+  };
+
   const copyId = (id: string) => {
     navigator.clipboard?.writeText(id);
     setCopied(true);
@@ -268,9 +284,9 @@ export default function MatchRoom({ matchId }: Props) {
 
   const isP1        = match.p1 === uid;
   const isP2        = match.p2 === uid;
-  const isPlayer    = isP1 || isP2;
-  const isLoser     = isPlayer && match.status === "FINISHED" && match.winner !== null && match.winner !== uid;
-  const isWinner    = isPlayer && match.status === "FINISHED" && match.winner === uid;
+  const isPlayer    = isP1 || isP2 || isCeo;  // CEO counts as player for access
+  const isLoser     = !isCeo && isPlayer && match.status === "FINISHED" && match.winner !== null && match.winner !== uid;
+  const isWinner    = !isCeo && isPlayer && match.status === "FINISHED" && match.winner === uid;
   const rivalEaId   = isP1 ? match.p2_ea_id : match.p1_ea_id;
   const myEaId      = isP1 ? match.p1_ea_id : match.p2_ea_id;
   const isEfootball = ((match.game ?? "") as string).toUpperCase().includes("EFOOTBALL") ||
@@ -396,6 +412,41 @@ export default function MatchRoom({ matchId }: Props) {
             </a>
           </div>
         </div>
+
+        {/* ── CEO ADMIN PANEL ── */}
+        {isCeo && (
+          <div style={{ ...card, borderColor: "rgba(255,165,0,0.5)", background: "rgba(255,165,0,0.06)" }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffa500", fontSize: "0.78rem", fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              ⚡ CEO OVERRIDE
+              <span style={{ padding: "2px 8px", background: "rgba(255,165,0,0.15)", border: "1px solid rgba(255,165,0,0.4)", borderRadius: 6, fontSize: "0.55rem" }}>MODO DIOS</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <button onClick={() => handleCeoForce("p1")} disabled={ceoForcing || match.status === "FINISHED"}
+                style={{ padding: "10px", background: "rgba(255,215,0,0.1)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.4)", borderRadius: 10, fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer", opacity: (ceoForcing || match.status === "FINISHED") ? 0.5 : 1 }}>
+                🏆 GANAR {match.p1_username || "P1"}
+              </button>
+              <button onClick={() => handleCeoForce("p2")} disabled={ceoForcing || match.status === "FINISHED"}
+                style={{ padding: "10px", background: "rgba(0,158,227,0.1)", color: "#009ee3", border: "1px solid rgba(0,158,227,0.4)", borderRadius: 10, fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer", opacity: (ceoForcing || match.status === "FINISHED") ? 0.5 : 1 }}>
+                🏆 GANAR {match.p2_username || "P2"}
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, fontSize: "0.68rem", color: "#8b949e" }}>
+              <div style={{ background: "#0b0e14", borderRadius: 8, padding: "6px 10px" }}>
+                <div style={{ color: "#555", fontSize: "0.57rem", marginBottom: 2 }}>MATCH ID</div>
+                <div style={{ fontFamily: "monospace", color: "#ffd700", fontSize: "0.65rem", wordBreak: "break-all" }}>{matchId}</div>
+              </div>
+              <div style={{ background: "#0b0e14", borderRadius: 8, padding: "6px 10px" }}>
+                <div style={{ color: "#555", fontSize: "0.57rem", marginBottom: 2 }}>TORNEO</div>
+                <div style={{ fontFamily: "monospace", color: "#009ee3", fontSize: "0.65rem" }}>{match.tournamentId?.slice(-8) || "—"}</div>
+              </div>
+              <div style={{ background: "#0b0e14", borderRadius: 8, padding: "6px 10px" }}>
+                <div style={{ color: "#555", fontSize: "0.57rem", marginBottom: 2 }}>ESTADO</div>
+                <div style={{ color: "#00ff88", fontSize: "0.65rem", fontWeight: 700 }}>{match.status}</div>
+              </div>
+            </div>
+            {ceoForcing && <div style={{ textAlign: "center", color: "#ffa500", fontSize: "0.72rem", marginTop: 8, animation: "pulse 1s infinite" }}>⚡ Procesando override...</div>}
+          </div>
+        )}
 
         {/* ── BRACKETS PANEL ── */}
         {showBrackets && brackets.length > 0 && (() => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimiter';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +11,13 @@ export async function POST(req: NextRequest) {
     }
     const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
     const uid     = decoded.uid;
+
+    // Rate limit: max 5 disputes per hour per user — evita abuso de disputas
+    const ip = getClientIp(req);
+    if (!checkRateLimit(`dispute:${uid}`, 5, 3_600_000))
+      return NextResponse.json({ error: 'Límite de disputas alcanzado. Máximo 5 por hora.' }, { status: 429 });
+    if (!checkRateLimit(`dispute_ip:${ip}`, 10, 3_600_000))
+      return NextResponse.json({ error: 'Demasiados intentos desde esta red.' }, { status: 429 });
 
     const { matchId, reason } = await req.json();
     if (!matchId || !reason?.trim()) {

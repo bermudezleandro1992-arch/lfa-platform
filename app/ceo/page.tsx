@@ -475,6 +475,39 @@ export default function CeoPage() {
     await alerta('SALA CREADA', `${GL[crGame]} \u00b7 ${ML[crMode]} \u00b7 ${crTier} \u00b7 ${cap}j \u00b7 ${mkPrizes().length} premios${crCountry ? ` \u00b7 ${crCountry}` : ''}`, 'exito');
   }
 
+  /* ── BOT Actions (fill / advance round) ─────────────────── */
+  async function botFill(roomId: string) {
+    const ok = await alerta('🤖 FILL BOTS', `¿Completar sala ${roomId.slice(-5).toUpperCase()} con bots e iniciar?`, 'info');
+    if (!ok) return;
+    try {
+      const token = await getIdToken(auth.currentUser!);
+      const res = await fetch('/api/dev/botActions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'fillWithBots', tournamentId: roomId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await alerta('✅ BOTS AÑADIDOS', data.message, 'exito');
+    } catch (e: unknown) { await alerta('Error', (e as Error).message, 'error'); }
+  }
+
+  async function botAdvance(roomId: string) {
+    const ok = await alerta('⚡ AVANZAR RONDA', `¿Forzar avance de ronda en torneo ${roomId.slice(-5).toUpperCase()}?`, 'info');
+    if (!ok) return;
+    try {
+      const token = await getIdToken(auth.currentUser!);
+      const res = await fetch('/api/dev/botActions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'advanceRound', tournamentId: roomId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await alerta('✅ RONDA AVANZADA', data.message, 'exito');
+    } catch (e: unknown) { await alerta('Error', (e as Error).message, 'error'); }
+  }
+
   /* ── Spawner manual ──────────────────────────────────────── */
   async function triggerManualSpawn() {
     setSpawning(true); setSpawnLog('Conectando con servidor...');
@@ -897,7 +930,16 @@ export default function CeoPage() {
                         <td style={{ ...td, color:'#ffd700' }}>{r.entry_fee ? `🪙${r.entry_fee.toLocaleString()}` : '—'}</td>
                         <td style={{ ...td, color:'#8b949e', fontSize:'0.68rem' }}>{r.spawned ? '🤖 Auto' : '👤 Manual'}</td>
                         <td style={td}>
-                          <div style={{ display:'flex', gap:4 }}>
+                          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                            {r.status==='OPEN' && (r.players?.length||0) < (r.capacity||0) && (
+                              <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} title="Llenar con bots e iniciar" onClick={() => botFill(r.id)}>🤖</button>
+                            )}
+                            {r.status==='ACTIVE' && (
+                              <>
+                                <button className="cact" style={sm('rgba(255,215,0,0.15)','#ffd700')} title="Avanzar ronda" onClick={() => botAdvance(r.id)}>⚡</button>
+                                <a href={`/dashboard`} target="_blank" rel="noreferrer" className="cact" style={{ ...sm('rgba(0,158,227,0.12)','#009ee3'), textDecoration:'none', display:'inline-flex', alignItems:'center' }} title="Ver arena">👁️</a>
+                              </>
+                            )}
                             {r.status==='OPEN' && <button className="cact" style={sm('#30363d','#8b949e')} onClick={() => updateDoc(doc(db,'tournaments',r.id),{status:'CLOSED'})}>🔒</button>}
                             <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => deleteRoom(r.id)}>🗑️</button>
                           </div>

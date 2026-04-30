@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue, Timestamp }     from 'firebase-admin/firestore';
 import { DISPUTE_MINUTES }           from '@/lib/constants';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimiter';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,6 +12,13 @@ export async function POST(req: NextRequest) {
     }
     const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
     const uid     = decoded.uid;
+
+    // Rate limit: max 20 reports per hour per user, 40 per IP
+    const ip = getClientIp(req);
+    if (!checkRateLimit(`report:${uid}`, 20, 3_600_000))
+      return NextResponse.json({ error: 'Demasiados reportes. Esperá un momento.' }, { status: 429 });
+    if (!checkRateLimit(`report_ip:${ip}`, 40, 3_600_000))
+      return NextResponse.json({ error: 'Demasiados intentos desde esta red.' }, { status: 429 });
 
     const { matchId, screenshotUrl, reportedScore } = await req.json();
     if (!matchId || !screenshotUrl) {
