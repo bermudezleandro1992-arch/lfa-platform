@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { doc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth, storage }                from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -74,6 +74,8 @@ export default function MatchRoom({ matchId }: Props) {
   const [sendingChat,    setSendingChat]    = useState(false);
   const [brackets,       setBrackets]       = useState<BracketMatch[]>([]);
   const [showBrackets,   setShowBrackets]   = useState(false);
+  const [showConfetti,   setShowConfetti]   = useState(false);
+  const [prevWinner,     setPrevWinner]     = useState<string | null>(null);
   const chatBottomRef  = useRef<HTMLDivElement>(null);
 
   const uid      = auth.currentUser?.uid;
@@ -115,14 +117,24 @@ export default function MatchRoom({ matchId }: Props) {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMsgs]);
 
-  /* ── Load brackets ── */
-  const loadBrackets = useCallback(async (tournamentId: string) => {
-    const snap = await getDocs(
-      query(collection(db, "matches"), where("tournamentId", "==", tournamentId))
-    );
-    setBrackets(snap.docs.map(d => ({ id: d.id, ...d.data() } as BracketMatch)));
-    setShowBrackets(true);
-  }, []);
+  /* ── Real-time brackets listener ── */
+  useEffect(() => {
+    if (!match?.tournamentId) return;
+    const q = query(collection(db, "matches"), where("tournamentId", "==", match.tournamentId));
+    const unsub = onSnapshot(q, (snap) => {
+      setBrackets(snap.docs.map(d => ({ id: d.id, ...d.data() } as BracketMatch)));
+    });
+    return () => unsub();
+  }, [match?.tournamentId]);
+
+  /* ── Confetti when current match finishes ── */
+  useEffect(() => {
+    if (match?.status === "FINISHED" && prevWinner === null && match.winner) {
+      setPrevWinner(match.winner);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 6000);
+    }
+  }, [match?.status, match?.winner, prevWinner]);
 
   const callApi = useCallback(async (endpoint: string, body: object) => {
     const token = await auth.currentUser!.getIdToken();
@@ -257,6 +269,8 @@ export default function MatchRoom({ matchId }: Props) {
   const isP1        = match.p1 === uid;
   const isP2        = match.p2 === uid;
   const isPlayer    = isP1 || isP2;
+  const isLoser     = isPlayer && match.status === "FINISHED" && match.winner !== null && match.winner !== uid;
+  const isWinner    = isPlayer && match.status === "FINISHED" && match.winner === uid;
   const rivalEaId   = isP1 ? match.p2_ea_id : match.p1_ea_id;
   const myEaId      = isP1 ? match.p1_ea_id : match.p2_ea_id;
   const isEfootball = ((match.game ?? "") as string).toUpperCase().includes("EFOOTBALL") ||
@@ -295,14 +309,50 @@ export default function MatchRoom({ matchId }: Props) {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        @keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+        @keyframes trophy-pop{0%{transform:scale(0) rotate(-10deg)}60%{transform:scale(1.15) rotate(3deg)}100%{transform:scale(1) rotate(0deg)}}
+        @keyframes advance-in{0%{opacity:0;transform:translateX(-20px)}100%{opacity:1;transform:translateX(0)}}
         .chat-bubble{background:#1c2028;border-radius:14px;padding:8px 12px;margin-bottom:6px;max-width:85%;}
         .chat-bubble.mine{background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.2);margin-left:auto;}
         .chat-bubble.bot{background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.2);}
-        .bracket-cell{flex:1;background:#1c2028;border:1px solid #30363d;border-radius:8px;padding:6px 10px;font-size:0.7rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .bracket-cell.winner{border-color:rgba(0,255,136,0.5);background:rgba(0,255,136,0.07);}
-        .bracket-cell.active{border-color:rgba(255,215,0,0.5);background:rgba(255,215,0,0.06);}
+        .brk-cell{flex:1;background:#1c2028;border:1px solid #30363d;border-radius:8px;padding:6px 10px;font-size:0.7rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .3s;}
+        .brk-cell.winner{border-color:rgba(0,255,136,0.5);background:rgba(0,255,136,0.07);}
+        .brk-cell.loser{border-color:rgba(100,100,100,0.3);opacity:0.55;}
+        .brk-cell.active{border-color:rgba(255,215,0,0.5);background:rgba(255,215,0,0.06);}
+        .brk-cell.current{border-color:rgba(255,215,0,0.8);background:rgba(255,215,0,0.12);box-shadow:0 0 10px rgba(255,215,0,0.2);}
       `}</style>
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+
+      {/* ── CONFETTI OVERLAY ── */}
+      {showConfetti && (
+        <div style={{ position:"fixed",inset:0,zIndex:9999,pointerEvents:"none",overflow:"hidden" }}>
+          {Array.from({length: 60}).map((_, i) => {
+            const colors = ["#ffd700","#ff4757","#00ff88","#009ee3","#ff6b35","#a855f7","#fff"];
+            const c = colors[i % colors.length];
+            const left = `${Math.random()*100}%`;
+            const delay = `${Math.random()*2}s`;
+            const dur   = `${2.5 + Math.random()*2}s`;
+            const size  = `${6 + Math.random()*8}px`;
+            const shape = i % 3 === 0 ? "50%" : "2px";
+            return (
+              <div key={i} style={{
+                position:"absolute", top:"-20px", left, width:size, height:size,
+                background: c, borderRadius: shape,
+                animation: `confetti-fall ${dur} ${delay} ease-in forwards`,
+              }} />
+            );
+          })}
+          {/* Big rockets */}
+          {["🎉","🚀","🎊","🏆","⭐","🎆"].map((emoji, i) => (
+            <div key={`e${i}`} style={{
+              position:"absolute", top:"-40px", left:`${10 + i*15}%`,
+              fontSize:"2rem",
+              animation: `confetti-fall ${3 + i*0.3}s ${i*0.4}s ease-in forwards`,
+            }}>{emoji}</div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
         {/* ── HEADER ── */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -336,8 +386,8 @@ export default function MatchRoom({ matchId }: Props) {
           </div>
           {/* Botones brackets + Discord */}
           <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-            <button onClick={() => match.tournamentId && (showBrackets ? setShowBrackets(false) : loadBrackets(match.tournamentId))}
-              style={{ flex: 1, padding: "8px", background: "rgba(255,215,0,0.08)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 10, fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => setShowBrackets(v => !v)}
+              style={{ flex: 1, padding: "8px", background: showBrackets ? "rgba(255,215,0,0.15)" : "rgba(255,215,0,0.08)", color: "#ffd700", border: `1px solid rgba(255,215,0,${showBrackets ? "0.5" : "0.25"})`, borderRadius: 10, fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer" }}>
               🏆 {showBrackets ? "OCULTAR" : "VER"} BRACKETS
             </button>
             <a href={DISCORD_URL} target="_blank" rel="noreferrer"
@@ -351,35 +401,134 @@ export default function MatchRoom({ matchId }: Props) {
         {showBrackets && brackets.length > 0 && (() => {
           const rounds = Array.from(new Set(brackets.map(m => m.round))).sort((a, b) => {
             if (a === "final") return 1; if (b === "final") return -1;
-            return a.localeCompare(b);
+            const na = parseInt(a.replace(/\D/g, "") || "0", 10);
+            const nb = parseInt(b.replace(/\D/g, "") || "0", 10);
+            return na - nb;
           });
+          const isTournamentDone = brackets.every(m => m.status === "FINISHED");
+          const champion = isTournamentDone
+            ? (() => {
+                const finalMatch = brackets.find(m => m.round === "final" || rounds[rounds.length - 1] === m.round);
+                if (!finalMatch?.winner) return null;
+                return finalMatch.winner === finalMatch.p1
+                  ? (finalMatch.p1_username || finalMatch.p1?.slice(0, 12) || "Campeón")
+                  : (finalMatch.p2_username || finalMatch.p2?.slice(0, 12) || "Campeón");
+              })()
+            : null;
+
           return (
-            <div style={card}>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.75rem", fontWeight: 700, marginBottom: 12 }}>🏆 BRACKETS DEL TORNEO</div>
-              {rounds.map(round => (
-                <div key={round} style={{ marginBottom: 14 }}>
-                  <div style={{ color: "#8b949e", fontSize: "0.62rem", fontFamily: "'Orbitron',sans-serif", marginBottom: 6, letterSpacing: 1 }}>
-                    {roundLabels[round] || round.toUpperCase()}
-                  </div>
-                  {brackets.filter(m => m.round === round).map(m => (
-                    <div key={m.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
-                      <div className={`bracket-cell ${m.winner === m.p1 ? "winner" : m.status === "WAITING" ? "active" : ""}`}>
-                        <span style={{ color: m.winner === m.p1 ? "#00ff88" : "white", fontWeight: m.winner === m.p1 ? 700 : 400 }}>
-                          {m.winner === m.p1 ? "🏆 " : ""}{m.p1_username || m.p1?.slice(0, 10) || "TBD"}
-                        </span>
-                      </div>
-                      <div style={{ color: "#8b949e", fontSize: "0.7rem", flexShrink: 0, fontWeight: 700, minWidth: 36, textAlign: "center" }}>
-                        {m.status === "FINISHED" ? (m.score || "–") : "vs"}
-                      </div>
-                      <div className={`bracket-cell ${m.winner === m.p2 ? "winner" : m.status === "WAITING" ? "active" : ""}`}>
-                        <span style={{ color: m.winner === m.p2 ? "#00ff88" : "white", fontWeight: m.winner === m.p2 ? 700 : 400 }}>
-                          {m.winner === m.p2 ? "🏆 " : ""}{m.p2_username || m.p2?.slice(0, 10) || "TBD"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+            <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ background: "linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,215,0,0.04))", borderBottom: "1px solid rgba(255,215,0,0.2)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.78rem", fontWeight: 700 }}>🏆 BRACKETS EN VIVO</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#00ff88", animation: "pulse 2s infinite", boxShadow: "0 0 6px #00ff88" }} />
+                  <span style={{ color: "#00ff88", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif" }}>LIVE</span>
                 </div>
-              ))}
+              </div>
+
+              {/* Champion banner */}
+              {champion && (
+                <div style={{ background: "linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.08))", borderBottom: "1px solid rgba(255,215,0,0.3)", padding: "16px", textAlign: "center" }}>
+                  <div style={{ fontSize: "3rem", animation: "trophy-pop 0.6s ease-out", display: "inline-block" }}>🏆</div>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.95rem", fontWeight: 900, marginTop: 4 }}>CAMPEÓN</div>
+                  <div style={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, marginTop: 4 }}>{champion}</div>
+                </div>
+              )}
+
+              <div style={{ padding: "12px 14px", overflowX: "auto" }}>
+                {/* Bracket rounds as columns */}
+                <div style={{ display: "flex", gap: 10, minWidth: `${rounds.length * 170}px` }}>
+                  {rounds.map((round, ri) => {
+                    const roundMatches = brackets.filter(m => m.round === round);
+                    const isFinalRound = ri === rounds.length - 1;
+                    return (
+                      <div key={round} style={{ flex: 1, minWidth: 150 }}>
+                        {/* Round label */}
+                        <div style={{ textAlign: "center", marginBottom: 8, padding: "4px 8px", background: isFinalRound ? "rgba(255,215,0,0.1)" : "rgba(255,255,255,0.03)", borderRadius: 6, border: `1px solid ${isFinalRound ? "rgba(255,215,0,0.3)" : "#30363d"}` }}>
+                          <span style={{ color: isFinalRound ? "#ffd700" : "#8b949e", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                            {roundLabels[round] || round.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Matches in this round */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {roundMatches.map(m => {
+                            const isCurrent    = m.id === matchId;
+                            const isFinished   = m.status === "FINISHED";
+                            const isActive     = m.status === "WAITING" || m.status === "PENDING_RESULT";
+                            const p1Won        = isFinished && m.winner === m.p1;
+                            const p2Won        = isFinished && m.winner === m.p2;
+                            const p1Name       = m.p1_username || m.p1?.slice(0, 12) || "TBD";
+                            const p2Name       = m.p2_username || m.p2?.slice(0, 12) || "TBD";
+                            const hasAdvanced  = isFinished && isFinalRound; // champion match
+
+                            return (
+                              <div key={m.id} style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${isCurrent ? "rgba(255,215,0,0.7)" : isActive ? "rgba(0,255,136,0.3)" : isFinished ? "rgba(255,255,255,0.08)" : "#30363d"}`, boxShadow: isCurrent ? "0 0 12px rgba(255,215,0,0.2)" : "none", transition: "all .3s" }}>
+
+                                {/* P1 row */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: p1Won ? "rgba(0,255,136,0.1)" : "rgba(22,27,34,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                                  <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{p1Won ? "🏆" : !isFinished ? (m.p1 ? "▶" : "·") : "·"}</span>
+                                  <span style={{ flex: 1, fontSize: "0.7rem", color: p1Won ? "#00ff88" : !isFinished && m.p1 ? "white" : "#555", fontWeight: p1Won ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {p1Name}
+                                  </span>
+                                  {isFinished && m.score && (
+                                    <span style={{ color: p1Won ? "#00ff88" : "#444", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>
+                                      {m.score.split("-")[0] ?? "-"}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* P2 row */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: p2Won ? "rgba(0,255,136,0.1)" : "rgba(15,19,26,0.8)" }}>
+                                  <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{p2Won ? "🏆" : !isFinished ? (m.p2 ? "▶" : "·") : "·"}</span>
+                                  <span style={{ flex: 1, fontSize: "0.7rem", color: p2Won ? "#00ff88" : !isFinished && m.p2 ? "white" : "#555", fontWeight: p2Won ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {p2Name}
+                                  </span>
+                                  {isFinished && m.score && (
+                                    <span style={{ color: p2Won ? "#00ff88" : "#444", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>
+                                      {m.score.split("-")[1] ?? "-"}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Status badge + advance banner */}
+                                {isCurrent && (
+                                  <div style={{ padding: "3px 8px", background: "rgba(255,215,0,0.1)", textAlign: "center" }}>
+                                    <span style={{ color: "#ffd700", fontSize: "0.55rem", fontFamily: "'Orbitron',sans-serif" }}>◉ ESTA SALA</span>
+                                  </div>
+                                )}
+                                {isFinished && !isCurrent && m.winner && (() => {
+                                  const winName = m.winner === m.p1 ? p1Name : p2Name;
+                                  const nextRoundIdx = ri + 1;
+                                  const hasNext = nextRoundIdx < rounds.length;
+                                  return (
+                                    <div style={{ padding: "3px 8px", background: "rgba(0,255,136,0.05)", textAlign: "center", animation: "advance-in .4s ease-out" }}>
+                                      <span style={{ color: "#00ff88", fontSize: "0.55rem" }}>
+                                        {hasNext ? `✓ ${winName} avanza` : `🏆 ${winName} campeón`}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            );
+                          })}
+
+                          {/* Trophy at bottom of final column */}
+                          {isFinalRound && (
+                            <div style={{ textAlign: "center", marginTop: 8 }}>
+                              <div style={{ fontSize: "2rem", filter: isTournamentDone ? "drop-shadow(0 0 12px #ffd700)" : "grayscale(1) opacity(0.3)" }}>🏆</div>
+                              <div style={{ color: isTournamentDone ? "#ffd700" : "#30363d", fontSize: "0.55rem", fontFamily: "'Orbitron',sans-serif", marginTop: 2 }}>
+                                {isTournamentDone ? "FINALIZADO" : "FINAL"}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           );
         })()}
@@ -585,26 +734,63 @@ export default function MatchRoom({ matchId }: Props) {
 
         {/* ── FINALIZADO ── */}
         {match.status === "FINISHED" && (
-          <div style={{ ...card, background: "linear-gradient(135deg,rgba(0,255,136,0.05),rgba(255,215,0,0.03))", borderColor: "rgba(0,255,136,0.3)", textAlign: "center" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🏆</div>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "1rem", fontWeight: 900, marginBottom: 8 }}>PARTIDO FINALIZADO</div>
-            <div style={{ color: "#00ff88", fontWeight: 700, fontSize: "0.9rem", marginBottom: 12 }}>
-              Ganador: {match.winner === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")}
-            </div>
-            <p style={{ color: "#8b949e", fontSize: "0.75rem" }}>
-              El BOT LFA generará el próximo match automáticamente. ¡Suerte en la siguiente ronda!
-            </p>
+          <div style={{ ...card, background: "linear-gradient(135deg,rgba(0,255,136,0.05),rgba(255,215,0,0.03))", borderColor: isWinner ? "rgba(0,255,136,0.4)" : isLoser ? "rgba(255,71,87,0.25)" : "rgba(0,255,136,0.3)", textAlign: "center" }}>
+            {isWinner ? (
+              <>
+                <div style={{ fontSize: "3rem", marginBottom: 8, animation: "trophy-pop 0.6s ease-out", display: "inline-block" }}>🏆</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "1rem", fontWeight: 900, marginBottom: 6 }}>¡GANASTE!</div>
+                <div style={{ color: "#00ff88", fontWeight: 700, fontSize: "0.85rem", marginBottom: 12 }}>Pasás a la siguiente fase 🎯</div>
+                <p style={{ color: "#8b949e", fontSize: "0.72rem" }}>
+                  El sistema generará tu próximo match automáticamente. ¡Preparate!
+                </p>
+              </>
+            ) : isLoser ? (
+              <>
+                <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>😤</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ff4757", fontSize: "0.9rem", fontWeight: 900, marginBottom: 6 }}>ELIMINADO</div>
+                <div style={{ color: "#8b949e", fontWeight: 600, fontSize: "0.8rem", marginBottom: 12 }}>
+                  Perdiste contra {match.winner === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")}
+                </div>
+                <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid #30363d", marginBottom: 14 }}>
+                  <p style={{ color: "#cdd9e5", fontSize: "0.72rem", margin: 0 }}>
+                    👁️ Podés quedarte a ver cómo termina el torneo en el chat. Tu presencia es solo de espectador.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { if (typeof window !== "undefined") { window.history.back(); } }}
+                  style={{ padding: "10px 24px", background: "#161b22", color: "#8b949e", border: "1px solid #30363d", borderRadius: 10, fontFamily: "'Orbitron',sans-serif", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}>
+                  🚪 Salir de la sala
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🏆</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "1rem", fontWeight: 900, marginBottom: 8 }}>PARTIDO FINALIZADO</div>
+                <div style={{ color: "#00ff88", fontWeight: 700, fontSize: "0.9rem", marginBottom: 12 }}>
+                  Ganador: {match.winner === match.p1 ? (match.p1_username || "Jugador 1") : (match.p2_username || "Jugador 2")}
+                </div>
+                <p style={{ color: "#8b949e", fontSize: "0.75rem" }}>
+                  El BOT LFA generará el próximo match automáticamente.
+                </p>
+              </>
+            )}
           </div>
         )}
 
         {/* ── CHAT PRIVADO DEL MATCH ── */}
         <div style={card}>
-          <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#009ee3", fontSize: "0.75rem", fontWeight: 700, marginBottom: 10 }}>
-            💬 CHAT PRIVADO {isEfootball ? "— COMPARTÍ EL CÓDIGO DE SALA" : "— COORDINACIÓN CON TU RIVAL"}
+          <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#009ee3", fontSize: "0.75rem", fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>💬 {isLoser ? "CHAT — MODO ESPECTADOR" : isEfootball ? "CHAT — COMPARTÍ EL CÓDIGO DE SALA" : "CHAT — COORDINACIÓN CON TU RIVAL"}</span>
+            {isLoser && <span style={{ padding: "2px 8px", background: "rgba(139,148,158,0.15)", border: "1px solid #30363d", borderRadius: 6, fontSize: "0.55rem", color: "#8b949e" }}>SOLO LECTURA</span>}
           </div>
-          {isEfootball && chatMsgs.filter(m => m.rol !== "bot").length === 0 && (
+          {isEfootball && !isLoser && chatMsgs.filter(m => m.rol !== "bot").length === 0 && (
             <div style={{ color: "#8b949e", fontSize: "0.72rem", marginBottom: 10, padding: "8px 12px", background: "rgba(0,200,150,0.05)", borderRadius: 10, border: "1px solid rgba(0,200,150,0.2)" }}>
               ⚽ Coordiná acá quién crea la sala y compartí el código de sala (ej: <strong style={{ color: "#00c896" }}>5555-8888</strong>).
+            </div>
+          )}
+          {isLoser && (
+            <div style={{ padding: "8px 12px", background: "rgba(139,148,158,0.06)", borderRadius: 10, border: "1px solid rgba(139,148,158,0.15)", marginBottom: 10, fontSize: "0.7rem", color: "#8b949e" }}>
+              👁️ Estás viendo el torneo como espectador. No podés enviar mensajes.
             </div>
           )}
           <div style={{ height: 220, overflowY: "auto", marginBottom: 10, display: "flex", flexDirection: "column" }}>
@@ -625,7 +811,7 @@ export default function MatchRoom({ matchId }: Props) {
             })}
             <div ref={chatBottomRef} />
           </div>
-          {isPlayer && (
+          {isPlayer && !isLoser && (
             <div style={{ display: "flex", gap: 8 }}>
               <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}

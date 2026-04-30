@@ -108,12 +108,21 @@ export async function POST(req: NextRequest) {
         if (roundWinners.length >= 2) {
           const roundNum = parseInt(currentRound.replace(/\D/g, '') || '1', 10);
           const nextRound = currentRound === 'final' ? 'final' : `round_${roundNum + 1}`;
+          // Gather usernames for next round matches
+          const winnerUids = roundWinners as string[];
+          const usernameMap: Record<string, string> = {};
+          await Promise.all(winnerUids.map(async (wuid: string) => {
+            const snap = await adminDb.collection('usuarios').doc(wuid).get();
+            usernameMap[wuid] = snap.data()?.nombre || wuid.slice(0, 10);
+          }));
           const batch = adminDb.batch();
           for (let i = 0; i + 1 < roundWinners.length; i += 2) {
             const ref = adminDb.collection('matches').doc();
             batch.set(ref, {
               tournamentId: match.tournamentId,
               p1: roundWinners[i], p2: roundWinners[i + 1],
+              p1_username: usernameMap[roundWinners[i]] || roundWinners[i].slice(0, 10),
+              p2_username: usernameMap[roundWinners[i + 1]] || roundWinners[i + 1].slice(0, 10),
               score: '', winner: null, status: 'WAITING', round: nextRound,
               game: tournament.game || '', entry_fee: entryFee, prize_pool: tournament.prize_pool || 0,
               created_at: FieldValue.serverTimestamp(),
