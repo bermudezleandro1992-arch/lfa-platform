@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const ext    = file.name.split('.').pop()?.replace(/[^a-z0-9]/gi,'') ?? 'jpg';
   const path   = `liga_pro/${uid}/${partidoId}_${Date.now()}.${ext}`;
-  const bucket = getStorage(getAdminApp()).bucket();
+  const bucket = getStorage(getAdminApp()).bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? undefined);
   const fileRef = bucket.file(path);
   const buffer  = Buffer.from(await file.arrayBuffer());
 

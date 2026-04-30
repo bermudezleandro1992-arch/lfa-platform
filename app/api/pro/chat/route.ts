@@ -16,14 +16,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
   }
 
-  let body: { texto: string };
+  const VALID_LIGAS = ['ARG','PER','MEX','COL','VEN','LFA'] as const;
+
+  let body: { texto: string; liga: string };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
   }
 
   const texto = body.texto?.trim() ?? '';
+  const liga  = body.liga ?? '';
   if (!texto || texto.length < 1 || texto.length > 280)
     return NextResponse.json({ error: 'Mensaje inválido (1-280 caracteres).' }, { status: 400 });
+  if (!(VALID_LIGAS as readonly string[]).includes(liga))
+    return NextResponse.json({ error: 'Liga inválida.' }, { status: 400 });
 
   // Get user data
   const userSnap = await adminDb.collection('usuarios').doc(uid).get();
@@ -36,10 +41,7 @@ export async function POST(req: NextRequest) {
   const nombre = equipoSnap.empty ? (user.nombre ?? 'Jugador') : (equipoSnap.docs[0].data().nombre as string);
 
   await adminDb.collection('liga_pro_mensajes').add({
-    uid,
-    nombre,
-    logo_url,
-    texto,
+    uid, nombre, logo_url, texto, liga,
     ts: FieldValue.serverTimestamp(),
   });
 
