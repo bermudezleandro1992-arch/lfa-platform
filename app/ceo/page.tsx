@@ -1161,7 +1161,7 @@ export default function CeoPage() {
               <div style={{ ...card, borderTop:'3px solid #009ee3', gridColumn:'1/-1' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                   <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:0, fontSize:'0.85rem' }}>
-                    📋 SLOTS ACTIVOS — {(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length} activados × 5 regiones = <span style={{ color:'#ffd700' }}>{(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length * 5 * 2}</span> salas máx
+                    📋 SLOTS ACTIVOS — {(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length} activados × 5 regiones = <span style={{ color:'#ffd700' }}>{(spawnerCfg.slots_activos ?? DEFAULT_SLOTS).length * 5}</span> salas máx
                   </h3>
                   <div style={{ display:'flex', gap:8 }}>
                     <button style={sm('#0d1117','#8b949e')} onClick={() => updateDoc(doc(db,'configuracion','spawner'),{ slots_activos:[] })}>Desactivar todo</button>

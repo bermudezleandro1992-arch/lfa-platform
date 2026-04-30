@@ -27,6 +27,7 @@ export default function HomePage() {
     jugadores: 0, torneos: 0,
     partidas_hoy: 0, en_vivo: 0, jugando_ahora: 0,
     fc26_vivo: 0, efb_vivo: 0, torneos_activos: 0,
+    fc26_torneos: 0, efb_torneos: 0,
   });
   const [slideIndex, setSlideIndex] = useState(0);
   const loginRef = useRef<HTMLDivElement>(null);
@@ -208,7 +209,7 @@ export default function HomePage() {
               </div>
               {[
                 { l: 'PARTIDAS EN VIVO', v: stats.efb_vivo, c: '#ffd700', live: true },
-                { l: 'TORNEOS ABIERTOS', v: stats.torneos_activos, c: '#ffd700' },
+                { l: 'TORNEOS ABIERTOS', v: stats.efb_torneos, c: '#ffd700' },
                 { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
                 { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
               ].map(row => (
@@ -264,7 +265,7 @@ export default function HomePage() {
               </div>
               {[
                 { l: 'PARTIDAS EN VIVO', v: stats.fc26_vivo, c: '#009ee3', live: true },
-                { l: 'TORNEOS ABIERTOS', v: stats.torneos_activos, c: '#009ee3' },
+                { l: 'TORNEOS ABIERTOS', v: stats.fc26_torneos, c: '#009ee3' },
                 { l: 'JUGADORES REGISTRADOS', v: stats.jugadores, c: '#e6edf3' },
                 { l: 'PARTIDAS HOY', v: stats.partidas_hoy, c: '#8b949e' },
               ].map(row => (
