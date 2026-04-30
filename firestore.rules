@@ -261,6 +261,24 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Liga LFA 1vs1 — /pro ─────────────────────────────────────────
+    match /liga_pro_equipos/{equipoId} {
+      allow read: if true;
+      // Solo el servidor crea/actualiza stats via Admin SDK
+      allow create, update, delete: if false;
+    }
+
+    match /liga_pro_partidos/{partidoId} {
+      allow read: if true;
+      allow write: if false; // solo el servidor
+    }
+
+    match /liga_pro_mensajes/{msgId} {
+      allow read: if authExists();
+      // Lectura libre, escritura solo vía servidor
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
