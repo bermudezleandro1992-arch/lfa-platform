@@ -95,7 +95,7 @@ export default function HomePage() {
         {/* ══════════════════════════════════════════════
             HERO
         ══════════════════════════════════════════════ */}
-        <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px 40px', position: 'relative', overflow: 'hidden' }}>
+        <section style={{ padding: 'clamp(60px,10vw,100px) 20px clamp(40px,6vw,60px)', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
 
           {/* fondo animado */}
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,255,136,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -118,13 +118,38 @@ export default function HomePage() {
           </p>
 
           {/* CTAs */}
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 48 }}>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 40 }}>
             <button onClick={scrollToLogin} style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.85rem', background: 'linear-gradient(135deg,#00ff88,#00a859)', color: '#0b0e14', border: 'none', borderRadius: 12, padding: '14px 32px', cursor: 'pointer', letterSpacing: 1, boxShadow: '0 0 24px rgba(0,255,136,0.35)', transition: '0.2s' }}>
               {t.home_crear_cuenta}
             </button>
             <button onClick={scrollToLogin} style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 700, fontSize: '0.85rem', background: 'transparent', color: '#8b949e', border: '1px solid #30363d', borderRadius: 12, padding: '14px 28px', cursor: 'pointer', transition: '0.2s' }}>
               {t.home_ya_tengo}
             </button>
+          </div>
+
+          {/* Stats + regiones activas */}
+          <div style={{ borderTop: '1px solid #1c2028', paddingTop: 28, width: '100%', maxWidth: 680 }}>
+            <div style={{ display: 'flex', gap: 'clamp(18px,4vw,40px)', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 18 }}>
+              {[
+                { v: stats.torneos > 0 ? stats.torneos.toLocaleString('es-AR') : '—', l: 'TORNEOS' },
+                { v: stats.jugadores > 0 ? stats.jugadores.toLocaleString('es-AR') : '—', l: 'JUGADORES' },
+                { v: stats.en_vivo > 0 ? stats.en_vivo.toLocaleString('es-AR') : '—', l: 'EN VIVO' },
+                { v: stats.partidas_hoy > 0 ? stats.partidas_hoy.toLocaleString('es-AR') : '—', l: 'PARTIDAS HOY' },
+              ].map(s => (
+                <div key={s.l} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 'clamp(1.1rem,2.5vw,1.5rem)', fontWeight: 900, color: '#00ff88' }}>{s.v}</div>
+                  <div style={{ fontSize: '0.6rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.62rem', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, alignSelf: 'center' }}>REGIONES ACTIVAS:</span>
+              {['🌎 LATAM SUR', '🌎 LATAM NORTE', '🌍 AMÉRICA', '🌐 GLOBAL', '🇪🇺 EUROPA'].map(r => (
+                <span key={r} style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 20, padding: '3px 10px', fontSize: '0.6rem', color: '#00ff88', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                  {r}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
 
