@@ -102,7 +102,8 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
   });
   const [presences,  setPresences]  = useState<Presence[]>([]);
   const [miEstado,   setMiEstado]   = useState<'online' | 'ausente'>('online');
-  const bottomRef  = useRef<HTMLDivElement>(null);
+  const bottomRef    = useRef<HTMLDivElement>(null);
+  const botBottomRef = useRef<HTMLDivElement>(null);
   const lastSent   = useRef<number>(0);
   const lastTexto  = useRef<string>('');
   const inputRef   = useRef<HTMLInputElement>(null);
@@ -230,7 +231,10 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
       const msgs: ChatMsg[] = [];
       snap.forEach(d => msgs.push({ id: d.id, ...d.data() } as ChatMsg));
       setMessages(msgs.reverse());
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        botBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
     });
     return unsub;
   }, []);
@@ -406,75 +410,115 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
           })}
         </div>
 
-        {/* ── Mensajes ────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+        {/* ── Dos columnas: Chat general | Feed BOT ────── */}
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
 
-          {messages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#4a5568' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🍺</div>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', marginBottom: 4 }}>LA CANTINA ESTÁ VACÍA</div>
-              <div style={{ fontSize: '0.75rem' }}>¡Sé el primero en saludar!</div>
-            </div>
-          )}
+          {/* ── Chat general (jugadores) ─────────────────── */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, borderRight: '1px solid #1c2028' }}>
 
-          {messages.filter(m => !m.deleted || isMod).map(msg => {
-            const isMe  = msg.uid === uid;
-            const rolKey = msg.rol?.toLowerCase() ?? 'jugador';
-            const rc    = ROL_CLR[rolKey] ?? '#8b949e';
-            const rl    = ROL_LABEL[rolKey] ?? '';
-            const isDeleted = !!msg.deleted;
+            {messages.filter(m => (m.rol?.toLowerCase() ?? '') !== 'bot' && m.uid !== 'BOT_LFA').length === 0 && (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#4a5568' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🍺</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', marginBottom: 4 }}>LA CANTINA ESTÁ VACÍA</div>
+                <div style={{ fontSize: '0.75rem' }}>¡Sé el primero en saludar!</div>
+              </div>
+            )}
 
-            return (
-              <div key={msg.id} className="cant-msg" style={{ display: 'flex', gap: 9, alignItems: 'flex-start', opacity: isDeleted ? 0.35 : 1 }}>
-                {/* Avatar */}
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#1c2028', border: `2px solid ${rc}30`, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {msg.avatar_url
-                    ? <img src={msg.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: '1rem' }}>👤</span>
-                  }
-                </div>
+            {messages.filter(m => (!m.deleted || isMod) && (m.rol?.toLowerCase() ?? '') !== 'bot' && m.uid !== 'BOT_LFA').map(msg => {
+              const isMe  = msg.uid === uid;
+              const rolKey = msg.rol?.toLowerCase() ?? 'jugador';
+              const rc    = ROL_CLR[rolKey] ?? '#8b949e';
+              const rl    = ROL_LABEL[rolKey] ?? '';
+              const isDeleted = !!msg.deleted;
 
-                {/* Contenido */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 900, color: isMe ? '#00ff88' : 'white' }}>
-                      {(msg.nombre || 'ANÓNIMO').toUpperCase()}
-                    </span>
-                    {rl && (
-                      <span style={{ background: `${rc}18`, color: rc, border: `1px solid ${rc}40`, borderRadius: 4, padding: '0 5px', fontSize: '0.57rem', fontWeight: 700 }}>
-                        {rl}
+              return (
+                <div key={msg.id} className="cant-msg" style={{ display: 'flex', gap: 9, alignItems: 'flex-start', opacity: isDeleted ? 0.35 : 1 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#1c2028', border: `2px solid ${rc}30`, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {msg.avatar_url
+                      ? <img src={msg.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: '1rem' }}>👤</span>
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 900, color: isMe ? '#00ff88' : 'white' }}>
+                        {(msg.nombre || 'ANÓNIMO').toUpperCase()}
                       </span>
-                    )}
-                    <span style={{ color: '#30363d', fontSize: '0.61rem' }}>{timeStr(msg.timestamp)}</span>
-                    {isMod && !isDeleted && (
-                      <button
-                        className="cant-del"
-                        onClick={() => borrar(msg.id)}
-                        style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: '0.68rem', padding: '0 2px', opacity: 0, transition: '0.15s', lineHeight: 1 }}
-                        title="Borrar mensaje"
-                      >🗑️</button>
-                    )}
+                      {rl && (
+                        <span style={{ background: `${rc}18`, color: rc, border: `1px solid ${rc}40`, borderRadius: 4, padding: '0 5px', fontSize: '0.57rem', fontWeight: 700 }}>
+                          {rl}
+                        </span>
+                      )}
+                      <span style={{ color: '#30363d', fontSize: '0.61rem' }}>{timeStr(msg.timestamp)}</span>
+                      {isMod && !isDeleted && (
+                        <button
+                          className="cant-del"
+                          onClick={() => borrar(msg.id)}
+                          style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: '0.68rem', padding: '0 2px', opacity: 0, transition: '0.15s', lineHeight: 1 }}
+                          title="Borrar mensaje"
+                        >🗑️</button>
+                      )}
+                    </div>
+                    <div style={{
+                      background: isMe ? 'rgba(0,255,136,0.06)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isMe ? 'rgba(0,255,136,0.18)' : '#21262d'}`,
+                      borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      padding: '8px 12px', fontSize: '0.82rem',
+                      color: isDeleted ? '#4a5568' : '#e6edf3',
+                      wordBreak: 'break-word', lineHeight: 1.55, maxWidth: '100%',
+                    }}>
+                      {isDeleted ? <i>🚫 Mensaje eliminado por moderación</i> : msg.texto}
+                    </div>
                   </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} style={{ height: 1 }} />
+          </div>
 
-                  <div style={{
-                    background: isMe ? 'rgba(0,255,136,0.06)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${isMe ? 'rgba(0,255,136,0.18)' : '#21262d'}`,
-                    borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    padding: '8px 12px',
-                    fontSize: '0.82rem',
-                    color: isDeleted ? '#4a5568' : '#e6edf3',
-                    wordBreak: 'break-word',
-                    lineHeight: 1.55,
-                    maxWidth: '100%',
-                  }}>
-                    {isDeleted ? <i>🚫 Mensaje eliminado por moderación</i> : msg.texto}
-                  </div>
+          {/* ── Feed BOT LFA ─────────────────────────────── */}
+          <div style={{ width: 260, flexShrink: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(0,255,136,0.015)' }}>
+            {/* Header feed */}
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#00ff88', fontWeight: 900, padding: '4px 6px', marginBottom: 4, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span>📡 BOT LFA</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 4px #00ff88', animation: 'pulse 2s infinite' }} />
+            </div>
+
+            {messages.filter(m => m.rol?.toLowerCase() === 'bot' || m.uid === 'BOT_LFA').length === 0 && (
+              <div style={{ textAlign: 'center', padding: '30px 10px', color: '#2a3540' }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>🤖</div>
+                <div style={{ fontSize: '0.65rem', fontFamily: "'Orbitron',sans-serif" }}>Sin eventos aún</div>
+              </div>
+            )}
+
+            {messages.filter(m => m.rol?.toLowerCase() === 'bot' || m.uid === 'BOT_LFA').map(msg => (
+              <div key={msg.id} style={{
+                background: 'rgba(0,255,136,0.04)',
+                border: '1px solid rgba(0,255,136,0.15)',
+                borderRadius: 10,
+                padding: '8px 10px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                  <span style={{ fontSize: '0.75rem' }}>🤖</span>
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.57rem', color: '#00ff88', fontWeight: 900 }}>BOT LFA</span>
+                  <span style={{ color: '#2a3540', fontSize: '0.57rem', marginLeft: 'auto' }}>{timeStr(msg.timestamp)}</span>
+                  {isMod && (
+                    <button
+                      className="cant-del"
+                      onClick={() => borrar(msg.id)}
+                      style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: '0.65rem', padding: 0, opacity: 0, transition: '0.15s', lineHeight: 1 }}
+                      title="Borrar"
+                    >🗑️</button>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#cdd9e5', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                  {msg.texto}
                 </div>
               </div>
-            );
-          })}
+            ))}
+            <div ref={botBottomRef} style={{ height: 1 }} />
+          </div>
 
-          <div ref={bottomRef} style={{ height: 1 }} />
         </div>
       </div>
 
