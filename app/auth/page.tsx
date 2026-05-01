@@ -182,6 +182,15 @@ export default function AuthPage() {
         user.uid, user.email, displayName.trim(), null, 'email', geo,
       );
 
+      // Audit log: registro de aceptación de ToS
+      try {
+        const token = await user.getIdToken();
+        await fetch('/api/tos/accept', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch { /* no bloquear registro por fallo del log */ }
+
       setSuccess('¡Cuenta creada! Redirigiendo...');
       setTimeout(() => router.push('/hub'), 1500);
     } catch (err) {
@@ -217,7 +226,8 @@ export default function AuthPage() {
 
         // Verificar si el usuario ya existe en Firestore
         const userSnap = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userSnap.exists()) {
+        const isNewUser = !userSnap.exists();
+        if (isNewUser) {
           const geo = await detectRegion();
           await saveUserToFirestore(
             user.uid,
@@ -227,6 +237,14 @@ export default function AuthPage() {
             provider,
             geo,
           );
+          // Audit log TOS para nuevos usuarios sociales
+          try {
+            const token = await user.getIdToken();
+            await fetch('/api/tos/accept', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch { /* no bloquear login por fallo del log */ }
         }
 
         router.push('/hub');

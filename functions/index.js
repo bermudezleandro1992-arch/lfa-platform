@@ -79,12 +79,13 @@ async function verificarCapitan(uid) {
 }
 
 // Catálogo inmutable de precios en el servidor
+// 1 USD = 1000 LFA Coins
 const PACKS_OFICIALES = {
-    "INICIAL": { usd: 2.00, coins: 2 },
-    "BÁSICO": { usd: 5.00, coins: 5 },
-    "BASICO": { usd: 5.00, coins: 5 }, 
-    "PRO": { usd: 10.00, coins: 10 },
-    "WHALE": { usd: 20.00, coins: 22 } // <-- WHALE CON 2 COINS DE REGALO
+    "INICIAL": { usd: 2.00, coins: 2_000 },
+    "BÁSICO":  { usd: 5.00, coins: 5_000 },
+    "BASICO":  { usd: 5.00, coins: 5_000 },
+    "PRO":     { usd: 10.00, coins: 10_000 },
+    "WHALE":   { usd: 20.00, coins: 22_000 } // WHALE CON 2000 COINS DE REGALO
 };
 
 // ============================================================================

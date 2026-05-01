@@ -265,7 +265,27 @@ export const FREE_PRIZE_OVERRIDES: Record<string, number[]> = {
 };
 
 export const COINS_PER_USDT      = 1_000;
+export const LFA_COINS_PER_USD   = 1_000;   // 1000 LFA = 1 USD
 export const MIN_WITHDRAWAL      = 2_000;
 export const DISPUTE_MINUTES     = 10;
 export const WAIT_ALERT_MINUTES  = 10;
 export const WAIT_EXTEND_MINUTES = 5;
+
+// ── Rake / comisiones ─────────────────────────────────────
+export const RAKE_ARENA_PCT      = 0.10;  // 10% plataforma en torneos arena
+export const RAKE_STREAMER_PCT   = 0.10;  // 10% al streamer en torneos streamer
+export const RAKE_PLATFORM_PCT   = 0.10;  // 10% plataforma en torneos streamer
+
+// ── Tienda (Puntos Gratis / Shop Points) ──────────────────
+export const TOS_CURRENT_VERSION       = '2.1';
+export const SHOP_POINTS_PER_LFA       = 50_000;  // 50k pts → 1000 LFA
+export const SHOP_COINS_REWARD         = 1_000;   // LFA coins otorgados por canje
+export const MIN_FPS_FOR_REDEMPTION    = 80;      // fair_play mínimo para canjear
+export const JOYSTICK_POINTS_COST      = 500_000; // costo en pts del joystick
+export const FREE_TOURNAMENT_POINTS_WIN  = 500;   // pts por ganar en torneo gratis
+export const FREE_TOURNAMENT_POINTS_PLAY = 100;   // pts por jugar en torneo gratis
+
+// ── Fair Play automático ──────────────────────────────────
+export const FPS_CONFIRM_BONUS         = 5;   // +FPS por confirmar rápido
+export const FPS_FALSE_DISPUTE_PENALTY = 15;  // -FPS por disputa falsa
+export const FPS_NO_REPORT_PENALTY     = 5;   // -FPS por no reportar

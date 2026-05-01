@@ -229,7 +229,12 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
     );
     const unsub = onSnapshot(q, snap => {
       const msgs: ChatMsg[] = [];
-      snap.forEach(d => msgs.push({ id: d.id, ...d.data() } as ChatMsg));
+      snap.forEach(d => {
+        const raw = d.data() as { is_bot_result?: boolean } & Omit<ChatMsg, 'id'>;
+        // Filtrar mensajes de resultado de match — van al chat de cada sala
+        if (raw.is_bot_result) return;
+        msgs.push({ id: d.id, ...raw } as ChatMsg);
+      });
       setMessages(msgs.reverse());
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

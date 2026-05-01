@@ -19,7 +19,7 @@ export default function TermsModal({ onAccept, onClose }: TermsModalProps) {
     const { scrollTop, scrollHeight, clientHeight } = el;
     const progress = Math.min(100, Math.round((scrollTop / (scrollHeight - clientHeight)) * 100));
     setScrollProgress(progress);
-    if (scrollTop + clientHeight >= scrollHeight - 30) {
+    if (scrollTop + clientHeight >= scrollHeight - 1) {
       setScrolledToBottom(true);
     }
   }, []);

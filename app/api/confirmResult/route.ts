@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth }        from '@/lib/firebase-admin';
 import { FieldValue }                from 'firebase-admin/firestore';
+import {
+  FPS_CONFIRM_BONUS,
+  FREE_TOURNAMENT_POINTS_WIN,
+  FREE_TOURNAMENT_POINTS_PLAY,
+} from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,26 +37,31 @@ export async function POST(req: NextRequest) {
     const winnerName = (await adminDb.collection('usuarios').doc(winnerId).get()).data()?.nombre ?? 'Jugador';
     const loserName  = (await adminDb.collection('usuarios').doc(loserId).get()).data()?.nombre ?? 'Rival';
 
-    // Marcar match como FINISHED con el ganador
-    await matchRef.update({
+    // Marcar match como FINISHED con el ganador + bonus FPS para el que confirmó
+    const batch0 = adminDb.batch();
+    batch0.update(matchRef, {
       status:     'FINISHED',
       winner:     winnerId,
       confirmed_by: uid,
       updated_at: FieldValue.serverTimestamp(),
     });
+    // El perdedor gana +FPS por confirmar honestamente
+    batch0.update(adminDb.collection('usuarios').doc(loserId), {
+      fair_play: FieldValue.increment(FPS_CONFIRM_BONUS),
+    });
+    await batch0.commit();
 
-    // Publicar en cantina
-    const salaLabel = match.tournamentId ? `Sala #${(match.tournamentId as string).slice(-5).toUpperCase()}` : 'la sala';
-    await adminDb.collection('cantina_messages').add({
-      uid:        'BOT_LFA',
-      nombre:     '🤖 BOT LFA',
-      avatar_url: null,
-      rol:        'bot',
-      texto:      `✅ [${salaLabel}] **${loserName}** confirmó la victoria de **${winnerName}**. Marcador: ${match.score || '?'}. ¡Resultado validado!`,
-      match_id:   matchId,
-      tournament_id: match.tournamentId || null,
-      timestamp:  FieldValue.serverTimestamp(),
-      deleted:    false,
+    // Publicar en el chat de la sala (match_chat) como BOT
+    await adminDb.collection('match_chat').add({
+      matchId,
+      tournamentId:  match.tournamentId || null,
+      uid:           'BOT_LFA',
+      nombre:        '🤖 BOT LFA',
+      avatar_url:    null,
+      rol:           'bot',
+      texto:         `✅ **${loserName}** confirmó la victoria de **${winnerName}**. Marcador: ${match.score || '?'}. ¡Resultado validado!`,
+      is_bot_result: true,
+      timestamp:     FieldValue.serverTimestamp(),
     });
 
     // Advance bracket: distribute prizes if final, else create next round
@@ -90,8 +100,15 @@ export async function POST(req: NextRequest) {
           });
         });
       } else {
+        // Torneo gratuito: premiar con Puntos de Tienda (puntos_gratis)
         if (winners[0]) batch.update(adminDb.collection('usuarios').doc(winners[0]), {
-          puntos_gratis: FieldValue.increment(50), partidos_ganados: FieldValue.increment(1), partidos_jugados: FieldValue.increment(1),
+          puntos_gratis:    FieldValue.increment(FREE_TOURNAMENT_POINTS_WIN),
+          partidos_ganados: FieldValue.increment(1),
+          partidos_jugados: FieldValue.increment(1),
+        });
+        if (winners[1]) batch.update(adminDb.collection('usuarios').doc(winners[1]), {
+          puntos_gratis:    FieldValue.increment(FREE_TOURNAMENT_POINTS_PLAY),
+          partidos_jugados: FieldValue.increment(1),
         });
       }
       batch.update(adminDb.collection('tournaments').doc(match.tournamentId), {
