@@ -575,7 +575,22 @@ export default function CeoPage() {
         done += chunk.length;
         setMegaProgress(done);
       }
-      await alerta('✅ MEGA SPAWN COMPLETO', `${done} plantillas creadas. El sistema mantendrá 2 salas activas por cada combinación y variará los precios automáticamente.`, 'exito');
+      // Ejecutar ciclo de spawn inmediatamente para crear las salas reales
+      setSpawnLog('Spawneando salas...');
+      try {
+        const user2 = auth.currentUser;
+        if (user2) {
+          const tk = await getIdToken(user2);
+          const spawnRes = await fetch('/api/ceo/spawnFromSlots', {
+            method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${tk}` },
+          });
+          const spawnData = await spawnRes.json();
+          setSpawnLog(spawnData.ok ? `✅ ${spawnData.message}` : `⚠️ ${spawnData.error}`);
+          await alerta('✅ MEGA SPAWN COMPLETO', `${done} plantillas creadas.\n\n${spawnData.message ?? ''}`, 'exito');
+        }
+      } catch {
+        await alerta('✅ MEGA SPAWN COMPLETO', `${done} plantillas creadas. Usa "Ejecutar Ciclo" en el Spawner para activar las salas.`, 'exito');
+      }
     } catch (e: unknown) {
       await alerta('ERROR EN MEGA SPAWN', (e as Error).message, 'error');
     }
@@ -650,18 +665,18 @@ export default function CeoPage() {
     } catch (e: unknown) { await alerta('Error', (e as Error).message, 'error'); }
   }
 
-  /* ── Spawner manual ──────────────────────────────────────── */
+  /* ── Spawner manual — lee room_slots y crea tournaments ──── */
   async function triggerManualSpawn() {
     setSpawning(true); setSpawnLog('Conectando con servidor...');
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('Sin sesión');
       const token = await getIdToken(user);
-      const res = await fetch(`${FN_BASE}/manualSpawn`, {
+      const res = await fetch('/api/ceo/spawnFromSlots', {
         method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
       });
       const data = await res.json();
-      setSpawnLog(data.ok ? `✅ Ciclo completo — ${data.created} sala(s) creadas.` : `⚠️ ${data.error}`);
+      setSpawnLog(data.ok ? `✅ ${data.message}` : `⚠️ ${data.error}`);
     } catch (e: unknown) { setSpawnLog(`Error: ${(e as Error).message}`); }
     setSpawning(false);
   }
@@ -1798,96 +1813,6 @@ export default function CeoPage() {
             </div>
           </>}
 
-        </main>
-      </div>
-
-      {/* ═══ MODALES ════════════════════════════════════════════ */}
-
-      {/* Ban */}
-      {banModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
-          <div style={{ background:'#161b22', border:'2px solid #ff4757', borderRadius:16, padding:28, maxWidth:380, width:'100%', textAlign:'center' }}>
-            <div style={{ fontSize:'2.5rem', marginBottom:10 }}>⚖️</div>
-            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 6px', fontSize:'1rem' }}>TRIBUNAL LFA</h2>
-            <h3 style={{ margin:'0 0 4px', color:'white' }}>{banModal.nombre}</h3>
-            {banModal.ip && <div style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:14, fontFamily:'monospace' }}>IP: {banModal.ip}</div>}
-            <select onChange={e => setBanModal(prev => prev ? { ...prev, horas:Number(e.target.value) } : null)}
-              style={{ ...inp, borderColor:'#ff4757', textAlign:'center', marginBottom:10 }}>
-              <option value={24}>24 Horas</option>
-              <option value={48}>48 Horas</option>
-              <option value={72}>72 Horas</option>
-              <option value={168}>1 Semana</option>
-              <option value={0}>BAN PERMANENTE</option>
-            </select>
-            <label style={{ display:'flex', alignItems:'center', gap:10, justifyContent:'center', marginBottom:16, cursor:'pointer' }}>
-              <input type="checkbox" checked={banConIp} onChange={e => setBanConIp(e.target.checked)} style={{ width:16, height:16, cursor:'pointer', accentColor:'#ff4757' }} />
-              <span style={{ color: banConIp ? '#ff4757' : '#8b949e', fontSize:'0.8rem', fontWeight:700 }}>🚫 Bloquear IP también (re-registro)</span>
-            </label>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <button style={btn('#ff4757','white')} onClick={() => ejecutarBan(banModal.uid, banModal.nombre, banModal.horas)}>🚫 APLICAR</button>
-              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => { setBanModal(null); setBanConIp(false); }}>CANCELAR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Coins */}
-      {coinsM && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
-          <div style={{ background:'#161b22', border:'2px solid #ffd700', borderRadius:16, padding:28, maxWidth:340, width:'100%', textAlign:'center' }}>
-            <div style={{ fontSize:'2.5rem', marginBottom:8 }}>🪙</div>
-            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 4px', fontSize:'1rem' }}>BÓVEDA LFA</h2>
-            <h3 style={{ margin:'0 0 6px', color:'white' }}>{coinsM.nombre}</h3>
-            <div style={{ color:'#ffd700', fontSize:'1.8rem', fontWeight:900, marginBottom:14 }}>🪙 {coinsM.actual.toLocaleString()}</div>
-            <input type="number" value={coinsM.nuevo} min={0}
-              onChange={e => setCoinsM(prev => prev ? { ...prev, nuevo:e.target.value } : null)}
-              style={{ ...inp, fontSize:'1.3rem', textAlign:'center', color:'#ffd700', borderColor:'#ffd700', marginBottom:14 }} />
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <button style={btn('#ffd700')} onClick={() => guardarCoins(coinsM.uid, parseFloat(coinsM.nuevo))}>💾 GUARDAR</button>
-              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => setCoinsM(null)}>CANCELAR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Expediente */}
-      {expM && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
-          <div style={{ background:'#161b22', border:'2px solid #009ee3', borderRadius:16, padding:28, maxWidth:500, width:'100%', maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid #30363d', paddingBottom:14, marginBottom:16 }}>
-              <span style={{ fontSize:'2.2rem' }}>🕵️</span>
-              <div>
-                <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:0, fontSize:'0.88rem' }}>EXPEDIENTE POLICIAL</h2>
-                <div style={{ color:'white', fontWeight:700, fontSize:'1.05rem', marginTop:3 }}>{expM.nombre||'—'}</div>
-                <div style={{ color:'#8b949e', fontSize:'0.72rem' }}>{expM.email}</div>
-              </div>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
-              {[
-                { l:'UID',         v: expM.id,                                             c: undefined },
-                { l:'ROL',         v: expM.rol||'jugador',                                 c: expM.rol === 'admin' ? '#9146FF' : undefined },
-                { l:'IP CONEXIÓN', v: expM.ip || expM.ip_conexion||'—',                      c: undefined },
-                { l:'CANVAS HASH', v: expM.canvas_hash||'—',                               c: '#ffd700' },
-                { l:'SISTEMA',     v: expM.sistema||'—',                                   c: undefined },
-                { l:'PLAT. ID',    v: expM.plataforma_id||'—',                             c: undefined },
-                { l:'REGIÓN',      v: expM.region||'—',                                    c: undefined },
-                { l:'FAIR PLAY',   v: `${expM.fair_play??100}%`,                           c: (expM.fair_play??100)>=70 ? '#00ff88' : '#ff4757' },
-                { l:'SALDO',       v: `🪙 ${(expM.number||0).toLocaleString()}`,           c: '#00ff88' },
-                { l:'TÍTULOS',     v: String(expM.titulos||0),                             c: undefined },
-                { l:'PARTIDOS',    v: String(expM.partidos_jugados||0),                    c: undefined },
-                { l:'AFILIADO',    v: expM.es_afiliado ? '✅ SÍ' : '—',                   c: undefined },
-              ].map(({ l, v, c }) => (
-                <div key={l} style={{ background:'#0b0e14', padding:'9px 11px', borderRadius:8, border:'1px solid #30363d' }}>
-                  <div style={{ color:'#8b949e', fontSize:'0.62rem', fontFamily:"'Orbitron',sans-serif", marginBottom:3 }}>{l}</div>
-                  <div style={{ color:c||'white', fontSize:'0.79rem', fontWeight:700, wordBreak:'break-all' }}>{v}</div>
-                </div>
-              ))}
-            </div>
-            <button style={{ ...btn('#30363d','white'), width:'100%' }} onClick={() => setExpM(null)}>CERRAR</button>
-          </div>
-        </div>
-      )}
-
       {/* ══ VISION AI LOG ═══════════════════════════════════════ */}
       {tab === 'tienda' && (() => {
         const TIENDA_CATS = ['MONEDAS','ENTRADAS','VIDEOJUEGOS','HARDWARE','CONSOLAS','ESPECIAL'];
@@ -2102,6 +2027,97 @@ export default function CeoPage() {
           </div>
         </div>
       </>}
+
+        </main>
+      </div>
+
+      {/* ═══ MODALES ════════════════════════════════════════════ */}
+
+      {/* Ban */}
+      {banModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
+          <div style={{ background:'#161b22', border:'2px solid #ff4757', borderRadius:16, padding:28, maxWidth:380, width:'100%', textAlign:'center' }}>
+            <div style={{ fontSize:'2.5rem', marginBottom:10 }}>⚖️</div>
+            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 6px', fontSize:'1rem' }}>TRIBUNAL LFA</h2>
+            <h3 style={{ margin:'0 0 4px', color:'white' }}>{banModal.nombre}</h3>
+            {banModal.ip && <div style={{ color:'#8b949e', fontSize:'0.72rem', marginBottom:14, fontFamily:'monospace' }}>IP: {banModal.ip}</div>}
+            <select onChange={e => setBanModal(prev => prev ? { ...prev, horas:Number(e.target.value) } : null)}
+              style={{ ...inp, borderColor:'#ff4757', textAlign:'center', marginBottom:10 }}>
+              <option value={24}>24 Horas</option>
+              <option value={48}>48 Horas</option>
+              <option value={72}>72 Horas</option>
+              <option value={168}>1 Semana</option>
+              <option value={0}>BAN PERMANENTE</option>
+            </select>
+            <label style={{ display:'flex', alignItems:'center', gap:10, justifyContent:'center', marginBottom:16, cursor:'pointer' }}>
+              <input type="checkbox" checked={banConIp} onChange={e => setBanConIp(e.target.checked)} style={{ width:16, height:16, cursor:'pointer', accentColor:'#ff4757' }} />
+              <span style={{ color: banConIp ? '#ff4757' : '#8b949e', fontSize:'0.8rem', fontWeight:700 }}>🚫 Bloquear IP también (re-registro)</span>
+            </label>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <button style={btn('#ff4757','white')} onClick={() => ejecutarBan(banModal.uid, banModal.nombre, banModal.horas)}>🚫 APLICAR</button>
+              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => { setBanModal(null); setBanConIp(false); }}>CANCELAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Coins */}
+      {coinsM && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
+          <div style={{ background:'#161b22', border:'2px solid #ffd700', borderRadius:16, padding:28, maxWidth:340, width:'100%', textAlign:'center' }}>
+            <div style={{ fontSize:'2.5rem', marginBottom:8 }}>🪙</div>
+            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 4px', fontSize:'1rem' }}>BÓVEDA LFA</h2>
+            <h3 style={{ margin:'0 0 6px', color:'white' }}>{coinsM.nombre}</h3>
+            <div style={{ color:'#ffd700', fontSize:'1.8rem', fontWeight:900, marginBottom:14 }}>🪙 {coinsM.actual.toLocaleString()}</div>
+            <input type="number" value={coinsM.nuevo} min={0}
+              onChange={e => setCoinsM(prev => prev ? { ...prev, nuevo:e.target.value } : null)}
+              style={{ ...inp, fontSize:'1.3rem', textAlign:'center', color:'#ffd700', borderColor:'#ffd700', marginBottom:14 }} />
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <button style={btn('#ffd700')} onClick={() => guardarCoins(coinsM.uid, parseFloat(coinsM.nuevo))}>💾 GUARDAR</button>
+              <button style={{ ...btn('transparent','#8b949e'), border:'1px solid #30363d' }} onClick={() => setCoinsM(null)}>CANCELAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expediente */}
+      {expM && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:6000, padding:20, backdropFilter:'blur(6px)' }}>
+          <div style={{ background:'#161b22', border:'2px solid #009ee3', borderRadius:16, padding:28, maxWidth:500, width:'100%', maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid #30363d', paddingBottom:14, marginBottom:16 }}>
+              <span style={{ fontSize:'2.2rem' }}>🕵️</span>
+              <div>
+                <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#009ee3', margin:0, fontSize:'0.88rem' }}>EXPEDIENTE POLICIAL</h2>
+                <div style={{ color:'white', fontWeight:700, fontSize:'1.05rem', marginTop:3 }}>{expM.nombre||'—'}</div>
+                <div style={{ color:'#8b949e', fontSize:'0.72rem' }}>{expM.email}</div>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
+              {[
+                { l:'UID',         v: expM.id,                                             c: undefined },
+                { l:'ROL',         v: expM.rol||'jugador',                                 c: expM.rol === 'admin' ? '#9146FF' : undefined },
+                { l:'IP CONEXIÓN', v: expM.ip || expM.ip_conexion||'—',                      c: undefined },
+                { l:'CANVAS HASH', v: expM.canvas_hash||'—',                               c: '#ffd700' },
+                { l:'SISTEMA',     v: expM.sistema||'—',                                   c: undefined },
+                { l:'PLAT. ID',    v: expM.plataforma_id||'—',                             c: undefined },
+                { l:'REGIÓN',      v: expM.region||'—',                                    c: undefined },
+                { l:'FAIR PLAY',   v: `${expM.fair_play??100}%`,                           c: (expM.fair_play??100)>=70 ? '#00ff88' : '#ff4757' },
+                { l:'SALDO',       v: `🪙 ${(expM.number||0).toLocaleString()}`,           c: '#00ff88' },
+                { l:'TÍTULOS',     v: String(expM.titulos||0),                             c: undefined },
+                { l:'PARTIDOS',    v: String(expM.partidos_jugados||0),                    c: undefined },
+                { l:'AFILIADO',    v: expM.es_afiliado ? '✅ SÍ' : '—',                   c: undefined },
+              ].map(({ l, v, c }) => (
+                <div key={l} style={{ background:'#0b0e14', padding:'9px 11px', borderRadius:8, border:'1px solid #30363d' }}>
+                  <div style={{ color:'#8b949e', fontSize:'0.62rem', fontFamily:"'Orbitron',sans-serif", marginBottom:3 }}>{l}</div>
+                  <div style={{ color:c||'white', fontSize:'0.79rem', fontWeight:700, wordBreak:'break-all' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <button style={{ ...btn('#30363d','white'), width:'100%' }} onClick={() => setExpM(null)}>CERRAR</button>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
