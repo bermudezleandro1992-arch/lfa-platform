@@ -99,17 +99,22 @@ export default function BuscarSala() {
     return () => { u1(); u2(); };
   }, []);
 
-  // ── Query dedicada para salas GRATIS (entry_fee == 0) ──────
+  // ── Query dedicada para salas GRATIS ──────────────────
+  // Usamos `free==true` (booléoo) — más confiable que entry_fee==0 (número)
+  // Ambos: spawnFromSlots y Cloud Function ya setean `free: true`
   useEffect(() => {
-    // Single-field query por entry_fee — no necesita índice compuesto
-    const qGratis = query(collection(db, "tournaments"), where("entry_fee", "==", 0), limit(60));
-    const unsub = onSnapshot(qGratis, snap => {
-      const gratis = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as Tournament))
-        .filter(r => r.status === "OPEN" && r.tipo !== "organizado");
-      gratis.sort((a, b) => (b.players.length / b.capacity) - (a.players.length / a.capacity));
-      setGratisRooms(gratis);
-    });
+    const qGratis = query(collection(db, "tournaments"), where("free", "==", true), limit(80));
+    const unsub = onSnapshot(
+      qGratis,
+      snap => {
+        const gratis = snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as Tournament))
+          .filter(r => r.status === "OPEN" && r.tipo !== "organizado");
+        gratis.sort((a, b) => (b.players.length / b.capacity) - (a.players.length / a.capacity));
+        setGratisRooms(gratis);
+      },
+      err => console.error("[qGratis] Firestore error:", err)
+    );
     return unsub;
   }, []);
 

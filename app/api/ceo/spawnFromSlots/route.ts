@@ -65,16 +65,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, created: 0, checked: 0, message: 'No hay plantillas activas en room_slots.' });
     }
 
-    /* 3 — Read all currently OPEN spawned tournaments in one query */
+    /* 3 — Read all currently OPEN tournaments (single-field query, no composite index needed) */
     const openSnap = await adminDb.collection('tournaments')
-      .where('status',  '==', 'OPEN')
-      .where('spawned', '==', true)
+      .where('status', '==', 'OPEN')
       .get();
 
-    // Map: "game|mode|capacity|entry_fee|region" → count
+    // Map: "game|mode|capacity|entry_fee|region" → count (only spawned rooms)
     const existingCount: Record<string, number> = {};
     openSnap.forEach(d => {
       const data = d.data();
+      if (!data.spawned) return; // JS filter instead of composite index
       const key = `${data.game}|${data.mode}|${data.capacity}|${data.entry_fee}|${data.region}`;
       existingCount[key] = (existingCount[key] || 0) + 1;
     });
