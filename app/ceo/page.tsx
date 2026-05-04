@@ -167,6 +167,23 @@ export default function CeoPage() {
   const [disputas, setDisputas] = useState<Disputa[]>([]);
   const disputasPend = disputas.filter(d => d.status === 'PENDING').length;
 
+  /* ── Room Slots (plantillas de sala auto-respawn) ───────── */
+  interface RoomSlot {
+    id: string; game: string; mode: string; region: string;
+    capacity: number; entry_fee: number; activo: boolean;
+    auto_respawn: boolean; max_simultaneous: number;
+    created_at?: { toDate?: () => Date };
+  }
+  const [roomSlots,     setRoomSlots]     = useState<RoomSlot[]>([]);
+  const [slotGame,      setSlotGame]      = useState('FC26');
+  const [slotMode,      setSlotMode]      = useState('GENERAL_95');
+  const [slotRegion,    setSlotRegion]    = useState('LATAM_SUR');
+  const [slotCap,       setSlotCap]       = useState('8');
+  const [slotFee,       setSlotFee]       = useState('0');
+  const [slotAutoRespawn, setSlotAutoRespawn] = useState(true);
+  const [slotMaxSim,    setSlotMaxSim]    = useState('2');
+  const [slotSaving,    setSlotSaving]    = useState(false);
+
   /* ── UI State ────────────────────────────────────────────── */
   const [busqueda,  setBusqueda]  = useState('');
   const [spawning,  setSpawning]  = useState(false);
@@ -288,6 +305,10 @@ export default function CeoPage() {
 
     subs.push(onSnapshot(query(collection(db,'disputas'), orderBy('created_at','desc'), limit(50)), snap => {
       const l: Disputa[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as Disputa)); setDisputas(l);
+    }));
+
+    subs.push(onSnapshot(query(collection(db,'room_slots'), orderBy('created_at','desc'), limit(100)), snap => {
+      const l: RoomSlot[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as RoomSlot)); setRoomSlots(l);
     }));
 
     subs.push(onSnapshot(query(collection(db,'tienda_productos'), orderBy('creado_at','desc'), limit(100)), snap => {
@@ -456,6 +477,39 @@ export default function CeoPage() {
     abiertas.forEach(r => b.delete(doc(db,'tournaments',r.id)));
     await b.commit();
     await alerta('LISTO', `${abiertas.length} salas eliminadas.`, 'exito');
+  }
+
+  /* ── Room Slots ──────────────────────────────────────────── */
+  async function crearSlot() {
+    const cap  = parseInt(slotCap);
+    const fee  = parseInt(slotFee) || 0;
+    const maxS = parseInt(slotMaxSim) || 2;
+    if (!slotGame || !slotMode || !slotRegion || !cap) { await alerta('FALTAN DATOS','Completá todos los campos.','error'); return; }
+    // No duplicar
+    const existe = roomSlots.some(s =>
+      s.game === slotGame && s.mode === slotMode && s.region === slotRegion &&
+      s.capacity === cap && s.entry_fee === fee
+    );
+    if (existe) { await alerta('YA EXISTE', 'Ya hay un slot con esa combinación.', 'info'); return; }
+    setSlotSaving(true);
+    try {
+      await addDoc(collection(db,'room_slots'), {
+        game: slotGame, mode: slotMode, region: slotRegion,
+        capacity: cap, entry_fee: fee, activo: true,
+        auto_respawn: slotAutoRespawn, max_simultaneous: maxS,
+        created_at: serverTimestamp(),
+      });
+      await alerta('SLOT CREADO', `${GL[slotGame]||slotGame} · ${ML[slotMode]||slotMode} · ${cap}j · ${fee===0?'GRATIS':'🪙'+fee.toLocaleString()} · ${slotAutoRespawn?'Auto-Respawn ✓':'Sin auto-respawn'} · ${maxS} simultáneas`, 'exito');
+    } catch (e: unknown) { await alerta('ERROR', (e as Error).message, 'error'); }
+    setSlotSaving(false);
+  }
+  async function toggleSlot(id: string, activo: boolean) {
+    await updateDoc(doc(db,'room_slots',id), { activo: !activo });
+  }
+  async function eliminarSlot(id: string) {
+    const ok = await alerta('ELIMINAR SLOT','¿Eliminar esta plantilla de sala?','error');
+    if (!ok) return;
+    await deleteDoc(doc(db,'room_slots',id));
   }
   async function crearSalaManual() {
     const FEES: Record<string, number> = { FREE:0, RECREATIVO:500, COMPETITIVO:2000, ELITE:10000 };
@@ -968,6 +1022,122 @@ export default function CeoPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* ── SALA SLOTS (plantillas auto-respawn) ─────── */}
+            <div style={{ marginTop:28, ...card, borderTop:'3px solid #a371f7' }}>
+              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#a371f7', margin:'0 0 16px', fontSize:'0.85rem' }}>
+                🔄 SALA SLOTS — PLANTILLAS CON AUTO-RESPAWN
+              </h3>
+              <p style={{ color:'#8b949e', fontSize:'0.74rem', marginBottom:18 }}>
+                Cada slot define una configuración de sala. Cuando está activo y <b style={{ color:'#a371f7' }}>Auto-Respawn</b> habilitado, el spawner crea automáticamente nuevas salas cuando terminan (hasta el máximo de simultáneas).
+              </p>
+
+              {/* Formulario nuevo slot */}
+              <div style={{ background:'#0d1117', border:'1px solid #30363d', borderRadius:12, padding:16, marginBottom:20 }}>
+                <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#a371f7', fontSize:'0.72rem', marginBottom:12 }}>➕ NUEVO SLOT</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8 }}>
+                  <select style={inp} value={slotGame} onChange={e => { setSlotGame(e.target.value); setSlotMode(e.target.value==='FC26'?'GENERAL_95':'DREAM_TEAM'); }}>
+                    <option value="FC26">FC 26</option>
+                    <option value="EFOOTBALL">eFootball</option>
+                  </select>
+                  <select style={inp} value={slotMode} onChange={e => setSlotMode(e.target.value)}>
+                    {slotGame==='FC26' ? <>
+                      <option value="GENERAL_95">95 General</option>
+                      <option value="ULTIMATE">Ultimate Team</option>
+                    </> : <>
+                      <option value="DREAM_TEAM">Dream Team</option>
+                      <option value="GENUINOS">Genuinos</option>
+                    </>}
+                  </select>
+                  <select style={inp} value={slotRegion} onChange={e => setSlotRegion(e.target.value)}>
+                    <option value="LATAM_SUR">LATAM Sur</option>
+                    <option value="LATAM_NORTE">LATAM Norte</option>
+                    <option value="AMERICA">América</option>
+                    <option value="GLOBAL">Global</option>
+                    <option value="EUROPA">Europa</option>
+                  </select>
+                  <select style={inp} value={slotCap} onChange={e => setSlotCap(e.target.value)}>
+                    {[2,4,6,8,12,16,32].map(n => <option key={n} value={n}>{n} jugadores</option>)}
+                  </select>
+                  <select style={inp} value={slotFee} onChange={e => setSlotFee(e.target.value)}>
+                    <option value="0">GRATIS</option>
+                    <option value="500">500 LFC</option>
+                    <option value="750">750 LFC</option>
+                    <option value="1000">1.000 LFC</option>
+                    <option value="2000">2.000 LFC</option>
+                    <option value="3000">3.000 LFC</option>
+                    <option value="5000">5.000 LFC</option>
+                    <option value="8000">8.000 LFC</option>
+                    <option value="10000">10.000 LFC</option>
+                    <option value="20000">20.000 LFC</option>
+                  </select>
+                  <select style={inp} value={slotMaxSim} onChange={e => setSlotMaxSim(e.target.value)}>
+                    <option value="1">1 simultánea</option>
+                    <option value="2">2 simultáneas</option>
+                    <option value="3">3 simultáneas</option>
+                    <option value="4">4 simultáneas</option>
+                  </select>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:14, marginTop:10, flexWrap:'wrap' }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
+                    <input type="checkbox" checked={slotAutoRespawn} onChange={e => setSlotAutoRespawn(e.target.checked)}
+                      style={{ width:16, height:16, accentColor:'#a371f7' }} />
+                    <span style={{ color:'#a371f7', fontSize:'0.78rem', fontWeight:700 }}>Auto-Respawn al terminar</span>
+                  </label>
+                  <button style={{ ...btn('#a371f7'), flex:'0 0 auto', opacity: slotSaving ? 0.6 : 1 }}
+                    onClick={crearSlot} disabled={slotSaving}>
+                    {slotSaving ? '⏳ CREANDO...' : '🚀 CREAR SLOT'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de slots */}
+              {roomSlots.length === 0 ? (
+                <div style={{ textAlign:'center', color:'#4a5568', fontSize:'0.78rem', padding:'20px 0' }}>Sin slots configurados todavía.</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {roomSlots.map(s => {
+                    const TCOL: Record<string,string> = { FREE:'#00d4ff', RECREATIVO:'#00ff88', COMPETITIVO:'#ffd700', ELITE:'#ff4757' };
+                    const tier = s.entry_fee === 0 ? 'FREE' : s.entry_fee <= 1000 ? 'RECREATIVO' : s.entry_fee <= 8000 ? 'COMPETITIVO' : 'ELITE';
+                    // Cuántas salas activas tiene este slot ahora mismo
+                    const activasNow = rooms.filter(r =>
+                      r.status === 'OPEN' && r.game === s.game && r.mode === s.mode &&
+                      r.region === s.region && r.capacity === s.capacity && r.entry_fee === s.entry_fee
+                    ).length;
+                    return (
+                      <div key={s.id} style={{ background:'#0d1117', border:`1px solid ${s.activo ? 'rgba(163,113,247,0.35)' : '#30363d'}`, borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                        <div style={{ flex:1, minWidth:200 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
+                            <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, color: s.activo ? '#a371f7' : '#555' }}>
+                              {s.activo ? '🟢' : '⭕'} {GL[s.game]||s.game}
+                            </span>
+                            <span style={{ color:'#8b949e', fontSize:'0.72rem' }}>{ML[s.mode]||s.mode}</span>
+                            <span style={{ color:'#8b949e', fontSize:'0.72rem' }}>·</span>
+                            <span style={{ color:'#8b949e', fontSize:'0.72rem' }}>{RL[s.region]||s.region}</span>
+                            <span style={{ background:`${TCOL[tier]}15`, color:TCOL[tier], border:`1px solid ${TCOL[tier]}40`, borderRadius:20, padding:'1px 8px', fontSize:'0.6rem', fontWeight:700 }}>{tier}</span>
+                          </div>
+                          <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+                            <span style={{ color:'#cdd9e5', fontSize:'0.72rem' }}>👥 {s.capacity}j</span>
+                            <span style={{ color:'#ffd700', fontSize:'0.72rem' }}>{s.entry_fee===0 ? '🎁 GRATIS' : `🪙 ${s.entry_fee.toLocaleString()}`}</span>
+                            <span style={{ color: s.auto_respawn ? '#a371f7' : '#555', fontSize:'0.72rem' }}>{s.auto_respawn ? '🔄 Auto-Respawn' : '— Sin respawn'}</span>
+                            <span style={{ color:'#8b949e', fontSize:'0.72rem' }}>Máx {s.max_simultaneous||2} sim.</span>
+                            <span style={{ color: activasNow > 0 ? '#00ff88' : '#555', fontSize:'0.72rem' }}>
+                              Activas ahora: {activasNow}/{s.max_simultaneous||2}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                          <button className="cact" style={sm(s.activo ? 'rgba(163,113,247,0.15)' : 'rgba(0,255,136,0.12)', s.activo ? '#a371f7' : '#00ff88')} onClick={() => toggleSlot(s.id, s.activo)}>
+                            {s.activo ? '⏸ PAUSAR' : '▶ ACTIVAR'}
+                          </button>
+                          <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => eliminarSlot(s.id)}>🗑️</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </>}
 

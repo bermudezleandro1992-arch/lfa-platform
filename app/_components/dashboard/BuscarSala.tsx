@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { collection, query,
          where, getDocs, onSnapshot,
-         orderBy, limit }    from "firebase/firestore";
+         limit }             from "firebase/firestore";
 import { db }                from "@/lib/firebase";
 import { GAMES, REGIONS }    from "@/lib/constants";
 import OrgTournamentCard     from "./OrgTournamentCard";
@@ -25,13 +25,36 @@ const TIERS = [
 
 type TierKey = "FREE" | "RECREATIVO" | "COMPETITIVO" | "ELITE";
 
+// ─── Tamaños de sala disponibles ─────────────────────────────
+const SIZES = [2, 4, 6, 8, 12, 16, 32] as const;
+type SizeKey = typeof SIZES[number];
+
+// ─── Helper: color de llenado ─────────────────────────────────
+function fillColor(players: number, capacity: number): { border: string; bg: string; label: string; dot: string } {
+  const pct = players / capacity;
+  if (pct < 0.5)  return { border: "rgba(0,150,255,0.45)",   bg: "rgba(0,150,255,0.06)",   dot: "#0096ff", label: "LLENÁNDOSE" };
+  if (pct < 0.8)  return { border: "rgba(255,200,0,0.50)",   bg: "rgba(255,200,0,0.07)",   dot: "#ffc800", label: "CASI LLENA" };
+  return            { border: "rgba(255,60,60,0.55)",    bg: "rgba(255,60,60,0.07)",   dot: "#ff3c3c", label: "¡APURATE!" };
+}
+
+const MODE_LABELS: Record<string, string> = {
+  GENERAL_95: "95 General", ULTIMATE: "Ultimate Team",
+  DREAM_TEAM: "Dream Team", GENUINOS: "Genuinos",
+};
+const REGION_LABELS: Record<string, string> = {
+  LATAM_SUR: "LATAM Sur", LATAM_NORTE: "LATAM Norte",
+  AMERICA: "América", GLOBAL: "Global", EUROPA: "Europa",
+};
+
 export default function BuscarSala() {
   const { t } = useLang();
-  const [game,    setGame]    = useState<Game>("FC26");
-  const [mode,    setMode]    = useState<GameMode | "">("");
-  const [region,  setRegion]  = useState<Region | "">("");
-  const [tier,    setTier]    = useState<TierKey | "">("");
+  const [game,     setGame]    = useState<Game>("FC26");
+  const [mode,     setMode]    = useState<GameMode | "">("");
+  const [region,   setRegion]  = useState<Region | "">("");
+  const [tier,     setTier]    = useState<TierKey | "">("");
+  const [size,     setSize]    = useState<SizeKey | 0>(0);           // 0 = cualquier tamaño
   const [orgTournaments, setOrgTournaments] = useState<Tournament[]>([]);
+  const [liveRooms, setLiveRooms] = useState<Tournament[]>([]);      // salas en tiempo real
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Tournament[] | null>(null);
@@ -39,7 +62,7 @@ export default function BuscarSala() {
 
   const selectedGame = GAMES.find((g) => g.value === game)!;
 
-  // Live organized tournaments
+  // ── Live organized tournaments ────────────────────────────
   useEffect(() => {
     const q = query(
       collection(db, "tournaments"),
@@ -53,6 +76,36 @@ export default function BuscarSala() {
     return unsub;
   }, []);
 
+  // ── Panel en vivo: salas OPEN + ACTIVE/IN_PROGRESS ────────
+  useEffect(() => {
+    // Traemos salas OPEN (llenándose) — single-field query, sin composite index
+    const qOpen = query(
+      collection(db, "tournaments"),
+      where("status", "==", "OPEN"),
+      limit(30)
+    );
+    const qActive = query(
+      collection(db, "tournaments"),
+      where("status", "==", "ACTIVE"),
+      limit(20)
+    );
+    let open:   Tournament[] = [];
+    let active: Tournament[] = [];
+    const merge = () => {
+      const all = [...active, ...open].filter(r => r.tipo !== "organizado");
+      // Ordenar: jugándose primero, luego por % de llenado desc
+      all.sort((a, b) => {
+        if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
+        if (b.status === "ACTIVE" && a.status !== "ACTIVE") return 1;
+        return (b.players.length / b.capacity) - (a.players.length / a.capacity);
+      });
+      setLiveRooms(all);
+    };
+    const u1 = onSnapshot(qOpen,   snap => { open   = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)); merge(); });
+    const u2 = onSnapshot(qActive, snap => { active = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)); merge(); });
+    return () => { u1(); u2(); };
+  }, []);
+
   const buscar = async () => {
     setLoading(true);
     setSearched(true);
@@ -62,9 +115,10 @@ export default function BuscarSala() {
         where("status", "==", "OPEN"),
         where("game",   "==", game),
       ];
-      if (mode)   constraints.push(where("mode",   "==", mode));
-      if (region) constraints.push(where("region", "==", region));
-      if (tier)   constraints.push(where("tier",   "==", tier));
+      if (mode)     constraints.push(where("mode",     "==", mode));
+      if (region)   constraints.push(where("region",   "==", region));
+      if (tier)     constraints.push(where("tier",     "==", tier));
+      if (size > 0) constraints.push(where("capacity", "==", size));
 
       const snap = await getDocs(
         query(collection(db, "tournaments"), ...constraints, limit(10))
@@ -147,6 +201,84 @@ export default function BuscarSala() {
           </div>
         </div>
       </div>
+
+      {/* ── PANEL EN VIVO ─────────────────────────────────────── */}
+      {liveRooms.length > 0 && (
+        <div className="max-w-2xl mx-auto px-4 pt-5 pb-1">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ff3c3c30, transparent)" }} />
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
+              </span>
+              <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>
+                EN VIVO AHORA — {liveRooms.length} SALA{liveRooms.length !== 1 ? "S" : ""}
+              </span>
+            </div>
+            <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ff3c3c30, transparent)" }} />
+          </div>
+
+          <div className="flex flex-col gap-2 mb-4">
+            {liveRooms.map(room => {
+              const isPlaying = room.status === "ACTIVE";
+              const pct = Math.round((room.players.length / room.capacity) * 100);
+              const clr = isPlaying
+                ? { border: "rgba(255,60,60,0.6)", bg: "rgba(255,60,60,0.07)", dot: "#ff3c3c", label: "EN JUEGO" }
+                : fillColor(room.players.length, room.capacity);
+              const tierDot: Record<string, string> = { FREE: "#00d4ff", RECREATIVO: "#00ff88", COMPETITIVO: "#ffd700", ELITE: "#ff4757" };
+              return (
+                <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2.5 transition-all"
+                  style={{ background: clr.bg, border: `1px solid ${clr.border}` }}>
+
+                  {/* Indicador pulsante */}
+                  <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                    {isPlaying && <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ background: clr.dot }} />}
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: clr.dot }} />
+                  </span>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-black uppercase" style={{ color: clr.dot, fontFamily: "'Orbitron',sans-serif" }}>{clr.label}</span>
+                      <span className="text-[10px]" style={{ color: "#6e7681" }}>·</span>
+                      <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
+                      <span className="text-[10px]" style={{ color: "#6e7681" }}>·</span>
+                      <span className="text-[10px]" style={{ color: "#8b949e" }}>
+                        {room.game === "FC26" ? "FC 26" : "eFootball"} {MODE_LABELS[room.mode] ? `· ${MODE_LABELS[room.mode]}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[11px]" style={{ color: "#c9d1d9" }}>
+                        {REGION_LABELS[room.region] ?? room.region} · {room.capacity} jugadores
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Barra de llenado */}
+                  {!isPlaying && (
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 68 }}>
+                      <span className="text-[11px] font-black" style={{ color: clr.dot }}>
+                        {room.players.length}/{room.capacity}
+                      </span>
+                      <div className="h-1.5 w-16 rounded-full overflow-hidden" style={{ background: "#1c2028" }}>
+                        <div className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, background: clr.dot }} />
+                      </div>
+                    </div>
+                  )}
+                  {isPlaying && (
+                    <span className="text-[10px] font-black flex-shrink-0 px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(255,60,60,0.15)", color: "#ff3c3c", border: "1px solid rgba(255,60,60,0.3)", fontFamily: "'Orbitron',sans-serif" }}>
+                      ⚔️ {room.players.length}p
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── TORNEOS ORGANIZADOS / STREAMERS ───────────────────── */}
       {orgTournaments.length > 0 && (
@@ -262,6 +394,28 @@ export default function BuscarSala() {
                     <span className="w-2 h-2 rounded-full mx-auto mb-1 block" style={{ background: active ? t.dot : "#30363d", boxShadow: active ? `0 0 8px ${t.dot}` : "none" }} />
                     <span className="text-[11px] font-black block" style={{ color: active ? t.dot : "#c9d1d9" }}>{t.label}</span>
                     <span className="text-[9px] font-bold block mt-0.5" style={{ color: t.key === "" ? "#6e7681" : (active ? t.dot : t.dot + "bb") }}>{t.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── BOTÓN BUSCAR ── */}
+          <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
+            <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>5. JUGADORES POR SALA</p>
+            <div className="flex flex-wrap gap-2">
+              {([0, ...SIZES] as (0 | SizeKey)[]).map((s) => {
+                const active = size === s;
+                return (
+                  <button key={s} onClick={() => setSize(s)}
+                    className="px-3 py-2 rounded-xl border text-xs font-black transition-all"
+                    style={{
+                      background:  active ? "rgba(0,212,255,0.12)" : "#0b0e14",
+                      borderColor: active ? "rgba(0,212,255,0.45)" : "#30363d",
+                      color:       active ? "#00d4ff"               : "#8b949e",
+                      boxShadow:   active ? "0 0 10px rgba(0,212,255,0.15)" : "none",
+                    }}>
+                    {s === 0 ? "Cualquiera" : `${s}j`}
                   </button>
                 );
               })}
