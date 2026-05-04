@@ -59,11 +59,12 @@ export async function POST(req: NextRequest) {
     /* 2 — Read simultaneous config from spawner doc */
     const spawnerDoc = await adminDb.collection('configuracion').doc('spawner').get();
     const spawnerData = spawnerDoc.exists ? spawnerDoc.data()! : {};
+    // simultaneous_per_tier = how many TOTAL rooms of each tier should exist at once
     const simPerTier: Record<string, number> = spawnerData.simultaneous_per_tier ?? {};
-    const getMaxSim = (t: string, slotDefault: number): number =>
-      simPerTier[t] ?? simPerTier[t?.toUpperCase()] ?? slotDefault ?? 1;
+    const getMaxForTier = (tier: string): number =>
+      simPerTier[tier] ?? simPerTier[tier?.toUpperCase()] ?? 2;
 
-    /* 3 — Read all active room_slots */
+    /* 3 — Read all active room_slots, grouped by tier */
     const slotsSnap = await adminDb.collection('room_slots')
       .where('activo', '==', true)
       .get();
@@ -72,43 +73,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, created: 0, checked: 0, message: 'No hay plantillas activas en room_slots.' });
     }
 
-    /* 3 — Read all currently OPEN tournaments (single-field query, no composite index needed) */
+    // Group slots by tier
+    const slotsByTier: Record<string, Record<string, unknown>[]> = {};
+    slotsSnap.forEach(d => {
+      const t: string = (d.data().tier as string) ?? 'FREE';
+      if (!slotsByTier[t]) slotsByTier[t] = [];
+      slotsByTier[t].push(d.data() as Record<string, unknown>);
+    });
+
+    /* 4 — Count existing OPEN spawned rooms by tier */
     const openSnap = await adminDb.collection('tournaments')
       .where('status', '==', 'OPEN')
       .get();
 
-    // Map: "game|mode|capacity|entry_fee|region" → count (only spawned rooms)
-    const existingCount: Record<string, number> = {};
+    const tierCounts: Record<string, number> = {};
     openSnap.forEach(d => {
       const data = d.data();
-      if (!data.spawned) return; // JS filter instead of composite index
-      const key = `${data.game}|${data.mode}|${data.capacity}|${data.entry_fee}|${data.region}`;
-      existingCount[key] = (existingCount[key] || 0) + 1;
+      if (!data.spawned) return; // skip manually created rooms
+      const t: string = (data.tier as string) ?? 'FREE';
+      tierCounts[t] = (tierCounts[t] || 0) + 1;
     });
 
-    /* 4 — Create missing tournaments per slot */
+    /* 5 — For each tier, create only as many rooms as needed to reach the configured total */
     let created = 0;
     const BATCH_LIMIT = 490;
     let batch = adminDb.batch();
     let batchCount = 0;
 
-    for (const slotDoc of slotsSnap.docs) {
-      const tpl = slotDoc.data();
-      const tier: string = tpl.tier ?? 'GRATIS';
-      const entryFee: number = tpl.entry_fee ?? 0;
-      const capacity: number = tpl.capacity ?? 4;
-      const region: string = tpl.region ?? 'GLOBAL';
-      const game: string = tpl.game ?? 'FC26';
-      const mode: string = tpl.mode ?? 'GENERAL_95';
-      const maxSim: number = getMaxSim(tier, tpl.max_simultaneous ?? 1);
+    // Simple Fisher-Yates shuffle to pick random slots
+    const shuffle = <T,>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
 
-      const key = `${game}|${mode}|${capacity}|${entryFee}|${region}`;
-      const existing = existingCount[key] || 0;
-      const needed = Math.max(0, maxSim - existing);
+    for (const [tier, slots] of Object.entries(slotsByTier)) {
+      const maxForTier = getMaxForTier(tier);
+      const existingForTier = tierCounts[tier] || 0;
+      const neededForTier = Math.max(0, maxForTier - existingForTier);
 
-      for (let i = 0; i < needed; i++) {
+      if (neededForTier === 0) continue;
+
+      // Pick `neededForTier` random slots from this tier (variety)
+      const picked = shuffle(slots).slice(0, neededForTier);
+
+      for (const tpl of picked) {
+        const pricePool = tpl.price_pool as number[] | undefined;
+        const entryFee: number = Array.isArray(pricePool) && pricePool.length > 0
+          ? pricePool[Math.floor(Math.random() * pricePool.length)]
+          : ((tpl.entry_fee as number) ?? 0);
+        const capacity: number = (tpl.capacity as number) ?? 4;
+        const region: string   = (tpl.region as string) ?? 'GLOBAL';
+        const game: string     = (tpl.game as string) ?? 'FC26';
+        const mode: string     = (tpl.mode as string) ?? 'GENERAL_95';
+
         const ref = adminDb.collection('tournaments').doc();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min para llenarse
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min para llenarse
         batch.set(ref, {
           game,
           mode,
@@ -122,14 +145,12 @@ export async function POST(req: NextRequest) {
           players: [],
           status: 'OPEN',
           spawned: true,
-          slot_id: slotDoc.id,
           expires_at: expiresAt,
           created_at: FieldValue.serverTimestamp(),
         });
         created++;
         batchCount++;
 
-        // Flush batch before hitting Firestore limit
         if (batchCount >= BATCH_LIMIT) {
           await batch.commit();
           batch = adminDb.batch();
