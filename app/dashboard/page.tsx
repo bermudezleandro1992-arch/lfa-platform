@@ -82,42 +82,59 @@ function DashboardContent() {
 
   return (
     <>
-      {/* Barra nav */}
-      <div className="backdrop-blur-xl border-b px-4 py-0 flex items-stretch sticky top-0 z-30"
-        style={{ background: "rgba(11,14,20,0.97)", borderColor: "#1c2028" }}>
-        <Link href="/hub"
-          className="text-xs font-semibold transition flex items-center gap-1 px-3 py-3"
-          style={{ color: "#8b949e", textDecoration: 'none' }}>
-          ← HUB
-        </Link>
-        <span style={{ color: "#30363d", display: 'flex', alignItems: 'center' }}>|</span>
-        <button onClick={() => setTab('arena')} style={{ background:'transparent', border:'none', borderBottom: tab==='arena' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='arena' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          ⚔️ {t.dash_tab_arena}
-        </button>
-        <button onClick={() => setTab('ranking')} style={{ background:'transparent', border:'none', borderBottom: tab==='ranking' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ranking' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          📊 {t.dash_tab_ranking}
-        </button>
-        <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          📺 {t.dash_tab_tv}
-        </button>
-        <button onClick={() => setTab('resultados')} style={{ background:'transparent', border:'none', borderBottom: tab==='resultados' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='resultados' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-          ⚡ EN VIVO
-        </button>
-        {userRol === 'organizador' && (
-          <button onClick={() => setTab('organizador')} style={{ background:'transparent', border:'none', borderBottom: tab==='organizador' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='organizador' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
-            🎙️ ORGANIZADOR
-          </button>
-        )}
+      {/* Barra nav — 3 secciones: izquierda fija | tabs scrollables | derecha fija */}
+      <div className="backdrop-blur-xl border-b sticky top-0 z-30"
+        style={{ background: "rgba(11,14,20,0.97)", borderColor: "#1c2028", display: 'flex', alignItems: 'stretch' }}>
 
-        <div style={{ flex: 1 }} />
-        <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 12px', borderLeft:'1px solid #1c2028', transition:'0.15s' }}>
-          👤 {t.dash_perfil}
-        </Link>
-        {/* Idioma */}
-        <div style={{ borderLeft: '1px solid #1c2028', display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 4 }}>
-          <LangDropdown lang={lang} setLang={setLang} inline />
+        {/* Izquierda fija */}
+        <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
+          <Link href="/hub"
+            className="text-xs font-semibold transition flex items-center gap-1 px-3 py-3"
+            style={{ color: "#8b949e", textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            ← HUB
+          </Link>
+          <span style={{ color: "#30363d", display: 'flex', alignItems: 'center', padding: '0 2px' }}>|</span>
+        </div>
+
+        {/* Tabs scrollables horizontalmente (sin scrollbar visible) */}
+        <div style={{ display: 'flex', alignItems: 'stretch', flex: 1, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+          className="dash-tabs-scroll">
+          <button onClick={() => setTab('arena')} style={{ background:'transparent', border:'none', borderBottom: tab==='arena' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='arena' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 14px', cursor:'pointer', letterSpacing:1, transition:'0.15s', whiteSpace:'nowrap', flexShrink:0 }}>
+            ⚔️ {t.dash_tab_arena}
+          </button>
+          <button onClick={() => setTab('ranking')} style={{ background:'transparent', border:'none', borderBottom: tab==='ranking' ? '2px solid #58a6ff' : '2px solid transparent', color: tab==='ranking' ? '#58a6ff' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 14px', cursor:'pointer', letterSpacing:1, transition:'0.15s', whiteSpace:'nowrap', flexShrink:0 }}>
+            📊 {t.dash_tab_ranking}
+          </button>
+          <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 14px', cursor:'pointer', letterSpacing:1, transition:'0.15s', whiteSpace:'nowrap', flexShrink:0 }}>
+            📺 {t.dash_tab_tv}
+          </button>
+          <button onClick={() => setTab('resultados')} style={{ background:'transparent', border:'none', borderBottom: tab==='resultados' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='resultados' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 14px', cursor:'pointer', letterSpacing:1, transition:'0.15s', whiteSpace:'nowrap', flexShrink:0 }}>
+            ⚡ EN VIVO
+          </button>
+          {userRol === 'organizador' && (
+            <button onClick={() => setTab('organizador')} style={{ background:'transparent', border:'none', borderBottom: tab==='organizador' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='organizador' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 14px', cursor:'pointer', letterSpacing:1, transition:'0.15s', whiteSpace:'nowrap', flexShrink:0 }}>
+              🎙️ ORG
+            </button>
+          )}
+        </div>
+
+        {/* Derecha fija: Perfil + Idioma */}
+        <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0, borderLeft: '1px solid #1c2028' }}>
+          <Link href="/perfil" style={{ color:'#8b949e', textDecoration:'none', fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', display:'flex', alignItems:'center', padding:'0 10px', transition:'0.15s', whiteSpace:'nowrap' }}>
+            👤 <span className="dash-perfil-label">{t.dash_perfil}</span>
+          </Link>
+          <div style={{ borderLeft: '1px solid #1c2028', display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 4 }}>
+            <LangDropdown lang={lang} setLang={setLang} inline />
+          </div>
         </div>
       </div>
+
+      <style>{`
+        .dash-tabs-scroll::-webkit-scrollbar { display: none; }
+        @media (max-width: 480px) {
+          .dash-perfil-label { display: none; }
+        }
+      `}</style>
 
       {tab === 'arena'        && (
         <>

@@ -137,7 +137,7 @@ export default function HomePage() {
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#00ff88', fontWeight: 900, letterSpacing: 2 }}>ESTADÍSTICAS EN VIVO · LFA</span>
             </div>
             {/* Números */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: 14, padding: 'clamp(12px,2vw,20px)', marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: 14, padding: 'clamp(12px,2vw,20px)', marginBottom: 16 }} className="stats-grid">
               {[
                 { v: statsLoaded ? stats.torneos : '…', l: 'TORNEOS', c: '#ffd700' },
                 { v: statsLoaded ? stats.jugadores : '…', l: 'JUGADORES', c: '#00ff88' },
@@ -447,6 +447,9 @@ export default function HomePage() {
         @media (max-width: 540px) {
           .slide-grid {
             grid-template-columns: 1fr !important;
+          }
+          .stats-grid {
+            grid-template-columns: 1fr 1fr !important;
           }
         }
         .login-box { width: 100%; max-width: 320px; }

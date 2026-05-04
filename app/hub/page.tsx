@@ -196,12 +196,12 @@ export default function HubPage() {
             {/* Billetera */}
             <a href="/billetera" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,215,0,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid #ffd70040', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <span style={{ fontSize: '1rem' }}>💰</span>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>{t.hub_billetera}</span>
+              <span className="hub-text-label" style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>{t.hub_billetera}</span>
             </a>
             {/* Tienda de Puntos */}
             <a href="/tienda" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(243,186,47,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid rgba(243,186,47,0.3)', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
               <span style={{ fontSize: '1rem' }}>🛒</span>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>{t.hub_tienda}</span>
+              <span className="hub-text-label" style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>{t.hub_tienda}</span>
             </a>
             {/* Perfil + coins + logout */}
             <a href="/perfil" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', padding: '7px 14px', borderRadius: 30, border: '1px solid #30363d', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
@@ -211,7 +211,7 @@ export default function HubPage() {
                   : <span style={{ fontSize: '1rem' }}>👤</span>
                 }
               </div>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>
+              <span className="hub-profile-name" style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>
                 {(userData?.nombre || 'LEYENDA').toUpperCase()}
               </span>
               <span style={{ color: '#ffd700', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,215,0,0.5)', fontSize: '0.82rem' }}>
@@ -463,6 +463,10 @@ export default function HubPage() {
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .hub-text-label  { display: none !important; }
+          .hub-profile-name { display: none !important; }
         }
       `}</style>
     </>
