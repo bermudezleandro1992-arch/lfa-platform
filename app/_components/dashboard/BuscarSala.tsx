@@ -55,6 +55,7 @@ export default function BuscarSala() {
   const [size,     setSize]    = useState<SizeKey | 0>(0);           // 0 = cualquier tamaño
   const [orgTournaments, setOrgTournaments] = useState<Tournament[]>([]);
   const [liveRooms, setLiveRooms] = useState<Tournament[]>([]);      // salas en tiempo real
+  const [gratisRooms, setGratisRooms] = useState<Tournament[]>([]);  // salas GRATIS (query dedicada)
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Tournament[] | null>(null);
@@ -79,22 +80,13 @@ export default function BuscarSala() {
 
   // ── Panel en vivo: salas OPEN + ACTIVE/IN_PROGRESS ────────
   useEffect(() => {
-    // Traemos salas OPEN (llenándose) — single-field query, sin composite index
-    const qOpen = query(
-      collection(db, "tournaments"),
-      where("status", "==", "OPEN"),
-      limit(30)
-    );
-    const qActive = query(
-      collection(db, "tournaments"),
-      where("status", "==", "ACTIVE"),
-      limit(20)
-    );
+    // Single-field queries — sin composite index
+    const qOpen = query(collection(db, "tournaments"), where("status", "==", "OPEN"), limit(50));
+    const qActive = query(collection(db, "tournaments"), where("status", "==", "ACTIVE"), limit(20));
     let open:   Tournament[] = [];
     let active: Tournament[] = [];
     const merge = () => {
       const all = [...active, ...open].filter(r => r.tipo !== "organizado");
-      // Ordenar: jugándose primero, luego por % de llenado desc
       all.sort((a, b) => {
         if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
         if (b.status === "ACTIVE" && a.status !== "ACTIVE") return 1;
@@ -105,6 +97,20 @@ export default function BuscarSala() {
     const u1 = onSnapshot(qOpen,   snap => { open   = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)); merge(); });
     const u2 = onSnapshot(qActive, snap => { active = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)); merge(); });
     return () => { u1(); u2(); };
+  }, []);
+
+  // ── Query dedicada para salas GRATIS (entry_fee == 0) ──────
+  useEffect(() => {
+    // Single-field query por entry_fee — no necesita índice compuesto
+    const qGratis = query(collection(db, "tournaments"), where("entry_fee", "==", 0), limit(60));
+    const unsub = onSnapshot(qGratis, snap => {
+      const gratis = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Tournament))
+        .filter(r => r.status === "OPEN" && r.tipo !== "organizado");
+      gratis.sort((a, b) => (b.players.length / b.capacity) - (a.players.length / a.capacity));
+      setGratisRooms(gratis);
+    });
+    return unsub;
   }, []);
 
   const buscar = async () => {
@@ -204,10 +210,9 @@ export default function BuscarSala() {
       </div>
 
       {/* ── PANEL EN VIVO ─────────────────────────────────────── */}
-      {liveRooms.length > 0 && (() => {
+      {(liveRooms.length > 0 || gratisRooms.length > 0) && (() => {
         const playing = liveRooms.filter(r => r.status === "ACTIVE");
         const waiting = liveRooms.filter(r => r.status !== "ACTIVE" && r.players.length > 0);
-        const empty   = liveRooms.filter(r => r.status !== "ACTIVE" && r.players.length === 0);
         const tierDot: Record<string, string> = { FREE: "#00d4ff", RECREATIVO: "#00ff88", COMPETITIVO: "#ffd700", ELITE: "#ff4757" };
 
         return (
@@ -215,36 +220,31 @@ export default function BuscarSala() {
 
             {/* ── Header ── */}
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ff3c3c40, transparent)" }} />
+              <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #0096ff30, transparent)" }} />
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0096ff] opacity-70" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0096ff]" />
                 </span>
-                <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>
-                  EN JUEGO — {playing.length} SALA{playing.length !== 1 ? "S" : ""}
+                <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#0096ff", fontFamily: "'Orbitron',sans-serif" }}>
+                  ⚔️ EN JUEGO {playing.length > 0 ? `— ${playing.length} SALA${playing.length !== 1 ? "S" : ""}` : ""}
                 </span>
-                {(waiting.length + empty.length) > 0 && (
-                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,255,136,0.1)", color: "#00ff88", border: "1px solid rgba(0,255,136,0.25)" }}>
-                    +{waiting.length + empty.length} abiertas
-                  </span>
-                )}
               </div>
-              <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ff3c3c40, transparent)" }} />
+              <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #0096ff30, transparent)" }} />
             </div>
 
-            {/* ── Salas EN JUEGO (siempre visibles, muy compactas) ── */}
+            {/* ── Salas EN JUEGO (siempre visibles, estilo azul) ── */}
             {playing.length > 0 ? (
               <div className="flex flex-col gap-1.5 mb-3">
                 {playing.map(room => (
                   <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2 transition-all"
-                    style={{ background: "rgba(255,60,60,0.07)", border: "1px solid rgba(255,60,60,0.35)" }}>
+                    style={{ background: "rgba(0,150,255,0.07)", border: "1px solid rgba(0,150,255,0.45)", boxShadow: "0 0 10px rgba(0,150,255,0.08)" }}>
                     <span className="relative flex h-2 w-2 flex-shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0096ff] opacity-70" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0096ff]" />
                     </span>
                     <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>EN JUEGO</span>
+                      <span className="text-[10px] font-black uppercase" style={{ color: "#0096ff", fontFamily: "'Orbitron',sans-serif" }}>⚔️ EN JUEGO</span>
                       <span style={{ color: "#3c4450" }}>·</span>
                       <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
                       <span style={{ color: "#3c4450" }}>·</span>
@@ -256,15 +256,15 @@ export default function BuscarSala() {
                       <span className="text-[10px]" style={{ color: "#c9d1d9" }}>{REGION_LABELS[room.region] ?? room.region}</span>
                     </div>
                     <span className="text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: "rgba(255,60,60,0.15)", color: "#ff3c3c", border: "1px solid rgba(255,60,60,0.3)", fontFamily: "'Orbitron',sans-serif" }}>
-                      ⚔️ {room.players.length}p
+                      style={{ background: "rgba(0,150,255,0.15)", color: "#0096ff", border: "1px solid rgba(0,150,255,0.3)", fontFamily: "'Orbitron',sans-serif" }}>
+                      {room.players.length}p
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="rounded-xl px-4 py-3 mb-3 text-center text-[11px]"
-                style={{ background: "rgba(255,60,60,0.04)", border: "1px dashed rgba(255,60,60,0.2)", color: "#6e7681" }}>
+                style={{ background: "rgba(0,150,255,0.04)", border: "1px dashed rgba(0,150,255,0.2)", color: "#6e7681" }}>
                 Sin partidos en curso ahora mismo
               </div>
             )}
@@ -293,30 +293,38 @@ export default function BuscarSala() {
               </div>
             )}
 
-            {/* ── Ver todas las salas (expandible) ── */}
-            {(waiting.length + empty.length) > 0 && (
+            {/* ── Salas GRATIS disponibles (expandible) ── */}
+            {gratisRooms.length > 0 && (
               <>
                 <button
                   onClick={() => setShowAllRooms(v => !v)}
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-xl mb-2 transition-all text-[11px] font-bold"
                   style={{
                     background: "rgba(0,212,255,0.05)",
-                    border: "1px solid rgba(0,212,255,0.2)",
+                    border: "1px solid rgba(0,212,255,0.25)",
                     color: "#00d4ff",
                   }}>
-                  <span>{showAllRooms ? "▲ Ocultar" : "▼ Ver todas las salas"}</span>
+                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.62rem", letterSpacing: 1 }}>
+                    {showAllRooms ? "▲ OCULTAR" : "▼ SALAS GRATIS DISPONIBLES"}
+                  </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
-                    style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.25)" }}>
-                    {waiting.length + empty.length}
+                    style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.35)", color: "#00d4ff" }}>
+                    {gratisRooms.length}
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                    style={{ background: "rgba(0,255,136,0.1)", color: "#00ff88", border: "1px solid rgba(0,255,136,0.25)" }}>
+                    🆓 GRATIS
                   </span>
                 </button>
 
                 {showAllRooms && (
                   <div className="flex flex-col gap-1.5 mb-4 max-h-72 overflow-y-auto pr-1"
                     style={{ scrollbarWidth: "thin", scrollbarColor: "#30363d transparent" }}>
-                    {[...waiting, ...empty].map(room => {
+                    {gratisRooms.map(room => {
                       const pct = Math.round((room.players.length / room.capacity) * 100);
-                      const clr = fillColor(room.players.length, room.capacity);
+                      const clr = room.players.length > 0
+                        ? fillColor(room.players.length, room.capacity)
+                        : { border: "rgba(0,212,255,0.35)", bg: "rgba(0,212,255,0.05)", dot: "#00d4ff", label: "GRATIS" };
                       return (
                         <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2 transition-all"
                           style={{ background: clr.bg, border: `1px solid ${clr.border}` }}>
@@ -324,9 +332,7 @@ export default function BuscarSala() {
                             <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: clr.dot }} />
                           </span>
                           <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-black uppercase" style={{ color: clr.dot, fontFamily: "'Orbitron',sans-serif" }}>{clr.label}</span>
-                            <span style={{ color: "#3c4450" }}>·</span>
-                            <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
+                            <span className="text-[10px] font-black uppercase" style={{ color: "#00d4ff", fontFamily: "'Orbitron',sans-serif" }}>🆓 GRATIS</span>
                             <span style={{ color: "#3c4450" }}>·</span>
                             <span className="text-[10px]" style={{ color: "#8b949e" }}>
                               {room.game === "FC26" ? "FC 26" : "eFootball"}
@@ -334,14 +340,16 @@ export default function BuscarSala() {
                             </span>
                             <span style={{ color: "#3c4450" }}>·</span>
                             <span className="text-[10px]" style={{ color: "#c9d1d9" }}>{REGION_LABELS[room.region] ?? room.region}</span>
+                            <span style={{ color: "#3c4450" }}>·</span>
+                            <span className="text-[10px]" style={{ color: "#8b949e" }}>{room.capacity}j</span>
                           </div>
                           <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 60 }}>
-                            <span className="text-[11px] font-black" style={{ color: clr.dot }}>
+                            <span className="text-[11px] font-black" style={{ color: pct > 0 ? clr.dot : "#00d4ff" }}>
                               {room.players.length}/{room.capacity}
                             </span>
                             <div className="h-1 w-14 rounded-full overflow-hidden" style={{ background: "#1c2028" }}>
                               <div className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${pct}%`, background: clr.dot }} />
+                                style={{ width: `${Math.max(pct, 2)}%`, background: pct > 0 ? clr.dot : "#00d4ff" }} />
                             </div>
                           </div>
                         </div>
