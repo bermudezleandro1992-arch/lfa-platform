@@ -82,6 +82,18 @@ export default function TournamentCard({ tournament: t }: Props) {
   const { secsLeft, label: cdLabel } = useCountdown(reserva?.expiresAt ?? null);
   const reservaActiva = reserva && secsLeft > 0;
 
+  // Room-level expiry countdown (from expires_at field, set at spawn time)
+  const roomExpiresIso: string | null = (() => {
+    const raw = (t as { expires_at?: { toDate?: () => Date; toMillis?: () => number } | Date | string }).expires_at;
+    if (!raw) return null;
+    if (typeof raw === "string") return raw;
+    if (typeof (raw as { toDate?: () => Date }).toDate === "function") return (raw as { toDate: () => Date }).toDate().toISOString();
+    if (raw instanceof Date) return raw.toISOString();
+    return null;
+  })();
+  const { secsLeft: roomSecsLeft, label: roomCdLabel } = useCountdown(roomExpiresIso);
+  const roomExpiringSoon = roomSecsLeft > 0 && roomSecsLeft <= 120 && t.status === "OPEN";
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) { setUid(null); setBalance(null); return; }
@@ -220,6 +232,17 @@ export default function TournamentCard({ tournament: t }: Props) {
                 style={{ width: `${pct}%`, background: isFull ? "#ff4757" : style.dot }} />
             </div>
           </div>
+
+          {/* ── SALA POR CERRARSE ─────────────────────── */}
+          {roomExpiringSoon && step === "idle" && !reservaActiva && (
+            <div className="rounded-xl p-2.5 flex items-center justify-between gap-2"
+              style={{ background: "rgba(255,71,87,0.08)", border: "1px solid rgba(255,71,87,0.4)" }}>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#ff4757" }}>
+                ⚠️ SALA POR CERRARSE
+              </span>
+              <span className="text-sm font-black tabular-nums" style={{ color: "#ff4757" }}>{roomCdLabel}</span>
+            </div>
+          )}
 
           {/* ── CUPO RESERVADO ─────────────────────────── */}
           {reservaActiva && step === "idle" && (

@@ -56,7 +56,14 @@ export async function POST(req: NextRequest) {
   if (uid !== CEO_UID) return NextResponse.json({ error: 'Solo el CEO puede usar esto' }, { status: 403 });
 
   try {
-    /* 2 — Read all active room_slots */
+    /* 2 — Read simultaneous config from spawner doc */
+    const spawnerDoc = await adminDb.collection('configuracion').doc('spawner').get();
+    const spawnerData = spawnerDoc.exists ? spawnerDoc.data()! : {};
+    const simPerTier: Record<string, number> = spawnerData.simultaneous_per_tier ?? {};
+    const getMaxSim = (t: string, slotDefault: number): number =>
+      simPerTier[t] ?? simPerTier[t?.toUpperCase()] ?? slotDefault ?? 1;
+
+    /* 3 — Read all active room_slots */
     const slotsSnap = await adminDb.collection('room_slots')
       .where('activo', '==', true)
       .get();
@@ -87,13 +94,13 @@ export async function POST(req: NextRequest) {
 
     for (const slotDoc of slotsSnap.docs) {
       const tpl = slotDoc.data();
-      const maxSim: number = tpl.max_simultaneous ?? 2;
+      const tier: string = tpl.tier ?? 'GRATIS';
       const entryFee: number = tpl.entry_fee ?? 0;
       const capacity: number = tpl.capacity ?? 4;
       const region: string = tpl.region ?? 'GLOBAL';
       const game: string = tpl.game ?? 'FC26';
       const mode: string = tpl.mode ?? 'GENERAL_95';
-      const tier: string = tpl.tier ?? 'GRATIS';
+      const maxSim: number = getMaxSim(tier, tpl.max_simultaneous ?? 1);
 
       const key = `${game}|${mode}|${capacity}|${entryFee}|${region}`;
       const existing = existingCount[key] || 0;
@@ -101,6 +108,7 @@ export async function POST(req: NextRequest) {
 
       for (let i = 0; i < needed; i++) {
         const ref = adminDb.collection('tournaments').doc();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min para llenarse
         batch.set(ref, {
           game,
           mode,
@@ -115,6 +123,7 @@ export async function POST(req: NextRequest) {
           status: 'OPEN',
           spawned: true,
           slot_id: slotDoc.id,
+          expires_at: expiresAt,
           created_at: FieldValue.serverTimestamp(),
         });
         created++;

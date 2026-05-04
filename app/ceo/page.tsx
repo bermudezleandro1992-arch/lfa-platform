@@ -187,6 +187,12 @@ export default function CeoPage() {
   const [megaSpawning,  setMegaSpawning]  = useState(false);
   const [megaProgress,  setMegaProgress]  = useState(0);
 
+  // Salas simultáneas por tier (configurable desde CEO)
+  type SimCfg = { GRATIS: number; RECREATIVO: number; COMPETITIVO: number; ELITE: number };
+  const SIM_DEFAULT: SimCfg = { GRATIS: 1, RECREATIVO: 1, COMPETITIVO: 1, ELITE: 1 };
+  const [simultaneasCfg, setSimultaneasCfg] = useState<SimCfg>(SIM_DEFAULT);
+  const [simSaving, setSimSaving] = useState(false);
+
   /* ── UI State ────────────────────────────────────────────── */
   const [busqueda,  setBusqueda]  = useState('');
   const [spawning,  setSpawning]  = useState(false);
@@ -275,7 +281,11 @@ export default function CeoPage() {
     }));
 
     subs.push(onSnapshot(doc(db,'configuracion','spawner'), d => {
-      if (d.exists()) setSpawnerCfg(d.data() as SpawnerConfig);
+      if (d.exists()) {
+        const data = d.data() as SpawnerConfig & { simultaneous_per_tier?: SimCfg };
+        setSpawnerCfg(data);
+        if (data.simultaneous_per_tier) setSimultaneasCfg({ ...SIM_DEFAULT, ...data.simultaneous_per_tier });
+      }
     }));
 
     subs.push(onSnapshot(doc(db,'configuracion','spawner_paises'), d => {
@@ -535,7 +545,7 @@ export default function CeoPage() {
   async function megaSpawn() {
     const ok = await alerta(
       '⚡ MEGA SPAWN TOTAL',
-      `Esto creará ${MEGA_TOTAL} plantillas de sala (auto-respawn, 2 simultáneas cada una).\n\nCada tier tendrá su pool de precios variados y cuando una sala se llene, se reabrirá con un precio aleatorio del mismo tier.\n\n¿Confirmás?`,
+      `Esto creará ${MEGA_TOTAL} plantillas de sala.\n\nSIMULTÁNEAS POR TIER:\n• GRATIS: ${simultaneasCfg.GRATIS}\n• RECREATIVO: ${simultaneasCfg.RECREATIVO}\n• COMPETITIVO: ${simultaneasCfg.COMPETITIVO}\n• ELITE: ${simultaneasCfg.ELITE}\n\nAuto-Respawn activado — cuando una sala se llena, se reabre automáticamente.\n\n¿Confirmás?`,
       'error'
     );
     if (!ok) return;
@@ -547,6 +557,7 @@ export default function CeoPage() {
       for (const region of MEGA_REGIONS) {
         for (const capacity of MEGA_SIZES) {
           for (const { tier, pool } of MEGA_TIERS) {
+            const tierKey = tier as keyof SimCfg;
             docsToCreate.push({
               game, mode, region, capacity,
               tier,
@@ -554,7 +565,7 @@ export default function CeoPage() {
               entry_fee: randFrom(pool),
               activo: true,
               auto_respawn: true,
-              max_simultaneous: 2,
+              max_simultaneous: simultaneasCfg[tierKey] ?? 1,
               created_at: serverTimestamp(),
             });
           }
@@ -1481,6 +1492,49 @@ export default function CeoPage() {
             </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:18, marginBottom:22 }}>
+              {/* ── Simultáneas por Tier ─────────────────────── */}
+              <div style={{ ...card, borderTop:'3px solid #00d4ff', background:'linear-gradient(135deg,#161b22,rgba(0,212,255,0.04))' }}>
+                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00d4ff', margin:'0 0 6px', fontSize:'0.85rem' }}>👥 SALAS SIMULTÁNEAS POR TIER</h3>
+                <p style={{ color:'#8b949e', fontSize:'0.68rem', margin:'0 0 14px', lineHeight:1.5 }}>
+                  Define cuántas salas de cada tier estarán abiertas a la vez. Se llena una → se abre otra automáticamente.
+                </p>
+                {([
+                  { tier:'GRATIS' as const,      clr:'#00d4ff', icon:'🆓' },
+                  { tier:'RECREATIVO' as const,  clr:'#00ff88', icon:'🟢' },
+                  { tier:'COMPETITIVO' as const, clr:'#ffd700', icon:'🟡' },
+                  { tier:'ELITE' as const,       clr:'#ff4757', icon:'🔴' },
+                ] as { tier: keyof SimCfg; clr: string; icon: string }[]).map(({ tier, clr, icon }) => (
+                  <div key={tier} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#0b0e14', border:`1px solid ${clr}25`, borderRadius:8, padding:'10px 14px', marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.75rem', color:clr }}>{icon} {tier}</div>
+                      <div style={{ color:'#8b949e', fontSize:'0.62rem', marginTop:2 }}>{simultaneasCfg[tier]} sala{simultaneasCfg[tier]!==1?'s':''} abiertas a la vez</div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <button onClick={() => setSimultaneasCfg(s => ({ ...s, [tier]: Math.max(1, s[tier]-1) }))}
+                        style={{ width:28, height:28, borderRadius:'50%', border:`1px solid ${clr}40`, background:`${clr}12`, color:clr, cursor:'pointer', fontWeight:900, fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
+                      <span style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'1.1rem', color:'white', minWidth:24, textAlign:'center' }}>{simultaneasCfg[tier]}</span>
+                      <button onClick={() => setSimultaneasCfg(s => ({ ...s, [tier]: Math.min(10, s[tier]+1) }))}
+                        style={{ width:28, height:28, borderRadius:'50%', border:`1px solid ${clr}40`, background:`${clr}12`, color:clr, cursor:'pointer', fontWeight:900, fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  disabled={simSaving}
+                  onClick={async () => {
+                    setSimSaving(true);
+                    await updateDoc(doc(db,'configuracion','spawner'), { simultaneous_per_tier: simultaneasCfg });
+                    setSimSaving(false);
+                    await alerta('GUARDADO', `Configuración de simultáneas actualizada.\n\nGRATIS: ${simultaneasCfg.GRATIS} · RECREATIVO: ${simultaneasCfg.RECREATIVO} · COMPETITIVO: ${simultaneasCfg.COMPETITIVO} · ELITE: ${simultaneasCfg.ELITE}`, 'exito');
+                  }}
+                  style={{ ...btn(simSaving ? '#30363d' : '#00d4ff','#0b0e14'), width:'100%', marginTop:6 }}
+                >
+                  {simSaving ? '⏳ GUARDANDO...' : '💾 GUARDAR Y APLICAR'}
+                </button>
+                <p style={{ color:'#8b949e', fontSize:'0.63rem', margin:'8px 0 0', textAlign:'center', lineHeight:1.4 }}>
+                  "Disparar Spawn Ahora" usará esta config. El Mega Spawn también.
+                </p>
+              </div>
+
               {/* Control */}
               <div style={{ ...card, borderTop:'3px solid #ff00cc', background:'linear-gradient(135deg,#161b22,rgba(255,0,204,0.04))' }}>
                 <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:'0 0 14px', fontSize:'0.85rem' }}>⚙️ MOTOR DE SALAS</h3>

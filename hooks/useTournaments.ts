@@ -22,6 +22,7 @@ export interface Tournament {
   free:         boolean;
   waiting_alert_sent?:  boolean;
   waiting_expires_at?:  any;
+  expires_at?:          any; // room expiry (10 min to fill)
   created_at:   any;
   // Organized tournament fields
   tipo?:                 "automatico" | "organizado";
