@@ -172,6 +172,7 @@ export default function CeoPage() {
     id: string; game: string; mode: string; region: string;
     capacity: number; entry_fee: number; activo: boolean;
     auto_respawn: boolean; max_simultaneous: number;
+    tier?: string; price_pool?: number[];
     created_at?: { toDate?: () => Date };
   }
   const [roomSlots,     setRoomSlots]     = useState<RoomSlot[]>([]);
@@ -183,6 +184,8 @@ export default function CeoPage() {
   const [slotAutoRespawn, setSlotAutoRespawn] = useState(true);
   const [slotMaxSim,    setSlotMaxSim]    = useState('2');
   const [slotSaving,    setSlotSaving]    = useState(false);
+  const [megaSpawning,  setMegaSpawning]  = useState(false);
+  const [megaProgress,  setMegaProgress]  = useState(0);
 
   /* ── UI State ────────────────────────────────────────────── */
   const [busqueda,  setBusqueda]  = useState('');
@@ -510,6 +513,74 @@ export default function CeoPage() {
     const ok = await alerta('ELIMINAR SLOT','¿Eliminar esta plantilla de sala?','error');
     if (!ok) return;
     await deleteDoc(doc(db,'room_slots',id));
+  }
+
+  /* ── MEGA SPAWN — un clic para todo ─────────────────────── */
+  const MEGA_MODES = [
+    { game:'FC26',      mode:'GENERAL_95' },
+    { game:'FC26',      mode:'ULTIMATE'   },
+    { game:'EFOOTBALL', mode:'DREAM_TEAM' },
+    { game:'EFOOTBALL', mode:'GENUINOS'   },
+  ];
+  const MEGA_REGIONS  = ['LATAM_SUR','LATAM_NORTE','AMERICA','GLOBAL','EUROPA'];
+  const MEGA_SIZES    = [2, 4, 6, 8, 12, 16];
+  const MEGA_TIERS = [
+    { tier:'GRATIS',      pool:[0],                                      },
+    { tier:'RECREATIVO',  pool:[500, 1500],                              },
+    { tier:'COMPETITIVO', pool:[2000, 3000, 4000, 5000, 8000],          },
+    { tier:'ELITE',       pool:[10000, 12000, 14000, 16000, 18000, 20000] },
+  ];
+  const MEGA_TOTAL = MEGA_MODES.length * MEGA_REGIONS.length * MEGA_SIZES.length * MEGA_TIERS.length; // 480
+
+  async function megaSpawn() {
+    const ok = await alerta(
+      '⚡ MEGA SPAWN TOTAL',
+      `Esto creará ${MEGA_TOTAL} plantillas de sala (auto-respawn, 2 simultáneas cada una).\n\nCada tier tendrá su pool de precios variados y cuando una sala se llene, se reabrirá con un precio aleatorio del mismo tier.\n\n¿Confirmás?`,
+      'error'
+    );
+    if (!ok) return;
+    setMegaSpawning(true);
+    setMegaProgress(0);
+    function randFrom(arr: number[]) { return arr[Math.floor(Math.random() * arr.length)]; }
+    const docsToCreate: Record<string, unknown>[] = [];
+    for (const { game, mode } of MEGA_MODES) {
+      for (const region of MEGA_REGIONS) {
+        for (const capacity of MEGA_SIZES) {
+          for (const { tier, pool } of MEGA_TIERS) {
+            docsToCreate.push({
+              game, mode, region, capacity,
+              tier,
+              price_pool: pool,
+              entry_fee: randFrom(pool),
+              activo: true,
+              auto_respawn: true,
+              max_simultaneous: 2,
+              created_at: serverTimestamp(),
+            });
+          }
+        }
+      }
+    }
+    // Batch en chunks de 499 (límite Firestore)
+    const CHUNK = 499;
+    let done = 0;
+    try {
+      for (let i = 0; i < docsToCreate.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        const chunk = docsToCreate.slice(i, i + CHUNK);
+        for (const data of chunk) {
+          batch.set(doc(collection(db, 'room_slots')), data);
+        }
+        await batch.commit();
+        done += chunk.length;
+        setMegaProgress(done);
+      }
+      await alerta('✅ MEGA SPAWN COMPLETO', `${done} plantillas creadas. El sistema mantendrá 2 salas activas por cada combinación y variará los precios automáticamente.`, 'exito');
+    } catch (e: unknown) {
+      await alerta('ERROR EN MEGA SPAWN', (e as Error).message, 'error');
+    }
+    setMegaSpawning(false);
+    setMegaProgress(0);
   }
   async function crearSalaManual() {
     const FEES: Record<string, number> = { FREE:0, RECREATIVO:500, COMPETITIVO:2000, ELITE:10000 };
@@ -1330,6 +1401,69 @@ export default function CeoPage() {
           {/* ══ SPAWNER ═════════════════════════════════════ */}
           {tab === 'spawner' && <>
             <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:'0 0 18px', fontSize:'0.9rem' }}>🤖 CENTRAL DE SPAWNER — SALAS AUTOMÁTICAS</h2>
+
+            {/* ── MEGA SPAWN ──────────────────────────────── */}
+            <div style={{ ...card, borderTop:'4px solid #ff00cc', background:'linear-gradient(135deg,rgba(255,0,204,0.06),rgba(0,0,0,0))', marginBottom:22 }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:18, flexWrap:'wrap' }}>
+                <div style={{ flex:1, minWidth:260 }}>
+                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:'0 0 6px', fontSize:'0.88rem' }}>⚡ MEGA SPAWN — UN CLIC PARA TODO</h3>
+                  <p style={{ color:'#8b949e', fontSize:'0.73rem', margin:'0 0 14px', lineHeight:1.6 }}>
+                    Crea <b style={{ color:'white' }}>{MEGA_TOTAL} plantillas</b> de sala automáticamente cubriendo los <b style={{ color:'#ff00cc' }}>4 modos</b> (FC General 95, FC Ultimate, eFootball Dream Team, Genuinos), las <b style={{ color:'#ff00cc' }}>5 regiones</b>, los <b style={{ color:'#ff00cc' }}>6 tamaños</b> (2–16j) y los <b style={{ color:'#ff00cc' }}>4 niveles de apuesta</b>.
+                  </p>
+                  {/* Tiers explicados */}
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:14 }}>
+                    {[
+                      { tier:'GRATIS',      clr:'#00d4ff', pool:'Gratis'                                        },
+                      { tier:'RECREATIVO',  clr:'#00ff88', pool:'500 · 1 500 LFC'                              },
+                      { tier:'COMPETITIVO', clr:'#ffd700', pool:'2 000 · 3 000 · 4 000 · 5 000 · 8 000 LFC'   },
+                      { tier:'ELITE',       clr:'#ff4757', pool:'10 K · 12 K · 14 K · 16 K · 18 K · 20 K LFC' },
+                    ].map(({ tier, clr, pool }) => (
+                      <div key={tier} style={{ background:`${clr}0d`, border:`1px solid ${clr}30`, borderRadius:8, padding:'7px 12px' }}>
+                        <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.6rem', fontWeight:900, color:clr, marginBottom:2 }}>{tier}</div>
+                        <div style={{ fontSize:'0.62rem', color:'#8b949e' }}>{pool}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:'0.7rem', color:'#8b949e', lineHeight:1.6 }}>
+                    🔄 <b style={{ color:'#a371f7' }}>Auto-Respawn:</b> cuando una sala se llena, se reabre con un precio aleatorio del mismo tier.<br/>
+                    👥 <b style={{ color:'white' }}>2 simultáneas</b> activas por cada combinación = hasta {MEGA_TOTAL * 2} salas totales.
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:10, alignItems:'center', minWidth:180 }}>
+                  {/* Breakdown */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, width:'100%' }}>
+                    {[
+                      { label:'Modos',    val:'4',  clr:'#ff00cc' },
+                      { label:'Regiones', val:'5',  clr:'#009ee3' },
+                      { label:'Tamaños',  val:'6',  clr:'#ffd700' },
+                      { label:'Tiers',    val:'4',  clr:'#00ff88' },
+                    ].map(({ label, val, clr }) => (
+                      <div key={label} style={{ background:'#0b0e14', border:`1px solid ${clr}20`, borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
+                        <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1.1rem', fontWeight:900, color:clr }}>{val}</div>
+                        <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:1 }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1.4rem', fontWeight:900, color:'#ff00cc', textAlign:'center' }}>
+                    = {MEGA_TOTAL}
+                    <div style={{ fontSize:'0.58rem', color:'#8b949e', fontWeight:400 }}>PLANTILLAS</div>
+                  </div>
+                  <button
+                    style={{ ...btn(megaSpawning ? '#30363d' : 'linear-gradient(135deg,#ff00cc,#a000aa)','white'), width:'100%', fontSize:'0.82rem', padding:'13px 16px', boxShadow: megaSpawning ? 'none' : '0 0 24px rgba(255,0,204,0.45)', letterSpacing:1 }}
+                    onClick={megaSpawn}
+                    disabled={megaSpawning}
+                  >
+                    {megaSpawning ? `⏳ CREANDO... ${megaProgress}/${MEGA_TOTAL}` : '⚡ MEGA SPAWN TOTAL'}
+                  </button>
+                  {megaSpawning && (
+                    <div style={{ width:'100%', background:'#0b0e14', borderRadius:8, height:6, overflow:'hidden', border:'1px solid #30363d' }}>
+                      <div style={{ height:'100%', background:'linear-gradient(90deg,#ff00cc,#a000aa)', width:`${Math.round((megaProgress/MEGA_TOTAL)*100)}%`, transition:'width 0.3s', borderRadius:8 }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:18, marginBottom:22 }}>
               {/* Control */}
