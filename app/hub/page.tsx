@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,36 +11,35 @@ import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 const HubLfaTV    = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
 const CantinaChat = dynamic(() => import('@/app/_components/dashboard/CantinaChat'), { ssr: false });
 
-/* â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── Tipos ───────────────────────────────────────────── */
 interface UserData {
   nombre: string;
   number: number;
   rol?: string;
   avatar_url?: string;
+  juego_fc26?: boolean;
+  juego_efb?: boolean;
+  region?: string;
 }
 
+/* ─── Constante CEO UID ───────────────────────────────── */
+const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
+
 interface FeedbackItem {
-  id: string;
-  nombre: string;
-  tipo: string;
-  mensaje: string;
-  estrellas?: number | null;
-  estado: string;
+  id: string; nombre: string; tipo: string; mensaje: string;
+  estrellas?: number | null; estado: string;
   creado_en?: { toDate?: () => Date } | null;
   ceo_respuesta?: string | null;
   ceo_respondido_en?: { toDate?: () => Date } | null;
 }
 
-/* â”€â”€â”€ Constante CEO UID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
-
 type FbTipo = 'sugerencia' | 'bug' | 'valoracion' | 'otro';
 
 const FB_TIPOS: { key: FbTipo; icon: string; label: string }[] = [
-  { key: 'sugerencia', icon: 'ðŸ’¡', label: 'Sugerencia' },
-  { key: 'bug',        icon: 'ðŸ›', label: 'Bug / Error' },
-  { key: 'valoracion', icon: 'â­', label: 'ValoraciÃ³n' },
-  { key: 'otro',       icon: 'ðŸ’¬', label: 'Otro' },
+  { key: 'sugerencia', icon: '💡', label: 'Sugerencia' },
+  { key: 'bug',        icon: '🐛', label: 'Bug / Error' },
+  { key: 'valoracion', icon: '⭐', label: 'Valoración' },
+  { key: 'otro',       icon: '💬', label: 'Otro' },
 ];
 
 export default function HubPage() {
@@ -52,13 +51,13 @@ export default function HubPage() {
   const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
 
-  /* â”€â”€â”€ Feedback board state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ─── Feedback board state ──────────────────────────── */
   const [feedbackList,   setFeedbackList]   = useState<FeedbackItem[]>([]);
   const [ceoReplyTarget, setCeoReplyTarget] = useState<string | null>(null);
   const [ceoReplyText,   setCeoReplyText]   = useState('');
   const [ceoReplying,    setCeoReplying]    = useState(false);
 
-  /* â”€â”€â”€ Feedback state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ─── Feedback state ─────────────────────────────────── */
   const [fbOpen,     setFbOpen]     = useState(false);
   const [fbTipo,     setFbTipo]     = useState<FbTipo>('sugerencia');
   const [fbNombre,   setFbNombre]   = useState('');
@@ -69,15 +68,15 @@ export default function HubPage() {
   const [fbExito,    setFbExito]    = useState(false);
   const [fbError,    setFbError]    = useState('');
 
-  /* â”€â”€â”€ Modos de juego (dinÃ¡micos con i18n) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ─── Modos de juego (dinámicos con i18n) ─────────── */
   const MODOS = [
-    { id: 'arena',   route: '/dashboard', title: t.hub_modo_arena_title,   desc: t.hub_modo_arena_desc,   icon: 'âš”ï¸', color: '#00ff88', proximamente: false },
-    { id: 'ligas',   route: '/pro',       title: t.hub_modo_liga_title,    desc: t.hub_modo_liga_desc,    icon: 'ðŸ“…', color: '#009ee3', proximamente: false },
-    { id: 'coop',    route: '',           title: t.hub_modo_coop_title,    desc: t.hub_modo_coop_desc,    icon: 'ðŸ¤', color: '#ff6b00', proximamente: true  },
-    { id: 'clubes',  route: '',           title: t.hub_modo_clubes_title,  desc: t.hub_modo_clubes_desc,  icon: 'ðŸ›¡ï¸', color: '#ffd700', proximamente: true  },
+    { id: 'arena',   route: '/dashboard', title: t.hub_modo_arena_title,   desc: t.hub_modo_arena_desc,   icon: '⚔️', color: '#00ff88', proximamente: false },
+    { id: 'ligas',   route: '/pro',       title: t.hub_modo_liga_title,    desc: t.hub_modo_liga_desc,    icon: '📅', color: '#009ee3', proximamente: false },
+    { id: 'coop',    route: '',           title: t.hub_modo_coop_title,    desc: t.hub_modo_coop_desc,    icon: '🤝', color: '#ff6b00', proximamente: true  },
+    { id: 'clubes',  route: '',           title: t.hub_modo_clubes_title,  desc: t.hub_modo_clubes_desc,  icon: '🛡️', color: '#ffd700', proximamente: true  },
   ];
 
-  /* â”€â”€ Auth guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Auth guard ─────────────────────────────────────── */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) { router.replace('/'); return; }
@@ -98,20 +97,13 @@ export default function HubPage() {
     return unsub;
   }, [router]);
 
-
-  /* â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Logout ─────────────────────────────────────────── */
   async function handleLogout() {
     await signOut(auth);
     router.replace('/');
   }
 
-  /* â”€â”€ Acceso a modos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  function intentarAcceso(modo: typeof MODOS[0]) {
-    if (modo.proximamente) return;
-    router.push(modo.route);
-  }
-
-  /* â”€â”€ Listener feedback board â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Listener feedback board ─────────────────────────── */
   useEffect(() => {
     const q = query(collection(db, 'feedback'), orderBy('creado_en', 'desc'), limit(50));
     return onSnapshot(q, snap => {
@@ -119,23 +111,28 @@ export default function HubPage() {
     });
   }, []);
 
-  /* â”€â”€ CEO responder feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── CEO responder feedback ───────────────────────────── */
   async function ceoResponder(feedbackId: string) {
     if (!ceoReplyText.trim() || uid !== CEO_UID) return;
     setCeoReplying(true);
     try {
       await updateDoc(doc(db, 'feedback', feedbackId), {
-        ceo_respuesta:     ceoReplyText.trim(),
+        ceo_respuesta: ceoReplyText.trim(),
         ceo_respondido_en: serverTimestamp(),
-        estado:            'respondido',
+        estado: 'respondido',
       });
-      setCeoReplyTarget(null);
-      setCeoReplyText('');
+      setCeoReplyTarget(null); setCeoReplyText('');
     } catch { /* ok */ }
     setCeoReplying(false);
   }
 
-  /* â”€â”€ Enviar feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Acceso a modos ─────────────────────────────────── */
+  function intentarAcceso(modo: typeof MODOS[0]) {
+    if (modo.proximamente) return;
+    router.push(modo.route);
+  }
+
+  /* ── Enviar feedback ───────────────────────────────────── */
   async function enviarFeedback() {
     setFbError('');
     if (fbMensaje.trim().length < 10) { setFbError('El mensaje debe tener al menos 10 caracteres.'); return; }
@@ -144,12 +141,12 @@ export default function HubPage() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: fbNombre || 'AnÃ³nimo', tipo: fbTipo, mensaje: fbMensaje, estrellas: fbEstrellas, uid }),
+        body: JSON.stringify({ nombre: fbNombre || 'Anónimo', tipo: fbTipo, mensaje: fbMensaje, estrellas: fbEstrellas, uid }),
       });
       const data = await res.json();
       if (!res.ok) { setFbError(data.error || 'Error al enviar.'); }
       else { setFbExito(true); setFbMensaje(''); setTimeout(() => { setFbExito(false); setFbOpen(false); }, 3500); }
-    } catch { setFbError('Sin conexiÃ³n. IntentÃ¡ de nuevo.'); }
+    } catch { setFbError('Sin conexión. Intentá de nuevo.'); }
     setFbEnviando(false);
   }
 
@@ -165,7 +162,7 @@ export default function HubPage() {
     <>
       <div style={{ margin: 0, fontFamily: "'Roboto',sans-serif", background: '#0b0e14', color: 'white', minHeight: '100vh', overflowX: 'hidden', backgroundImage: 'radial-gradient(circle at 50% 0%, #1a2331 0%, #0b0e14 70%)' }}>
 
-        {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── HEADER ───────────────────────────────────── */}
         <header style={{
           background: 'rgba(7,9,13,0.85)',
           padding: '14px 5%',
@@ -181,29 +178,29 @@ export default function HubPage() {
           gap: 12,
         }}>
           <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.4rem', fontWeight: 900, color: 'white', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10 }}>
-            â™› <span style={{ color: '#00ff88' }}>LFA</span> HUB
+            ♛ <span style={{ color: '#00ff88' }}>LFA</span> HUB
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {/* CEO */}
             {esAdmin && (
               <a href="/ceo" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#ff4757', border: '1px solid #ff475750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(255,71,87,0.06)' }}>
-                âš™ï¸ CEO
+                ⚙️ CEO
               </a>
             )}
             {esOrganizador && (
               <a href="/organizador" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#a371f7', border: '1px solid #a371f750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(163,113,247,0.06)' }}>
-                ðŸŽ™ï¸ MI PANEL
+                🎙️ MI PANEL
               </a>
             )}
             {/* Billetera */}
             <a href="/billetera" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,215,0,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid #ffd70040', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
-              <span style={{ fontSize: '1rem' }}>ðŸ’°</span>
+              <span style={{ fontSize: '1rem' }}>💰</span>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>{t.hub_billetera}</span>
             </a>
             {/* Tienda de Puntos */}
             <a href="/tienda" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(243,186,47,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid rgba(243,186,47,0.3)', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
-              <span style={{ fontSize: '1rem' }}>ðŸ›’</span>
+              <span style={{ fontSize: '1rem' }}>🛒</span>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>{t.hub_tienda}</span>
             </a>
             {/* Perfil + coins + logout */}
@@ -211,19 +208,19 @@ export default function HubPage() {
               <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid #00ff88', overflow: 'hidden', background: '#1c2028', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {userData && userData.avatar_url
                   ? <img src={userData.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: '1rem' }}>ðŸ‘¤</span>
+                  : <span style={{ fontSize: '1rem' }}>👤</span>
                 }
               </div>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>
                 {(userData?.nombre || 'LEYENDA').toUpperCase()}
               </span>
               <span style={{ color: '#ffd700', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,215,0,0.5)', fontSize: '0.82rem' }}>
-                ðŸª™ {(userData?.number || 0).toLocaleString()}
+                🪙 {(userData?.number || 0).toLocaleString()}
               </span>
             </a>
             <button
               onClick={handleLogout}
-              title="Cerrar SesiÃ³n"
+              title="Cerrar Sesión"
               style={{
                 background: '#ff4757',
                 border: '2px solid #ff2d3a',
@@ -256,16 +253,16 @@ export default function HubPage() {
           </div>
         </header>
 
-        {/* â”€â”€ CONTENIDO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── CONTENIDO ────────────────────────────────── */}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 16px 60px' }}>
 
-          {/* â”€â”€ LFA TV embebida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── LFA TV embebida ──────────────────────────── */}
           <HubLfaTV />
 
-          {/* â”€â”€ CANTINA embebida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── CANTINA embebida ─────────────────────────── */}
           <div style={{ marginBottom: 32, background: '#0d1117', border: '1px solid #ffd70030', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'clamp(340px,50vh,520px)' }}>
             <div style={{ padding: '10px 18px', borderBottom: '1px solid #ffd70020', background: 'rgba(255,215,0,0.04)', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>ðŸº {t.hub_cantina}</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 {t.hub_cantina}</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {uid ? (
@@ -285,7 +282,7 @@ export default function HubPage() {
 
           {/* MODOS */}
           <h2 style={{ fontFamily: "'Orbitron',sans-serif", color: 'white', margin: '0 0 20px', fontSize: 'clamp(1rem, 3vw, 1.3rem)' }}>
-            ðŸŽ® {t.hub_selecciona}
+            🎮 {t.hub_selecciona}
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
             {MODOS.map((modo) => (
@@ -321,7 +318,7 @@ export default function HubPage() {
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {/* Badge PRÃ“XIMAMENTE */}
+                {/* Badge PRÓXIMAMENTE */}
                 {modo.proximamente && (
                   <span style={{ position: 'absolute', top: 14, right: -28, background: '#444', color: '#ccc', fontFamily: "'Orbitron',sans-serif", fontSize: '0.55rem', fontWeight: 'bold', padding: '4px 38px', transform: 'rotate(45deg)', letterSpacing: 1 }}>
                     {t.hub_pronto}
@@ -334,28 +331,28 @@ export default function HubPage() {
             ))}
           </div>
 
-          {/* â”€â”€ FEEDBACK PÃšBLICO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── FEEDBACK PÚBLICO ─────────────────────────── */}
           <div style={{ marginTop: 40, borderTop: '1px solid #1c2028', paddingTop: 28 }}>
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <span style={{ fontSize: '1.1rem' }}>ðŸ’¬</span>
+              <span style={{ fontSize: '1.1rem' }}>💬</span>
               <div>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#009ee3', letterSpacing: 1 }}>OPINIONES DE LA COMUNIDAD</div>
-                <div style={{ fontSize: '0.68rem', color: '#4a5568', marginTop: 1 }}>Sugerencias, bugs e ideas Â· Lo que piensa la comunidad LFA</div>
+                <div style={{ fontSize: '0.68rem', color: '#4a5568', marginTop: 1 }}>Sugerencias, bugs e ideas · Lo que piensa la comunidad LFA</div>
               </div>
             </div>
 
-            {/* â”€â”€ Formulario envÃ­o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* ── Formulario envío ──────────────────────── */}
             {fbExito ? (
               <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid #00ff8830', borderRadius: 12, padding: '20px', textAlign: 'center', marginBottom: 28 }}>
-                <div style={{ fontSize: '2rem', marginBottom: 8 }}>ðŸŽ‰</div>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.85rem', fontWeight: 900, marginBottom: 4 }}>Â¡GRACIAS POR TU FEEDBACK!</div>
-                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Lo revisaremos y usaremos para mejorar la plataforma. ðŸ™Œ</div>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎉</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.85rem', fontWeight: 900, marginBottom: 4 }}>¡GRACIAS POR TU FEEDBACK!</div>
+                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Lo revisaremos y usaremos para mejorar la plataforma. 🙌</div>
               </div>
             ) : (
               <div style={{ background: '#0d1117', border: '1px solid #1c2028', borderRadius: 14, padding: 'clamp(14px,3vw,20px)', marginBottom: 28 }}>
-                <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 12 }}>DEJAR TU OPINIÃ“N</div>
+                <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 12 }}>DEJAR TU OPINIÓN</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
                   {FB_TIPOS.map(({ key, icon, label }) => (
                     <button key={key} onClick={() => setFbTipo(key)} style={{ padding: '5px 12px', borderRadius: 30, fontSize: '0.72rem', cursor: 'pointer', border: `1px solid ${fbTipo === key ? '#009ee3' : '#30363d'}`, background: fbTipo === key ? 'rgba(0,158,227,0.15)' : 'transparent', color: fbTipo === key ? '#009ee3' : '#8b949e', fontWeight: fbTipo === key ? 700 : 400, transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4 }}>{icon} {label}</button>
@@ -364,7 +361,7 @@ export default function HubPage() {
                 {fbTipo === 'valoracion' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
                     {[1,2,3,4,5].map(n => (
-                      <button key={n} onMouseEnter={() => setFbHover(n)} onMouseLeave={() => setFbHover(0)} onClick={() => setFbEstrellas(n)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0, transition: 'transform 0.15s', transform: n <= (fbHover || fbEstrellas) ? 'scale(1.25)' : 'scale(1)', filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)' }}>â­</button>
+                      <button key={n} onMouseEnter={() => setFbHover(n)} onMouseLeave={() => setFbHover(0)} onClick={() => setFbEstrellas(n)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0, transition: 'transform 0.15s', transform: n <= (fbHover || fbEstrellas) ? 'scale(1.25)' : 'scale(1)', filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)' }}>⭐</button>
                     ))}
                     <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: 6 }}>{['','Muy malo','Malo','Regular','Bueno','Excelente'][fbHover || fbEstrellas]}</span>
                   </div>
@@ -374,31 +371,31 @@ export default function HubPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ position: 'relative' }}>
                       <textarea value={fbMensaje} onChange={e => setFbMensaje(e.target.value)} maxLength={600} rows={3}
-                        placeholder={fbTipo === 'bug' ? 'DescribÃ­ quÃ© pasÃ³ y en quÃ© secciÃ³n...' : fbTipo === 'sugerencia' ? 'Â¿QuÃ© mejorarÃ­a la plataforma?' : fbTipo === 'valoracion' ? 'Â¿QuÃ© te parece LFA hasta ahora?' : 'Tu mensaje para el equipo LFA...'}
+                        placeholder={fbTipo === 'bug' ? 'Describí qué pasó y en qué sección...' : fbTipo === 'sugerencia' ? '¿Qué mejoraría la plataforma?' : fbTipo === 'valoracion' ? '¿Qué te parece LFA hasta ahora?' : 'Tu mensaje para el equipo LFA...'}
                         style={{ width: '100%', background: '#161b22', border: `1px solid ${fbError ? '#ff475760' : '#30363d'}`, borderRadius: 8, padding: '9px 12px 20px', color: 'white', fontSize: '0.8rem', outline: 'none', resize: 'none', fontFamily: "'Roboto',sans-serif", lineHeight: 1.5, boxSizing: 'border-box' as const }} />
                       <span style={{ position: 'absolute', bottom: 6, right: 10, fontSize: '0.62rem', color: fbMensaje.length > 550 ? '#ff4757' : '#4a5568', pointerEvents: 'none' }}>{fbMensaje.length}/600</span>
                     </div>
-                    {fbError && <div style={{ color: '#ff4757', fontSize: '0.72rem' }}>âš ï¸ {fbError}</div>}
+                    {fbError && <div style={{ color: '#ff4757', fontSize: '0.72rem' }}>⚠️ {fbError}</div>}
                     <button onClick={enviarFeedback} disabled={fbEnviando || fbMensaje.trim().length < 10} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: fbEnviando || fbMensaje.trim().length < 10 ? 'not-allowed' : 'pointer', background: fbEnviando ? '#1c2028' : 'linear-gradient(135deg,#009ee3,#0077b6)', color: 'white', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', letterSpacing: 1, opacity: fbMensaje.trim().length < 10 ? 0.5 : 1, boxShadow: fbEnviando || fbMensaje.trim().length < 10 ? 'none' : '0 0 14px rgba(0,158,227,0.3)', transition: 'all 0.2s', alignSelf: 'flex-end' as const }}>
-                      {fbEnviando ? 'â³ ENVIANDO...' : 'ðŸ“¨ ENVIAR â†’'}
+                      {fbEnviando ? '⏳ ENVIANDO...' : '📨 ENVIAR →'}
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* â”€â”€ Historial pÃºblico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* ── Historial público ─────────────────────── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {feedbackList.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#4a5568', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif" }}>
-                  SIN OPINIONES AÃšN Â· SÃ‰ EL PRIMERO
+                  SIN OPINIONES AÚN · SÉ EL PRIMERO
                 </div>
               )}
               {feedbackList.map(item => {
                 const TIPO_CLR: Record<string,string> = { sugerencia:'#009ee3', bug:'#ff4757', valoracion:'#ffd700', otro:'#8b949e' };
-                const TIPO_ICO: Record<string,string> = { sugerencia:'ðŸ’¡', bug:'ðŸ›', valoracion:'â­', otro:'ðŸ’¬' };
+                const TIPO_ICO: Record<string,string> = { sugerencia:'💡', bug:'🐛', valoracion:'⭐', otro:'💬' };
                 const color = TIPO_CLR[item.tipo] ?? '#8b949e';
-                const ico   = TIPO_ICO[item.tipo] ?? 'ðŸ’¬';
+                const ico   = TIPO_ICO[item.tipo] ?? '💬';
                 const isRespondido  = !!item.ceo_respuesta;
                 const isCeoOpen     = ceoReplyTarget === item.id;
                 const fechaStr      = item.creado_en?.toDate?.()
@@ -412,7 +409,7 @@ export default function HubPage() {
                       </span>
                       <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'white' }}>{item.nombre}</span>
                       {item.tipo === 'valoracion' && item.estrellas && (
-                        <span style={{ color: '#ffd700', fontSize: '0.75rem' }}>{'â­'.repeat(item.estrellas)}</span>
+                        <span style={{ color: '#ffd700', fontSize: '0.75rem' }}>{'⭐'.repeat(item.estrellas)}</span>
                       )}
                       <span style={{ marginLeft: 'auto', color: '#4a5568', fontSize: '0.65rem' }}>{fechaStr}</span>
                     </div>
@@ -421,24 +418,24 @@ export default function HubPage() {
                     {/* Respuesta CEO */}
                     {isRespondido && (
                       <div style={{ marginTop: 10, background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 8, padding: '10px 12px' }}>
-                        <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.58rem', color: '#ffd700', fontWeight: 900, marginBottom: 4 }}>â­ CEO LFA</div>
+                        <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.58rem', color: '#ffd700', fontWeight: 900, marginBottom: 4 }}>⭐ CEO LFA</div>
                         <div style={{ color: '#cdd9e5', fontSize: '0.8rem', lineHeight: 1.5 }}>{item.ceo_respuesta}</div>
                       </div>
                     )}
 
-                    {/* CEO: botÃ³n responder */}
+                    {/* CEO: botón responder */}
                     {esAdmin && !isRespondido && (
                       <div style={{ marginTop: 10 }}>
                         {!isCeoOpen ? (
                           <button onClick={() => { setCeoReplyTarget(item.id); setCeoReplyText(''); }} style={{ background: 'rgba(255,215,0,0.07)', border: '1px solid #ffd70030', color: '#ffd700', borderRadius: 8, padding: '4px 14px', fontSize: '0.63rem', cursor: 'pointer', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
-                            âœï¸ RESPONDER
+                            ✏️ RESPONDER
                           </button>
                         ) : (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                             <textarea value={ceoReplyText} onChange={e => setCeoReplyText(e.target.value)} maxLength={400} rows={2} placeholder="Tu respuesta como CEO..." style={{ flex: 1, background: '#161b22', border: '1px solid #ffd70030', borderRadius: 8, padding: '8px 10px', color: 'white', fontSize: '0.78rem', resize: 'none', fontFamily: "'Roboto',sans-serif", outline: 'none' }} />
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                               <button onClick={() => ceoResponder(item.id)} disabled={ceoReplying || !ceoReplyText.trim()} style={{ background: 'linear-gradient(135deg,#ffd700,#f0a500)', border: 'none', color: '#0b0e14', borderRadius: 8, padding: '6px 14px', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.63rem', cursor: 'pointer', opacity: !ceoReplyText.trim() ? 0.5 : 1 }}>
-                                {ceoReplying ? '...' : 'âœ… OK'}
+                                {ceoReplying ? '...' : '✅ OK'}
                               </button>
                               <button onClick={() => setCeoReplyTarget(null)} style={{ background: 'transparent', border: '1px solid #30363d', color: '#8b949e', borderRadius: 8, padding: '4px 10px', fontSize: '0.62rem', cursor: 'pointer' }}>
                                 Cancelar
@@ -454,7 +451,6 @@ export default function HubPage() {
             </div>
 
           </div>
-
         </div>
       </div>
 
