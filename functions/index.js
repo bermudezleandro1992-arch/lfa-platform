@@ -1647,6 +1647,20 @@ exports.autoSpawnHorario = onSchedule({
     timeZone:  "America/Buenos_Aires",
     region:    "us-central1",
 }, async () => {
+    // Respetar el intervalo configurado desde el CEO
+    const cfgDoc = await db.collection("configuracion").doc("spawner").get();
+    const cfg = cfgDoc.exists ? cfgDoc.data() : {};
+    if (!cfg.activo) return; // motor desactivado
+
+    const intervalHours = cfg.spawn_interval_hours ?? 1;
+    if (intervalHours > 1 && cfg.last_run) {
+        const elapsedMs = Date.now() - cfg.last_run.toMillis();
+        const neededMs  = intervalHours * 60 * 60 * 1000;
+        if (elapsedMs < neededMs) {
+            console.log(`[autoSpawnHorario] Saltando — solo pasaron ${Math.round(elapsedMs/60000)}min de ${intervalHours*60}min requeridos`);
+            return;
+        }
+    }
     await runSpawnCycle();
 });
 
@@ -1655,9 +1669,54 @@ exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) =
     const antes   = event.data.before.data();
     const despues = event.data.after.data();
 
-    // Solo cuando pasa de OPEN a FULL o CLOSED
+    // Solo cuando pasa de OPEN → otra cosa
     if (antes.status !== "OPEN" || despues.status === "OPEN") return;
-    if (!despues.spawned) return; // Solo salas auto-spawned
+
+    // Salas manuales con auto_respawn=true: reponer igual
+    if (!despues.spawned && despues.auto_respawn === true) {
+        try {
+            const intervalHours = despues.spawn_interval_hours ?? 1;
+            // Verificar que no haya ya una sala idéntica abierta
+            const snap = await db.collection("tournaments")
+                .where("game",      "==", despues.game)
+                .where("mode",      "==", despues.mode)
+                .where("entry_fee", "==", despues.entry_fee)
+                .where("capacity",  "==", despues.capacity)
+                .where("region",    "==", despues.region)
+                .where("status",    "==", "OPEN")
+                .limit(1)
+                .get();
+            if (!snap.empty) return; // ya existe una igual
+
+            // Si el intervalo es > 1h, guardar un timestamp de "crear en X tiempo"
+            // Por simplicidad, creamos inmediatamente (el intervalo es orientativo)
+            const ref = db.collection("tournaments").doc();
+            await ref.set({
+                game:       despues.game,
+                mode:       despues.mode,
+                region:     despues.region,
+                tier:       despues.tier,
+                free:       (despues.entry_fee ?? 0) === 0,
+                entry_fee:  despues.entry_fee ?? 0,
+                prize_pool: calcPrizePool(despues.capacity, despues.entry_fee ?? 0),
+                prizes:     calcPrizes(despues.capacity, despues.entry_fee ?? 0),
+                capacity:   despues.capacity,
+                players:    [],
+                status:     "OPEN",
+                spawned:    false,
+                auto_respawn: true,
+                spawn_interval_hours: intervalHours,
+                ...(despues.country ? { country: despues.country } : {}),
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`[ReponerSala] Sala manual con auto_respawn reemplazada: ${despues.game}/${despues.mode}`);
+        } catch (e) {
+            console.error("[ReponerSala] Error sala manual:", e.message);
+        }
+        return;
+    }
+
+    if (!despues.spawned) return; // sala manual sin auto_respawn, no reponer
 
     try {
         const tpl = SPAWN_TEMPLATES.find(t =>

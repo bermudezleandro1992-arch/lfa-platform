@@ -228,6 +228,8 @@ export default function CeoPage() {
   const [crTier,   setCrTier]   = useState('FREE');
   const [crCap,    setCrCap]    = useState('8');
   const [crCountry, setCrCountry] = useState('');
+  const [crAutoRespawn, setCrAutoRespawn] = useState(false);
+  const [crSpawnInterval, setCrSpawnInterval] = useState(1); // horas
 
   /* ── Fair play ───────────────────────────────────────────── */
   const [fpUid, setFpUid] = useState('');
@@ -497,23 +499,19 @@ export default function CeoPage() {
   async function crearSlot() {
     const cap  = parseInt(slotCap);
     const fee  = parseInt(slotFee) || 0;
-    const maxS = parseInt(slotMaxSim) || 2;
+    const maxS = parseInt(slotMaxSim) || 1;
     if (!slotGame || !slotMode || !slotRegion || !cap) { await alerta('FALTAN DATOS','Completá todos los campos.','error'); return; }
-    // No duplicar
-    const existe = roomSlots.some(s =>
-      s.game === slotGame && s.mode === slotMode && s.region === slotRegion &&
-      s.capacity === cap && s.entry_fee === fee
-    );
-    if (existe) { await alerta('YA EXISTE', 'Ya hay un slot con esa combinación.', 'info'); return; }
+    // Derivar tier desde fee
+    const tierDerivado = fee === 0 ? 'FREE' : fee <= 1500 ? 'RECREATIVO' : fee <= 8000 ? 'COMPETITIVO' : 'ELITE';
     setSlotSaving(true);
     try {
       await addDoc(collection(db,'room_slots'), {
         game: slotGame, mode: slotMode, region: slotRegion,
-        capacity: cap, entry_fee: fee, activo: true,
+        capacity: cap, entry_fee: fee, tier: tierDerivado, activo: true,
         auto_respawn: slotAutoRespawn, max_simultaneous: maxS,
         created_at: serverTimestamp(),
       });
-      await alerta('SLOT CREADO', `${GL[slotGame]||slotGame} · ${ML[slotMode]||slotMode} · ${cap}j · ${fee===0?'GRATIS':'🪙'+fee.toLocaleString()} · ${slotAutoRespawn?'Auto-Respawn ✓':'Sin auto-respawn'} · ${maxS} simultáneas`, 'exito');
+      await alerta('SLOT CREADO', `${GL[slotGame]||slotGame} · ${ML[slotMode]||slotMode} · ${cap}j · ${fee===0?'GRATIS':'🪙'+fee.toLocaleString()} · ${tierDerivado} · ${slotAutoRespawn?'Auto-Respawn ✓':'Sin auto-respawn'}`, 'exito');
     } catch (e: unknown) { await alerta('ERROR', (e as Error).message, 'error'); }
     setSlotSaving(false);
   }
@@ -639,9 +637,11 @@ export default function CeoPage() {
       game:crGame, mode:crMode, region:crRegion, tier:crTier, free:isFree,
       entry_fee:fee, prize_pool:pool, prizes:mkPrizes(),
       capacity:cap, players:[], status:'OPEN', spawned:false, created_at:serverTimestamp(),
+      auto_respawn: crAutoRespawn,
+      spawn_interval_hours: crAutoRespawn ? crSpawnInterval : null,
       ...(crCountry ? { country: crCountry } : {}),
     });
-    await alerta('SALA CREADA', `${GL[crGame]} \u00b7 ${ML[crMode]} \u00b7 ${crTier} \u00b7 ${cap}j \u00b7 ${mkPrizes().length} premios${crCountry ? ` \u00b7 ${crCountry}` : ''}`, 'exito');
+    await alerta('SALA CREADA', `${GL[crGame]} · ${ML[crMode]} · ${crTier} · ${cap}j · ${mkPrizes().length} premios${crCountry ? ` · ${crCountry}` : ''}${crAutoRespawn ? ` · ♻️ Auto-Respawn cada ${crSpawnInterval}h` : ''}`, 'exito');
   }
 
   /* ── BOT Actions (fill / advance round) ─────────────────── */
@@ -1060,7 +1060,24 @@ export default function CeoPage() {
                     <option value="España">🇪🇸 España</option>
                   </select>
                 </div>
-                <button style={{ ...btn('#00ff88'), width:'100%', marginTop:2 }} onClick={crearSalaManual}>🚀 PUBLICAR SALA</button>
+                {/* Auto-respawn + intervalo */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:10, flexWrap:'wrap', padding:'10px 12px', background:'#0b0e14', borderRadius:8, border:`1px solid ${crAutoRespawn ? 'rgba(163,113,247,0.4)' : '#30363d'}` }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none', flex:1 }}>
+                    <input type="checkbox" checked={crAutoRespawn} onChange={e => setCrAutoRespawn(e.target.checked)} style={{ width:16, height:16, accentColor:'#a371f7' }} />
+                    <span style={{ color: crAutoRespawn ? '#a371f7' : '#8b949e', fontSize:'0.78rem', fontWeight:700 }}>♻️ Auto-Respawn al terminar</span>
+                  </label>
+                  {crAutoRespawn && (
+                    <select style={{ ...inp, flex:'0 0 auto', minWidth:130 }} value={crSpawnInterval} onChange={e => setCrSpawnInterval(Number(e.target.value))}>
+                      <option value={1}>Cada 1 hora</option>
+                      <option value={2}>Cada 2 horas</option>
+                      <option value={3}>Cada 3 horas</option>
+                      <option value={4}>Cada 4 horas</option>
+                      <option value={6}>Cada 6 horas</option>
+                      <option value={12}>Cada 12 horas</option>
+                    </select>
+                  )}
+                </div>
+                <button style={{ ...btn('#00ff88'), width:'100%', marginTop:8 }} onClick={crearSalaManual}>🚀 PUBLICAR SALA</button>
               </div>
 
               {/* Estado por tier */}
@@ -1543,7 +1560,7 @@ export default function CeoPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:'1px solid #30363d', marginBottom:8 }}>
                   <div>
                     <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.82rem' }}>AUTO-SPAWN HORARIO</div>
-                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Crea salas por modo cada hora</div>
+                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Crea salas automáticamente según el intervalo</div>
                   </div>
                   <label style={{ position:'relative', display:'inline-block', width:52, height:26, cursor:'pointer', flexShrink:0 }}>
                     <input type="checkbox" checked={!!spawnerCfg.activo} onChange={e => updateDoc(doc(db,'configuracion','spawner'),{activo:e.target.checked})} style={{ opacity:0, width:0, height:0 }} />
@@ -1551,6 +1568,27 @@ export default function CeoPage() {
                       <span style={{ position:'absolute', height:18, width:18, bottom:4, left:spawnerCfg.activo ? 30 : 4, background:'white', borderRadius:'50%', transition:'0.3s' }} />
                     </span>
                   </label>
+                </div>
+
+                {/* Intervalo de spawn */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, background:'#0b0e14', padding:'11px 15px', borderRadius:8, border:'1px solid #30363d', marginBottom:8 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.82rem', color:'#ffd700' }}>⏱ INTERVALO DE SPAWN</div>
+                    <div style={{ color:'#8b949e', fontSize:'0.68rem', marginTop:2 }}>Cada cuánto tiempo se activa el auto-spawn</div>
+                  </div>
+                  <select
+                    style={{ ...inp, flex:'0 0 auto', minWidth:130, fontSize:'0.75rem' }}
+                    value={(spawnerCfg as Record<string,unknown>).spawn_interval_hours as number ?? 1}
+                    onChange={e => updateDoc(doc(db,'configuracion','spawner'), { spawn_interval_hours: Number(e.target.value) })}
+                  >
+                    <option value={1}>Cada 1 hora</option>
+                    <option value={2}>Cada 2 horas</option>
+                    <option value={3}>Cada 3 horas</option>
+                    <option value={4}>Cada 4 horas</option>
+                    <option value={6}>Cada 6 horas</option>
+                    <option value={12}>Cada 12 horas</option>
+                    <option value={24}>Una vez al día</option>
+                  </select>
                 </div>
 
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0b0e14', padding:'13px 15px', borderRadius:8, border:`1px solid ${(spawnerCfg as Record<string,unknown>).autoRespawn ? '#ff00cc' : '#30363d'}`, marginBottom:8 }}>
