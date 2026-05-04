@@ -59,6 +59,7 @@ export default function BuscarSala() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Tournament[] | null>(null);
   const [searched, setSearched] = useState(false);
+  const [showAllRooms, setShowAllRooms] = useState(false);
 
   const selectedGame = GAMES.find((g) => g.value === game)!;
 
@@ -203,82 +204,156 @@ export default function BuscarSala() {
       </div>
 
       {/* ── PANEL EN VIVO ─────────────────────────────────────── */}
-      {liveRooms.length > 0 && (
-        <div className="max-w-2xl mx-auto px-4 pt-5 pb-1">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ff3c3c30, transparent)" }} />
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
-              </span>
-              <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>
-                EN VIVO AHORA — {liveRooms.length} SALA{liveRooms.length !== 1 ? "S" : ""}
-              </span>
-            </div>
-            <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ff3c3c30, transparent)" }} />
-          </div>
+      {liveRooms.length > 0 && (() => {
+        const playing = liveRooms.filter(r => r.status === "ACTIVE");
+        const waiting = liveRooms.filter(r => r.status !== "ACTIVE" && r.players.length > 0);
+        const empty   = liveRooms.filter(r => r.status !== "ACTIVE" && r.players.length === 0);
+        const tierDot: Record<string, string> = { FREE: "#00d4ff", RECREATIVO: "#00ff88", COMPETITIVO: "#ffd700", ELITE: "#ff4757" };
 
-          <div className="flex flex-col gap-2 mb-4">
-            {liveRooms.map(room => {
-              const isPlaying = room.status === "ACTIVE";
-              const pct = Math.round((room.players.length / room.capacity) * 100);
-              const clr = isPlaying
-                ? { border: "rgba(255,60,60,0.6)", bg: "rgba(255,60,60,0.07)", dot: "#ff3c3c", label: "EN JUEGO" }
-                : fillColor(room.players.length, room.capacity);
-              const tierDot: Record<string, string> = { FREE: "#00d4ff", RECREATIVO: "#00ff88", COMPETITIVO: "#ffd700", ELITE: "#ff4757" };
-              return (
-                <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2.5 transition-all"
-                  style={{ background: clr.bg, border: `1px solid ${clr.border}` }}>
+        return (
+          <div className="max-w-2xl mx-auto px-4 pt-5 pb-1">
 
-                  {/* Indicador pulsante */}
-                  <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                    {isPlaying && <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ background: clr.dot }} />}
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: clr.dot }} />
+            {/* ── Header ── */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ff3c3c40, transparent)" }} />
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
+                </span>
+                <span className="text-[10px] font-black tracking-[3px] uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>
+                  EN JUEGO — {playing.length} SALA{playing.length !== 1 ? "S" : ""}
+                </span>
+                {(waiting.length + empty.length) > 0 && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,255,136,0.1)", color: "#00ff88", border: "1px solid rgba(0,255,136,0.25)" }}>
+                    +{waiting.length + empty.length} abiertas
                   </span>
+                )}
+              </div>
+              <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ff3c3c40, transparent)" }} />
+            </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-black uppercase" style={{ color: clr.dot, fontFamily: "'Orbitron',sans-serif" }}>{clr.label}</span>
-                      <span className="text-[10px]" style={{ color: "#6e7681" }}>·</span>
+            {/* ── Salas EN JUEGO (siempre visibles, muy compactas) ── */}
+            {playing.length > 0 ? (
+              <div className="flex flex-col gap-1.5 mb-3">
+                {playing.map(room => (
+                  <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2 transition-all"
+                    style={{ background: "rgba(255,60,60,0.07)", border: "1px solid rgba(255,60,60,0.35)" }}>
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff3c3c] opacity-70" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff3c3c]" />
+                    </span>
+                    <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase" style={{ color: "#ff3c3c", fontFamily: "'Orbitron',sans-serif" }}>EN JUEGO</span>
+                      <span style={{ color: "#3c4450" }}>·</span>
                       <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
-                      <span className="text-[10px]" style={{ color: "#6e7681" }}>·</span>
+                      <span style={{ color: "#3c4450" }}>·</span>
                       <span className="text-[10px]" style={{ color: "#8b949e" }}>
-                        {room.game === "FC26" ? "FC 26" : "eFootball"} {MODE_LABELS[room.mode] ? `· ${MODE_LABELS[room.mode]}` : ""}
+                        {room.game === "FC26" ? "FC 26" : "eFootball"}
+                        {MODE_LABELS[room.mode] ? ` · ${MODE_LABELS[room.mode]}` : ""}
                       </span>
+                      <span style={{ color: "#3c4450" }}>·</span>
+                      <span className="text-[10px]" style={{ color: "#c9d1d9" }}>{REGION_LABELS[room.region] ?? room.region}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[11px]" style={{ color: "#c9d1d9" }}>
-                        {REGION_LABELS[room.region] ?? room.region} · {room.capacity} jugadores
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Barra de llenado */}
-                  {!isPlaying && (
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 68 }}>
-                      <span className="text-[11px] font-black" style={{ color: clr.dot }}>
-                        {room.players.length}/{room.capacity}
-                      </span>
-                      <div className="h-1.5 w-16 rounded-full overflow-hidden" style={{ background: "#1c2028" }}>
-                        <div className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%`, background: clr.dot }} />
-                      </div>
-                    </div>
-                  )}
-                  {isPlaying && (
-                    <span className="text-[10px] font-black flex-shrink-0 px-2 py-0.5 rounded-full"
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
                       style={{ background: "rgba(255,60,60,0.15)", color: "#ff3c3c", border: "1px solid rgba(255,60,60,0.3)", fontFamily: "'Orbitron',sans-serif" }}>
                       ⚔️ {room.players.length}p
                     </span>
-                  )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl px-4 py-3 mb-3 text-center text-[11px]"
+                style={{ background: "rgba(255,60,60,0.04)", border: "1px dashed rgba(255,60,60,0.2)", color: "#6e7681" }}>
+                Sin partidos en curso ahora mismo
+              </div>
+            )}
+
+            {/* ── Jugadores esperando ── */}
+            {waiting.length > 0 && (
+              <div className="rounded-xl px-3 py-2.5 mb-3 flex items-center gap-3"
+                style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.2)" }}>
+                <span className="text-base flex-shrink-0">🕐</span>
+                <div className="flex-1">
+                  <span className="text-[10px] font-black uppercase" style={{ color: "#00ff88", fontFamily: "'Orbitron',sans-serif" }}>
+                    Jugadores esperando en sala
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {waiting.map(room => {
+                      const clr = fillColor(room.players.length, room.capacity);
+                      return (
+                        <span key={room.id} className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: clr.bg, border: `1px solid ${clr.border}`, color: clr.dot }}>
+                          {room.players.length}/{room.capacity} · {room.game === "FC26" ? "FC26" : "eFB"} · {REGION_LABELS[room.region]?.replace("LATAM ","") ?? room.region}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* ── Ver todas las salas (expandible) ── */}
+            {(waiting.length + empty.length) > 0 && (
+              <>
+                <button
+                  onClick={() => setShowAllRooms(v => !v)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl mb-2 transition-all text-[11px] font-bold"
+                  style={{
+                    background: "rgba(0,212,255,0.05)",
+                    border: "1px solid rgba(0,212,255,0.2)",
+                    color: "#00d4ff",
+                  }}>
+                  <span>{showAllRooms ? "▲ Ocultar" : "▼ Ver todas las salas"}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
+                    style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.25)" }}>
+                    {waiting.length + empty.length}
+                  </span>
+                </button>
+
+                {showAllRooms && (
+                  <div className="flex flex-col gap-1.5 mb-4 max-h-72 overflow-y-auto pr-1"
+                    style={{ scrollbarWidth: "thin", scrollbarColor: "#30363d transparent" }}>
+                    {[...waiting, ...empty].map(room => {
+                      const pct = Math.round((room.players.length / room.capacity) * 100);
+                      const clr = fillColor(room.players.length, room.capacity);
+                      return (
+                        <div key={room.id} className="rounded-xl flex items-center gap-3 px-3 py-2 transition-all"
+                          style={{ background: clr.bg, border: `1px solid ${clr.border}` }}>
+                          <span className="relative flex h-2 w-2 flex-shrink-0">
+                            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: clr.dot }} />
+                          </span>
+                          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-black uppercase" style={{ color: clr.dot, fontFamily: "'Orbitron',sans-serif" }}>{clr.label}</span>
+                            <span style={{ color: "#3c4450" }}>·</span>
+                            <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
+                            <span style={{ color: "#3c4450" }}>·</span>
+                            <span className="text-[10px]" style={{ color: "#8b949e" }}>
+                              {room.game === "FC26" ? "FC 26" : "eFootball"}
+                              {MODE_LABELS[room.mode] ? ` · ${MODE_LABELS[room.mode]}` : ""}
+                            </span>
+                            <span style={{ color: "#3c4450" }}>·</span>
+                            <span className="text-[10px]" style={{ color: "#c9d1d9" }}>{REGION_LABELS[room.region] ?? room.region}</span>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 60 }}>
+                            <span className="text-[11px] font-black" style={{ color: clr.dot }}>
+                              {room.players.length}/{room.capacity}
+                            </span>
+                            <div className="h-1 w-14 rounded-full overflow-hidden" style={{ background: "#1c2028" }}>
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, background: clr.dot }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── TORNEOS ORGANIZADOS / STREAMERS ───────────────────── */}
       {orgTournaments.length > 0 && (
