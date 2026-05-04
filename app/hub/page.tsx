@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, onSnapshot, orderBy, limit, query, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
 import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
@@ -11,27 +11,36 @@ import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 const HubLfaTV    = dynamic(() => import('@/app/_components/HubLfaTV'), { ssr: false });
 const CantinaChat = dynamic(() => import('@/app/_components/dashboard/CantinaChat'), { ssr: false });
 
-/* ─── Tipos ───────────────────────────────────────────── */
+/* â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 interface UserData {
   nombre: string;
   number: number;
   rol?: string;
   avatar_url?: string;
-  juego_fc26?: boolean;
-  juego_efb?: boolean;
-  region?: string;
 }
 
-/* ─── Constante CEO UID ───────────────────────────────── */
-const DUEÑO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
+interface FeedbackItem {
+  id: string;
+  nombre: string;
+  tipo: string;
+  mensaje: string;
+  estrellas?: number | null;
+  estado: string;
+  creado_en?: { toDate?: () => Date } | null;
+  ceo_respuesta?: string | null;
+  ceo_respondido_en?: { toDate?: () => Date } | null;
+}
+
+/* â”€â”€â”€ Constante CEO UID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 
 type FbTipo = 'sugerencia' | 'bug' | 'valoracion' | 'otro';
 
 const FB_TIPOS: { key: FbTipo; icon: string; label: string }[] = [
-  { key: 'sugerencia', icon: '💡', label: 'Sugerencia' },
-  { key: 'bug',        icon: '🐛', label: 'Bug / Error' },
-  { key: 'valoracion', icon: '⭐', label: 'Valoración' },
-  { key: 'otro',       icon: '💬', label: 'Otro' },
+  { key: 'sugerencia', icon: 'ðŸ’¡', label: 'Sugerencia' },
+  { key: 'bug',        icon: 'ðŸ›', label: 'Bug / Error' },
+  { key: 'valoracion', icon: 'â­', label: 'ValoraciÃ³n' },
+  { key: 'otro',       icon: 'ðŸ’¬', label: 'Otro' },
 ];
 
 export default function HubPage() {
@@ -43,13 +52,13 @@ export default function HubPage() {
   const [uid,      setUid]             = useState('');
   const [loading,  setLoading]         = useState(true);
 
-  /* ─── Estado juego + región ──────────────────────────── */
-  const [userGames,    setUserGames]    = useState({ fc26: false, efb: false });
-  const [userRegion,   setUserRegion]   = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [profileMsg,   setProfileMsg]   = useState('');
+  /* â”€â”€â”€ Feedback board state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  const [feedbackList,   setFeedbackList]   = useState<FeedbackItem[]>([]);
+  const [ceoReplyTarget, setCeoReplyTarget] = useState<string | null>(null);
+  const [ceoReplyText,   setCeoReplyText]   = useState('');
+  const [ceoReplying,    setCeoReplying]    = useState(false);
 
-  /* ─── Feedback state ─────────────────────────────────── */
+  /* â”€â”€â”€ Feedback state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const [fbOpen,     setFbOpen]     = useState(false);
   const [fbTipo,     setFbTipo]     = useState<FbTipo>('sugerencia');
   const [fbNombre,   setFbNombre]   = useState('');
@@ -60,15 +69,15 @@ export default function HubPage() {
   const [fbExito,    setFbExito]    = useState(false);
   const [fbError,    setFbError]    = useState('');
 
-  /* ─── Modos de juego (dinámicos con i18n) ─────────── */
+  /* â”€â”€â”€ Modos de juego (dinÃ¡micos con i18n) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const MODOS = [
-    { id: 'arena',   route: '/dashboard', title: t.hub_modo_arena_title,   desc: t.hub_modo_arena_desc,   icon: '⚔️', color: '#00ff88', proximamente: false },
-    { id: 'ligas',   route: '/pro',       title: t.hub_modo_liga_title,    desc: t.hub_modo_liga_desc,    icon: '📅', color: '#009ee3', proximamente: false },
-    { id: 'coop',    route: '',           title: t.hub_modo_coop_title,    desc: t.hub_modo_coop_desc,    icon: '🤝', color: '#ff6b00', proximamente: true  },
-    { id: 'clubes',  route: '',           title: t.hub_modo_clubes_title,  desc: t.hub_modo_clubes_desc,  icon: '🛡️', color: '#ffd700', proximamente: true  },
+    { id: 'arena',   route: '/dashboard', title: t.hub_modo_arena_title,   desc: t.hub_modo_arena_desc,   icon: 'âš”ï¸', color: '#00ff88', proximamente: false },
+    { id: 'ligas',   route: '/pro',       title: t.hub_modo_liga_title,    desc: t.hub_modo_liga_desc,    icon: 'ðŸ“…', color: '#009ee3', proximamente: false },
+    { id: 'coop',    route: '',           title: t.hub_modo_coop_title,    desc: t.hub_modo_coop_desc,    icon: 'ðŸ¤', color: '#ff6b00', proximamente: true  },
+    { id: 'clubes',  route: '',           title: t.hub_modo_clubes_title,  desc: t.hub_modo_clubes_desc,  icon: 'ðŸ›¡ï¸', color: '#ffd700', proximamente: true  },
   ];
 
-  /* ── Auth guard ─────────────────────────────────────── */
+  /* â”€â”€ Auth guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) { router.replace('/'); return; }
@@ -78,12 +87,9 @@ export default function HubPage() {
         if (snap.exists()) {
           const d = snap.data() as UserData;
           setUserData(d);
-          setEsAdmin(user.uid === DUEÑO_UID || d.rol === 'soporte');
-          setEsOrganizador(d.rol === 'organizador' || user.uid === DUEÑO_UID);
+          setEsAdmin(user.uid === CEO_UID || d.rol === 'soporte');
+          setEsOrganizador(d.rol === 'organizador' || user.uid === CEO_UID);
           setFbNombre(d.nombre || '');
-          // Cargar preferencias de juego y región
-          setUserGames({ fc26: !!d.juego_fc26, efb: !!d.juego_efb });
-          setUserRegion(d.region || '');
         }
         setUid(user.uid);
       } catch { /* sin red */ }
@@ -92,37 +98,44 @@ export default function HubPage() {
     return unsub;
   }, [router]);
 
-  /* ── Guardar perfil de juego ─────────────────────── */
-  async function saveProfile() {
-    if (!uid) return;
-    setSavingProfile(true);
-    try {
-      await updateDoc(doc(db, 'usuarios', uid), {
-        juego_fc26: userGames.fc26,
-        juego_efb:  userGames.efb,
-        region:     userRegion || null,
-      });
-      setProfileMsg('✅ ¡Perfil de juego guardado!');
-    } catch {
-      setProfileMsg('⚠️ Error al guardar. Intentá de nuevo.');
-    }
-    setSavingProfile(false);
-    setTimeout(() => setProfileMsg(''), 3500);
-  }
 
-  /* ── Logout ─────────────────────────────────────────── */
+  /* â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   async function handleLogout() {
     await signOut(auth);
     router.replace('/');
   }
 
-  /* ── Acceso a modos ─────────────────────────────────── */
+  /* â”€â”€ Acceso a modos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   function intentarAcceso(modo: typeof MODOS[0]) {
     if (modo.proximamente) return;
     router.push(modo.route);
   }
 
-  /* ── Enviar feedback ───────────────────────────────────── */
+  /* â”€â”€ Listener feedback board â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  useEffect(() => {
+    const q = query(collection(db, 'feedback'), orderBy('creado_en', 'desc'), limit(50));
+    return onSnapshot(q, snap => {
+      setFeedbackList(snap.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackItem)));
+    });
+  }, []);
+
+  /* â”€â”€ CEO responder feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  async function ceoResponder(feedbackId: string) {
+    if (!ceoReplyText.trim() || uid !== CEO_UID) return;
+    setCeoReplying(true);
+    try {
+      await updateDoc(doc(db, 'feedback', feedbackId), {
+        ceo_respuesta:     ceoReplyText.trim(),
+        ceo_respondido_en: serverTimestamp(),
+        estado:            'respondido',
+      });
+      setCeoReplyTarget(null);
+      setCeoReplyText('');
+    } catch { /* ok */ }
+    setCeoReplying(false);
+  }
+
+  /* â”€â”€ Enviar feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   async function enviarFeedback() {
     setFbError('');
     if (fbMensaje.trim().length < 10) { setFbError('El mensaje debe tener al menos 10 caracteres.'); return; }
@@ -131,12 +144,12 @@ export default function HubPage() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: fbNombre || 'Anónimo', tipo: fbTipo, mensaje: fbMensaje, estrellas: fbEstrellas, uid }),
+        body: JSON.stringify({ nombre: fbNombre || 'AnÃ³nimo', tipo: fbTipo, mensaje: fbMensaje, estrellas: fbEstrellas, uid }),
       });
       const data = await res.json();
       if (!res.ok) { setFbError(data.error || 'Error al enviar.'); }
       else { setFbExito(true); setFbMensaje(''); setTimeout(() => { setFbExito(false); setFbOpen(false); }, 3500); }
-    } catch { setFbError('Sin conexión. Intentá de nuevo.'); }
+    } catch { setFbError('Sin conexiÃ³n. IntentÃ¡ de nuevo.'); }
     setFbEnviando(false);
   }
 
@@ -152,7 +165,7 @@ export default function HubPage() {
     <>
       <div style={{ margin: 0, fontFamily: "'Roboto',sans-serif", background: '#0b0e14', color: 'white', minHeight: '100vh', overflowX: 'hidden', backgroundImage: 'radial-gradient(circle at 50% 0%, #1a2331 0%, #0b0e14 70%)' }}>
 
-        {/* ── HEADER ───────────────────────────────────── */}
+        {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <header style={{
           background: 'rgba(7,9,13,0.85)',
           padding: '14px 5%',
@@ -168,29 +181,29 @@ export default function HubPage() {
           gap: 12,
         }}>
           <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.4rem', fontWeight: 900, color: 'white', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10 }}>
-            ♛ <span style={{ color: '#00ff88' }}>LFA</span> HUB
+            â™› <span style={{ color: '#00ff88' }}>LFA</span> HUB
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {/* CEO */}
             {esAdmin && (
               <a href="/ceo" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#ff4757', border: '1px solid #ff475750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(255,71,87,0.06)' }}>
-                ⚙️ CEO
+                âš™ï¸ CEO
               </a>
             )}
             {esOrganizador && (
               <a href="/organizador" style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', color: '#a371f7', border: '1px solid #a371f750', padding: '6px 12px', borderRadius: 8, textDecoration: 'none', transition: '0.2s', background: 'rgba(163,113,247,0.06)' }}>
-                🎙️ MI PANEL
+                ðŸŽ™ï¸ MI PANEL
               </a>
             )}
             {/* Billetera */}
             <a href="/billetera" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,215,0,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid #ffd70040', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
-              <span style={{ fontSize: '1rem' }}>💰</span>
+              <span style={{ fontSize: '1rem' }}>ðŸ’°</span>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#ffd700' }}>{t.hub_billetera}</span>
             </a>
             {/* Tienda de Puntos */}
             <a href="/tienda" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(243,186,47,0.06)', padding: '7px 13px', borderRadius: 30, border: '1px solid rgba(243,186,47,0.3)', textDecoration: 'none', transition: '0.2s', cursor: 'pointer' }}>
-              <span style={{ fontSize: '1rem' }}>🛒</span>
+              <span style={{ fontSize: '1rem' }}>ðŸ›’</span>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', color: '#f3ba2f' }}>{t.hub_tienda}</span>
             </a>
             {/* Perfil + coins + logout */}
@@ -198,19 +211,19 @@ export default function HubPage() {
               <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid #00ff88', overflow: 'hidden', background: '#1c2028', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {userData && userData.avatar_url
                   ? <img src={userData.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: '1rem' }}>👤</span>
+                  : <span style={{ fontSize: '1rem' }}>ðŸ‘¤</span>
                 }
               </div>
               <span style={{ fontFamily: "'Orbitron',sans-serif", fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>
                 {(userData?.nombre || 'LEYENDA').toUpperCase()}
               </span>
               <span style={{ color: '#ffd700', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,215,0,0.5)', fontSize: '0.82rem' }}>
-                🪙 {(userData?.number || 0).toLocaleString()}
+                ðŸª™ {(userData?.number || 0).toLocaleString()}
               </span>
             </a>
             <button
               onClick={handleLogout}
-              title="Cerrar Sesión"
+              title="Cerrar SesiÃ³n"
               style={{
                 background: '#ff4757',
                 border: '2px solid #ff2d3a',
@@ -243,232 +256,16 @@ export default function HubPage() {
           </div>
         </header>
 
-        {/* ── CONTENIDO ────────────────────────────────── */}
+        {/* â”€â”€ CONTENIDO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 16px 60px' }}>
 
-          {/* ── FEEDBACK WIDGET (compacto al final) ─────── */}
-          <div style={{ display: 'none' }}>
-            {/* Trigger bar */}
-            <button
-              onClick={() => { setFbOpen(o => !o); setFbExito(false); setFbError(''); }}
-              style={{
-                width: '100%',
-                background: fbOpen ? 'rgba(0,158,227,0.12)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${fbOpen ? '#009ee350' : '#30363d'}`,
-                borderRadius: fbOpen ? '14px 14px 0 0' : 14,
-                padding: '13px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                transition: 'all 0.25s',
-                color: 'white',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.15rem' }}>📣</span>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: '#009ee3', letterSpacing: 1 }}>
-                    TU VOZ IMPORTA — DAR FEEDBACK
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#8b949e', marginTop: 2 }}>
-                    Sugerencias, bugs, ideas o valoraciones · ¡Tu ayuda mejora la plataforma!
-                  </div>
-                </div>
-              </div>
-              <span style={{ color: '#009ee3', fontSize: '0.85rem', fontWeight: 900, transition: 'transform 0.25s', display: 'inline-block', transform: fbOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-            </button>
-
-            {/* Panel expandible */}
-            {fbOpen && (
-              <div style={{
-                background: '#0d1117',
-                border: '1px solid #009ee340',
-                borderTop: 'none',
-                borderRadius: '0 0 14px 14px',
-                padding: '24px 20px 20px',
-              }}>
-                {fbExito ? (
-                  /* ── Estado de éxito ── */
-                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
-                    <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '1rem', fontWeight: 900, marginBottom: 8 }}>
-                      ¡GRACIAS POR TU FEEDBACK!
-                    </div>
-                    <div style={{ color: '#8b949e', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                      Lo revisaremos y usaremos para seguir mejorando LFA.<br />
-                      Tu opinión hace la diferencia. 🙌
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Tipo selector */}
-                    <div style={{ marginBottom: 18 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 10 }}>CATEGORÍA</div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {FB_TIPOS.map(({ key, icon, label }) => (
-                          <button
-                            key={key}
-                            onClick={() => setFbTipo(key)}
-                            style={{
-                              padding: '7px 14px',
-                              borderRadius: 30,
-                              border: `1px solid ${fbTipo === key ? '#009ee3' : '#30363d'}`,
-                              background: fbTipo === key ? 'rgba(0,158,227,0.15)' : 'rgba(255,255,255,0.03)',
-                              color: fbTipo === key ? '#009ee3' : '#8b949e',
-                              cursor: 'pointer',
-                              fontSize: '0.78rem',
-                              fontWeight: fbTipo === key ? 700 : 400,
-                              transition: 'all 0.2s',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 5,
-                            }}
-                          >
-                            {icon} {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Estrellas (solo si valoracion) */}
-                    {fbTipo === 'valoracion' && (
-                      <div style={{ marginBottom: 18 }}>
-                        <div style={{ fontSize: '0.7rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 10 }}>
-                          PUNTUACIÓN GENERAL
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[1, 2, 3, 4, 5].map(n => (
-                            <button
-                              key={n}
-                              onMouseEnter={() => setFbHover(n)}
-                              onMouseLeave={() => setFbHover(0)}
-                              onClick={() => setFbEstrellas(n)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: '2rem',
-                                transition: 'transform 0.15s',
-                                transform: n <= (fbHover || fbEstrellas) ? 'scale(1.2)' : 'scale(1)',
-                                filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)',
-                              }}
-                            >⭐</button>
-                          ))}
-                          <span style={{ color: '#8b949e', fontSize: '0.78rem', alignSelf: 'center', marginLeft: 6 }}>
-                            {['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'][fbHover || fbEstrellas]}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nombre */}
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 8 }}>
-                        TU NOMBRE / NICK EN JUEGO
-                      </div>
-                      <input
-                        value={fbNombre}
-                        onChange={e => setFbNombre(e.target.value)}
-                        maxLength={60}
-                        placeholder="Tu nombre o nick de jugador"
-                        style={{
-                          width: '100%',
-                          background: '#161b22',
-                          border: '1px solid #30363d',
-                          borderRadius: 8,
-                          padding: '10px 14px',
-                          color: 'white',
-                          fontSize: '0.85rem',
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                          fontFamily: "'Roboto',sans-serif",
-                        }}
-                      />
-                    </div>
-
-                    {/* Mensaje */}
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: '0.7rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1 }}>
-                          {fbTipo === 'bug' ? 'DESCRIPCIÓN DEL BUG' : fbTipo === 'sugerencia' ? 'TU SUGERENCIA' : fbTipo === 'valoracion' ? 'COMENTARIO' : 'TU MENSAJE'}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: fbMensaje.length > 550 ? '#ff4757' : '#4a5568' }}>{fbMensaje.length}/600</span>
-                      </div>
-                      <textarea
-                        value={fbMensaje}
-                        onChange={e => setFbMensaje(e.target.value)}
-                        maxLength={600}
-                        rows={4}
-                        placeholder={
-                          fbTipo === 'bug'
-                            ? 'Describí qué pasó, en qué página o sección ocurrió y qué estabas haciendo...'
-                            : fbTipo === 'sugerencia'
-                            ? 'Contanos tu idea. ¿Qué funcionalidad agregarías? ¿Qué mejorarías?'
-                            : fbTipo === 'valoracion'
-                            ? '¿Qué te parece la plataforma hasta ahora? ¿Qué destacarías?'
-                            : 'Escribí lo que quieras decirnos...'
-                        }
-                        style={{
-                          width: '100%',
-                          background: '#161b22',
-                          border: `1px solid ${fbError ? '#ff475760' : '#30363d'}`,
-                          borderRadius: 8,
-                          padding: '10px 14px',
-                          color: 'white',
-                          fontSize: '0.85rem',
-                          outline: 'none',
-                          resize: 'vertical',
-                          fontFamily: "'Roboto',sans-serif",
-                          lineHeight: 1.5,
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                      {fbError && <div style={{ color: '#ff4757', fontSize: '0.75rem', marginTop: 6 }}>⚠️ {fbError}</div>}
-                    </div>
-
-                    {/* Nota aclaratoria */}
-                    <div style={{ background: 'rgba(0,158,227,0.06)', border: '1px solid #009ee320', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: '0.75rem', color: '#8b949e', lineHeight: 1.6 }}>
-                      💙 <strong style={{ color: '#009ee3' }}>Toda ayuda es bienvenida</strong> — sugerencias, mejoras, bugs o ideas que tengas.<br />
-                      El equipo de LFA revisa cada feedback y trabaja para implementar las mejoras que propone la comunidad.
-                    </div>
-
-                    {/* Botón enviar */}
-                    <button
-                      onClick={enviarFeedback}
-                      disabled={fbEnviando || fbMensaje.trim().length < 10}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: fbEnviando ? '#1c2028' : 'linear-gradient(135deg, #009ee3, #0077b6)',
-                        border: 'none',
-                        borderRadius: 8,
-                        color: 'white',
-                        fontFamily: "'Orbitron',sans-serif",
-                        fontWeight: 900,
-                        fontSize: '0.82rem',
-                        letterSpacing: 1,
-                        cursor: fbEnviando || fbMensaje.trim().length < 10 ? 'not-allowed' : 'pointer',
-                        opacity: fbMensaje.trim().length < 10 ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                        boxShadow: fbEnviando ? 'none' : '0 0 20px rgba(0,158,227,0.3)',
-                      }}
-                    >
-                      {fbEnviando ? '⏳ ENVIANDO...' : '📨 ENVIAR FEEDBACK'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── LFA TV embebida ──────────────────────────── */}
+          {/* â”€â”€ LFA TV embebida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <HubLfaTV />
 
-          {/* ── CANTINA embebida ─────────────────────────── */}
+          {/* â”€â”€ CANTINA embebida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div style={{ marginBottom: 32, background: '#0d1117', border: '1px solid #ffd70030', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'clamp(340px,50vh,520px)' }}>
             <div style={{ padding: '10px 18px', borderBottom: '1px solid #ffd70020', background: 'rgba(255,215,0,0.04)', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>🍺 {t.hub_cantina}</span>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, letterSpacing: 2 }}>ðŸº {t.hub_cantina}</span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {uid ? (
@@ -476,7 +273,7 @@ export default function HubPage() {
                   uid={uid}
                   nombre={userData?.nombre}
                   avatarUrl={userData?.avatar_url}
-                  rol={esAdmin ? (uid === DUEÑO_UID ? 'ceo' : 'soporte') : undefined}
+                  rol={esAdmin ? (uid === CEO_UID ? 'ceo' : 'soporte') : undefined}
                 />
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4a5568', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem' }}>
@@ -488,7 +285,7 @@ export default function HubPage() {
 
           {/* MODOS */}
           <h2 style={{ fontFamily: "'Orbitron',sans-serif", color: 'white', margin: '0 0 20px', fontSize: 'clamp(1rem, 3vw, 1.3rem)' }}>
-            🎮 {t.hub_selecciona}
+            ðŸŽ® {t.hub_selecciona}
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
             {MODOS.map((modo) => (
@@ -524,7 +321,7 @@ export default function HubPage() {
                   (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
                 }}
               >
-                {/* Badge PRÓXIMAMENTE */}
+                {/* Badge PRÃ“XIMAMENTE */}
                 {modo.proximamente && (
                   <span style={{ position: 'absolute', top: 14, right: -28, background: '#444', color: '#ccc', fontFamily: "'Orbitron',sans-serif", fontSize: '0.55rem', fontWeight: 'bold', padding: '4px 38px', transform: 'rotate(45deg)', letterSpacing: 1 }}>
                     {t.hub_pronto}
@@ -537,208 +334,125 @@ export default function HubPage() {
             ))}
           </div>
 
-          {/* ── PERFIL DE JUEGO + REGIÓN ─────────────────── */}
-          <div style={{ marginTop: 32, background: '#0d1117', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(20px,4vw,28px)', animation: 'fadeUp .4s ease' }}>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.78rem', fontWeight: 900, color: '#00ff88', letterSpacing: 2, marginBottom: 6 }}>
-              🎮 COMPLETÁ TU PERFIL LFA
-            </div>
-            <div style={{ color: '#8b949e', fontSize: '0.72rem', marginBottom: 20 }}>
-              Seleccioná tu juego y región. Esto permite contar a los jugadores de cada comunidad de forma separada.
-            </div>
-
-            {/* Juego */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2, marginBottom: 10 }}>¿QUÉ JUEGO USÁS?</div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {[
-                  { key: 'efb' as const,  label: '⭐ eFOOTBALL',    color: '#ffd700' },
-                  { key: 'fc26' as const, label: '⚽ EA SPORTS FC 26', color: '#009ee3' },
-                ].map(({ key, label, color }) => (
-                  <button
-                    key={key}
-                    onClick={() => setUserGames(g => ({ ...g, [key]: !g[key] }))}
-                    style={{
-                      padding: '10px 20px', borderRadius: 30, cursor: 'pointer',
-                      border: `2px solid ${userGames[key] ? color : '#30363d'}`,
-                      background: userGames[key] ? `${color}18` : 'rgba(255,255,255,0.03)',
-                      color: userGames[key] ? color : '#8b949e',
-                      fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.75rem',
-                      transition: 'all 0.2s',
-                      boxShadow: userGames[key] ? `0 0 12px ${color}40` : 'none',
-                    }}
-                  >
-                    {label} {userGames[key] ? '✓' : ''}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Región */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 2, marginBottom: 10 }}>TU REGIÓN</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[
-                  { value: 'LATAM_SUR',   label: '🌎 LATAM Sur'   },
-                  { value: 'LATAM_NORTE', label: '🌎 LATAM Norte'  },
-                  { value: 'AMERICA',     label: '🌍 América'       },
-                  { value: 'GLOBAL',      label: '🌐 Global'        },
-                  { value: 'EUROPA',      label: '🇪🇺 Europa'        },
-                ].map(r => (
-                  <button
-                    key={r.value}
-                    onClick={() => setUserRegion(v => v === r.value ? '' : r.value)}
-                    style={{
-                      padding: '7px 16px', borderRadius: 20, cursor: 'pointer',
-                      border: `1px solid ${userRegion === r.value ? '#00ff88' : '#30363d'}`,
-                      background: userRegion === r.value ? 'rgba(0,255,136,0.12)' : 'transparent',
-                      color: userRegion === r.value ? '#00ff88' : '#8b949e',
-                      fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Botón guardar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <button
-                onClick={saveProfile}
-                disabled={savingProfile}
-                style={{
-                  padding: '10px 28px', borderRadius: 10, border: 'none', cursor: savingProfile ? 'not-allowed' : 'pointer',
-                  background: savingProfile ? '#1c2028' : 'linear-gradient(135deg,#00ff88,#00a859)',
-                  color: '#0b0e14', fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
-                  fontSize: '0.75rem', letterSpacing: 1,
-                  boxShadow: savingProfile ? 'none' : '0 0 16px rgba(0,255,136,0.3)',
-                  transition: 'all 0.2s',
-                  opacity: savingProfile ? 0.6 : 1,
-                }}
-              >
-                {savingProfile ? '⏳ GUARDANDO...' : '💾 GUARDAR'}
-              </button>
-              {profileMsg && (
-                <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.7rem', color: profileMsg.startsWith('✅') ? '#00ff88' : '#ff4757' }}>
-                  {profileMsg}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* ── FEEDBACK ─────────────────────────────────── */}
+          {/* â”€â”€ FEEDBACK PÃšBLICO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div style={{ marginTop: 40, borderTop: '1px solid #1c2028', paddingTop: 28 }}>
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <span style={{ fontSize: '1.1rem' }}>💬</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <span style={{ fontSize: '1.1rem' }}>ðŸ’¬</span>
               <div>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#009ee3', letterSpacing: 1 }}>TU OPINIÓN MEJORA LFA</div>
-                <div style={{ fontSize: '0.68rem', color: '#4a5568', marginTop: 1 }}>Sugerencias, bugs, ideas o valoraciones · Tu ayuda es bienvenida</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, color: '#009ee3', letterSpacing: 1 }}>OPINIONES DE LA COMUNIDAD</div>
+                <div style={{ fontSize: '0.68rem', color: '#4a5568', marginTop: 1 }}>Sugerencias, bugs e ideas Â· Lo que piensa la comunidad LFA</div>
               </div>
             </div>
 
+            {/* â”€â”€ Formulario envÃ­o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             {fbExito ? (
-              <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid #00ff8830', borderRadius: 12, padding: '20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎉</div>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.85rem', fontWeight: 900, marginBottom: 4 }}>¡GRACIAS POR TU FEEDBACK!</div>
-                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Lo revisaremos y lo usaremos para mejorar la plataforma. 🙌</div>
+              <div style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid #00ff8830', borderRadius: 12, padding: '20px', textAlign: 'center', marginBottom: 28 }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>ðŸŽ‰</div>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#00ff88', fontSize: '0.85rem', fontWeight: 900, marginBottom: 4 }}>Â¡GRACIAS POR TU FEEDBACK!</div>
+                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Lo revisaremos y usaremos para mejorar la plataforma. ðŸ™Œ</div>
               </div>
             ) : (
-              <div style={{ background: '#0d1117', border: '1px solid #1c2028', borderRadius: 14, padding: 'clamp(14px,3vw,20px)' }}>
-
-                {/* Pills de tipo */}
+              <div style={{ background: '#0d1117', border: '1px solid #1c2028', borderRadius: 14, padding: 'clamp(14px,3vw,20px)', marginBottom: 28 }}>
+                <div style={{ fontSize: '0.65rem', color: '#8b949e', fontFamily: "'Orbitron',sans-serif", letterSpacing: 1, marginBottom: 12 }}>DEJAR TU OPINIÃ“N</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
                   {FB_TIPOS.map(({ key, icon, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setFbTipo(key)}
-                      style={{
-                        padding: '5px 12px', borderRadius: 30, fontSize: '0.72rem', cursor: 'pointer',
-                        border: `1px solid ${fbTipo === key ? '#009ee3' : '#30363d'}`,
-                        background: fbTipo === key ? 'rgba(0,158,227,0.15)' : 'transparent',
-                        color: fbTipo === key ? '#009ee3' : '#8b949e',
-                        fontWeight: fbTipo === key ? 700 : 400,
-                        transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4,
-                      }}
-                    >{icon} {label}</button>
+                    <button key={key} onClick={() => setFbTipo(key)} style={{ padding: '5px 12px', borderRadius: 30, fontSize: '0.72rem', cursor: 'pointer', border: `1px solid ${fbTipo === key ? '#009ee3' : '#30363d'}`, background: fbTipo === key ? 'rgba(0,158,227,0.15)' : 'transparent', color: fbTipo === key ? '#009ee3' : '#8b949e', fontWeight: fbTipo === key ? 700 : 400, transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4 }}>{icon} {label}</button>
                   ))}
                 </div>
-
-                {/* Estrellas solo si valoracion */}
                 {fbTipo === 'valoracion' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
                     {[1,2,3,4,5].map(n => (
-                      <button key={n}
-                        onMouseEnter={() => setFbHover(n)} onMouseLeave={() => setFbHover(0)}
-                        onClick={() => setFbEstrellas(n)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0,
-                          transition: 'transform 0.15s', transform: n <= (fbHover || fbEstrellas) ? 'scale(1.25)' : 'scale(1)',
-                          filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)' }}
-                      >⭐</button>
+                      <button key={n} onMouseEnter={() => setFbHover(n)} onMouseLeave={() => setFbHover(0)} onClick={() => setFbEstrellas(n)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', padding: 0, transition: 'transform 0.15s', transform: n <= (fbHover || fbEstrellas) ? 'scale(1.25)' : 'scale(1)', filter: n <= (fbHover || fbEstrellas) ? 'none' : 'grayscale(1) opacity(0.3)' }}>â­</button>
                     ))}
-                    <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: 6 }}>
-                      {['','Muy malo','Malo','Regular','Bueno','Excelente'][fbHover || fbEstrellas]}
-                    </span>
+                    <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: 6 }}>{['','Muy malo','Malo','Regular','Bueno','Excelente'][fbHover || fbEstrellas]}</span>
                   </div>
                 )}
-
-                {/* Grid: nombre | mensaje + botón */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px,180px) 1fr', gap: 10, alignItems: 'flex-start' }}>
-                  <input
-                    value={fbNombre} onChange={e => setFbNombre(e.target.value)}
-                    maxLength={60} placeholder="Nick / nombre"
-                    style={{
-                      background: '#161b22', border: '1px solid #30363d', borderRadius: 8,
-                      padding: '9px 12px', color: 'white', fontSize: '0.8rem', outline: 'none',
-                      width: '100%', boxSizing: 'border-box' as const, fontFamily: "'Roboto',sans-serif",
-                    }}
-                  />
+                  <input value={fbNombre} onChange={e => setFbNombre(e.target.value)} maxLength={60} placeholder="Nick / nombre" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: '9px 12px', color: 'white', fontSize: '0.8rem', outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: "'Roboto',sans-serif" }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ position: 'relative' }}>
-                      <textarea
-                        value={fbMensaje} onChange={e => setFbMensaje(e.target.value)}
-                        maxLength={600} rows={3}
-                        placeholder={
-                          fbTipo === 'bug' ? 'Describí qué pasó y en qué sección...'
-                          : fbTipo === 'sugerencia' ? '¿Qué mejoraría la plataforma?'
-                          : fbTipo === 'valoracion' ? '¿Qué te parece LFA hasta ahora?'
-                          : 'Tu mensaje para el equipo LFA...'
-                        }
-                        style={{
-                          width: '100%', background: '#161b22',
-                          border: `1px solid ${fbError ? '#ff475760' : '#30363d'}`,
-                          borderRadius: 8, padding: '9px 12px 20px', color: 'white',
-                          fontSize: '0.8rem', outline: 'none', resize: 'none',
-                          fontFamily: "'Roboto',sans-serif", lineHeight: 1.5, boxSizing: 'border-box' as const,
-                        }}
-                      />
-                      <span style={{ position: 'absolute', bottom: 6, right: 10, fontSize: '0.62rem', color: fbMensaje.length > 550 ? '#ff4757' : '#4a5568', pointerEvents: 'none' }}>
-                        {fbMensaje.length}/600
-                      </span>
+                      <textarea value={fbMensaje} onChange={e => setFbMensaje(e.target.value)} maxLength={600} rows={3}
+                        placeholder={fbTipo === 'bug' ? 'DescribÃ­ quÃ© pasÃ³ y en quÃ© secciÃ³n...' : fbTipo === 'sugerencia' ? 'Â¿QuÃ© mejorarÃ­a la plataforma?' : fbTipo === 'valoracion' ? 'Â¿QuÃ© te parece LFA hasta ahora?' : 'Tu mensaje para el equipo LFA...'}
+                        style={{ width: '100%', background: '#161b22', border: `1px solid ${fbError ? '#ff475760' : '#30363d'}`, borderRadius: 8, padding: '9px 12px 20px', color: 'white', fontSize: '0.8rem', outline: 'none', resize: 'none', fontFamily: "'Roboto',sans-serif", lineHeight: 1.5, boxSizing: 'border-box' as const }} />
+                      <span style={{ position: 'absolute', bottom: 6, right: 10, fontSize: '0.62rem', color: fbMensaje.length > 550 ? '#ff4757' : '#4a5568', pointerEvents: 'none' }}>{fbMensaje.length}/600</span>
                     </div>
-                    {fbError && <div style={{ color: '#ff4757', fontSize: '0.72rem' }}>⚠️ {fbError}</div>}
-                    <button
-                      onClick={enviarFeedback}
-                      disabled={fbEnviando || fbMensaje.trim().length < 10}
-                      style={{
-                        padding: '9px 18px', borderRadius: 8, border: 'none', cursor: fbEnviando || fbMensaje.trim().length < 10 ? 'not-allowed' : 'pointer',
-                        background: fbEnviando ? '#1c2028' : 'linear-gradient(135deg,#009ee3,#0077b6)',
-                        color: 'white', fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
-                        fontSize: '0.72rem', letterSpacing: 1,
-                        opacity: fbMensaje.trim().length < 10 ? 0.5 : 1,
-                        boxShadow: fbEnviando || fbMensaje.trim().length < 10 ? 'none' : '0 0 14px rgba(0,158,227,0.3)',
-                        transition: 'all 0.2s', alignSelf: 'flex-end',
-                      }}
-                    >
-                      {fbEnviando ? '⏳ ENVIANDO...' : '📨 ENVIAR →'}
+                    {fbError && <div style={{ color: '#ff4757', fontSize: '0.72rem' }}>âš ï¸ {fbError}</div>}
+                    <button onClick={enviarFeedback} disabled={fbEnviando || fbMensaje.trim().length < 10} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: fbEnviando || fbMensaje.trim().length < 10 ? 'not-allowed' : 'pointer', background: fbEnviando ? '#1c2028' : 'linear-gradient(135deg,#009ee3,#0077b6)', color: 'white', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.72rem', letterSpacing: 1, opacity: fbMensaje.trim().length < 10 ? 0.5 : 1, boxShadow: fbEnviando || fbMensaje.trim().length < 10 ? 'none' : '0 0 14px rgba(0,158,227,0.3)', transition: 'all 0.2s', alignSelf: 'flex-end' as const }}>
+                      {fbEnviando ? 'â³ ENVIANDO...' : 'ðŸ“¨ ENVIAR â†’'}
                     </button>
                   </div>
                 </div>
-
               </div>
             )}
+
+            {/* â”€â”€ Historial pÃºblico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {feedbackList.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#4a5568', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif" }}>
+                  SIN OPINIONES AÃšN Â· SÃ‰ EL PRIMERO
+                </div>
+              )}
+              {feedbackList.map(item => {
+                const TIPO_CLR: Record<string,string> = { sugerencia:'#009ee3', bug:'#ff4757', valoracion:'#ffd700', otro:'#8b949e' };
+                const TIPO_ICO: Record<string,string> = { sugerencia:'ðŸ’¡', bug:'ðŸ›', valoracion:'â­', otro:'ðŸ’¬' };
+                const color = TIPO_CLR[item.tipo] ?? '#8b949e';
+                const ico   = TIPO_ICO[item.tipo] ?? 'ðŸ’¬';
+                const isRespondido  = !!item.ceo_respuesta;
+                const isCeoOpen     = ceoReplyTarget === item.id;
+                const fechaStr      = item.creado_en?.toDate?.()
+                  ? item.creado_en.toDate!().toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+                  : '';
+                return (
+                  <div key={item.id} style={{ background: '#0d1117', border: `1px solid ${isRespondido ? 'rgba(0,255,136,0.2)' : '#1c2028'}`, borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ background: `${color}18`, color, border: `1px solid ${color}40`, borderRadius: 20, padding: '2px 10px', fontSize: '0.62rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                        {ico} {item.tipo.toUpperCase()}
+                      </span>
+                      <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'white' }}>{item.nombre}</span>
+                      {item.tipo === 'valoracion' && item.estrellas && (
+                        <span style={{ color: '#ffd700', fontSize: '0.75rem' }}>{'â­'.repeat(item.estrellas)}</span>
+                      )}
+                      <span style={{ marginLeft: 'auto', color: '#4a5568', fontSize: '0.65rem' }}>{fechaStr}</span>
+                    </div>
+                    <div style={{ color: '#cdd9e5', fontSize: '0.82rem', lineHeight: 1.55 }}>{item.mensaje}</div>
+
+                    {/* Respuesta CEO */}
+                    {isRespondido && (
+                      <div style={{ marginTop: 10, background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.58rem', color: '#ffd700', fontWeight: 900, marginBottom: 4 }}>â­ CEO LFA</div>
+                        <div style={{ color: '#cdd9e5', fontSize: '0.8rem', lineHeight: 1.5 }}>{item.ceo_respuesta}</div>
+                      </div>
+                    )}
+
+                    {/* CEO: botÃ³n responder */}
+                    {esAdmin && !isRespondido && (
+                      <div style={{ marginTop: 10 }}>
+                        {!isCeoOpen ? (
+                          <button onClick={() => { setCeoReplyTarget(item.id); setCeoReplyText(''); }} style={{ background: 'rgba(255,215,0,0.07)', border: '1px solid #ffd70030', color: '#ffd700', borderRadius: 8, padding: '4px 14px', fontSize: '0.63rem', cursor: 'pointer', fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                            âœï¸ RESPONDER
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                            <textarea value={ceoReplyText} onChange={e => setCeoReplyText(e.target.value)} maxLength={400} rows={2} placeholder="Tu respuesta como CEO..." style={{ flex: 1, background: '#161b22', border: '1px solid #ffd70030', borderRadius: 8, padding: '8px 10px', color: 'white', fontSize: '0.78rem', resize: 'none', fontFamily: "'Roboto',sans-serif", outline: 'none' }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <button onClick={() => ceoResponder(item.id)} disabled={ceoReplying || !ceoReplyText.trim()} style={{ background: 'linear-gradient(135deg,#ffd700,#f0a500)', border: 'none', color: '#0b0e14', borderRadius: 8, padding: '6px 14px', fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.63rem', cursor: 'pointer', opacity: !ceoReplyText.trim() ? 0.5 : 1 }}>
+                                {ceoReplying ? '...' : 'âœ… OK'}
+                              </button>
+                              <button onClick={() => setCeoReplyTarget(null)} style={{ background: 'transparent', border: '1px solid #30363d', color: '#8b949e', borderRadius: 8, padding: '4px 10px', fontSize: '0.62rem', cursor: 'pointer' }}>
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
 
         </div>

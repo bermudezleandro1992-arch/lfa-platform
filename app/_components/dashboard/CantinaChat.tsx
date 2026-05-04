@@ -415,11 +415,8 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
           })}
         </div>
 
-        {/* ── Dos columnas: Chat general | Feed BOT ────── */}
-        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-
-          {/* ── Chat general (jugadores) ─────────────────── */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, borderRight: '1px solid #1c2028' }}>
+          {/* ── Chat general ─────────────────────────────── */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
 
             {messages.filter(m => (m.rol?.toLowerCase() ?? '') !== 'bot' && m.uid !== 'BOT_LFA').length === 0 && (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#4a5568' }}>
@@ -480,51 +477,6 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
             })}
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
-
-          {/* ── Feed BOT LFA ─────────────────────────────── */}
-          <div style={{ width: 260, flexShrink: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(0,255,136,0.015)' }}>
-            {/* Header feed */}
-            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.6rem', color: '#00ff88', fontWeight: 900, padding: '4px 6px', marginBottom: 4, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <span>📡 BOT LFA</span>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 4px #00ff88', animation: 'pulse 2s infinite' }} />
-            </div>
-
-            {messages.filter(m => m.rol?.toLowerCase() === 'bot' || m.uid === 'BOT_LFA').length === 0 && (
-              <div style={{ textAlign: 'center', padding: '30px 10px', color: '#2a3540' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>🤖</div>
-                <div style={{ fontSize: '0.65rem', fontFamily: "'Orbitron',sans-serif" }}>Sin eventos aún</div>
-              </div>
-            )}
-
-            {messages.filter(m => m.rol?.toLowerCase() === 'bot' || m.uid === 'BOT_LFA').map(msg => (
-              <div key={msg.id} style={{
-                background: 'rgba(0,255,136,0.04)',
-                border: '1px solid rgba(0,255,136,0.15)',
-                borderRadius: 10,
-                padding: '8px 10px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                  <span style={{ fontSize: '0.75rem' }}>🤖</span>
-                  <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '0.57rem', color: '#00ff88', fontWeight: 900 }}>BOT LFA</span>
-                  <span style={{ color: '#2a3540', fontSize: '0.57rem', marginLeft: 'auto' }}>{timeStr(msg.timestamp)}</span>
-                  {isMod && (
-                    <button
-                      className="cant-del"
-                      onClick={() => borrar(msg.id)}
-                      style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: '0.65rem', padding: 0, opacity: 0, transition: '0.15s', lineHeight: 1 }}
-                      title="Borrar"
-                    >🗑️</button>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#cdd9e5', lineHeight: 1.5, wordBreak: 'break-word' }}>
-                  {msg.texto}
-                </div>
-              </div>
-            ))}
-            <div ref={botBottomRef} style={{ height: 1 }} />
-          </div>
-
-        </div>
       </div>
 
       {/* ── Input envío ─────────────────────────────────────── */}
