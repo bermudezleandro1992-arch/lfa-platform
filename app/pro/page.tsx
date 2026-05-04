@@ -14,9 +14,10 @@ import Link from 'next/link';
 /* =============================================
    CONSTANTES
 ============================================= */
-const LIGA_ID    = 'LFA_EFB_LATAMSUR';
+const LIGA_ID    = 'LFA';
 const LIGA_LABEL = 'LIGA LFA — eFOOTBALL CROSSPLAY';
 const LIGA_COLOR = '#00ff88';
+const WA_GROUP   = 'https://chat.whatsapp.com/ICI491mtd1kKfYkOU5iJXN';
 
 const PAISES = [
   'Argentina','Uruguay','Brasil','Chile','Colombia','Peru',
@@ -439,6 +440,20 @@ export default function ProPage() {
               <span key={p} style={{background:'#161b22',border:'1px solid #30363d',borderRadius:20,padding:'4px 14px',fontSize:'0.63rem',color:'#8b949e',fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{p}</span>
             ))}
           </div>
+
+          {/* WHATSAPP GROUP */}
+          <a href={WA_GROUP} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:12,marginTop:22,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.3)',borderRadius:14,padding:'12px 22px',textDecoration:'none',maxWidth:420,width:'100%'}}>
+            <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(37,211,102,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="#25d366">
+                <path d="M16 2.9C8.8 2.9 2.9 8.8 2.9 16c0 2.3.6 4.5 1.8 6.5L2 30l7.7-2.7c1.9 1 4 1.6 6.3 1.6 7.2 0 13.1-5.9 13.1-13.1C29.1 8.8 23.2 2.9 16 2.9zm0 24c-2.1 0-4.1-.6-5.8-1.6l-.4-.2-4.6 1.6 1.6-4.5-.3-.5C5.5 20 4.9 18 4.9 16c0-6.1 5-11.1 11.1-11.1 6.1 0 11.1 5 11.1 11.1C27.1 22 22.1 27 16 27zm6.1-8.3c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6 0-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.5-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.2-.7-1.7-.9-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.9-.8 2.1-1.5.3-.7.3-1.3.2-1.5-.1-.2-.3-.3-.6-.4z"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:'0.68rem',fontWeight:900,color:'#25d366',letterSpacing:1}}>GRUPO WHATSAPP OFICIAL</div>
+              <div style={{fontSize:'0.7rem',color:'#8b949e',marginTop:2}}>Unite al grupo para coordinar partidos y novedades de la liga</div>
+            </div>
+            <div style={{marginLeft:'auto',fontSize:'0.6rem',color:'#25d366',fontFamily:"'Orbitron',sans-serif",fontWeight:700,whiteSpace:'nowrap'}}>UNIRSE →</div>
+          </a>
         </section>
 
         {/* FORMAT CARDS */}

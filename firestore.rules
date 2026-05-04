@@ -261,6 +261,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Plantillas de sala — CEO mega spawn ──────────────────────────
+    match /room_slots/{slotId} {
+      allow read: if true;
+      allow create, update, delete: if esAdmin();
+    }
+
     // ── Liga LFA 1vs1 — /pro ─────────────────────────────────────────
     match /liga_pro_equipos/{equipoId} {
       allow read: if true;
@@ -275,8 +281,35 @@ service cloud.firestore {
 
     match /liga_pro_mensajes/{msgId} {
       allow read: if authExists();
-      // Lectura libre, escritura solo vía servidor
-      allow write: if false;
+      allow create: if authExists()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.texto is string
+                    && request.resource.data.texto.size() >= 1
+                    && request.resource.data.texto.size() <= 300;
+      allow update: if false;
+      allow delete: if esAdmin();
+    }
+
+    // ── Desafíos 1vs1 entre jugadores ────────────────────────────────
+    match /liga_desafios/{desafioId} {
+      allow read: if authExists();
+      allow create: if authExists() && request.resource.data.retador_uid == request.auth.uid;
+      allow update: if authExists() && (
+        request.auth.uid == resource.data.retador_uid ||
+        request.auth.uid == resource.data.rival_uid ||
+        esAdmin()
+      );
+      allow delete: if authExists() && (
+        request.auth.uid == resource.data.retador_uid || esAdmin()
+      );
+    }
+
+    // ── Chat de partidos de liga ──────────────────────────────────────
+    match /liga_match_chat/{chatId} {
+      allow read: if authExists();
+      allow create: if authExists() && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if esAdmin();
     }
 
     match /{document=**} {
