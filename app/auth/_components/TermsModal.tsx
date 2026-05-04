@@ -17,9 +17,22 @@ export default function TermsModal({ onAccept, onClose }: TermsModalProps) {
     const el = scrollRef.current;
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
-    const progress = Math.min(100, Math.round((scrollTop / (scrollHeight - clientHeight)) * 100));
+    const maxScroll = scrollHeight - clientHeight;
+    const progress  = maxScroll > 0
+      ? Math.min(100, Math.round((scrollTop / maxScroll) * 100))
+      : 100;
     setScrollProgress(progress);
-    if (scrollTop + clientHeight >= scrollHeight - 1) {
+    if (progress >= 100) {
+      setScrolledToBottom(true);
+    }
+  }, []);
+
+  // Si el contenido no requiere scroll (cabe todo sin overflow), desbloquear directo
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 1) {
+      setScrollProgress(100);
       setScrolledToBottom(true);
     }
   }, []);

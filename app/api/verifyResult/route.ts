@@ -313,25 +313,25 @@ export async function POST(req: NextRequest) {
     /* ── Log para beta test ─────────────────────────────── */
     await logVisionResult(matchId, screenshotUrl, uid, rawText, result, match);
 
-    /* ── Publicar en cantina como BOT ─────────────────────── */
+    /* ── Publicar en match_chat como BOT (NO en cantina global) ── */
     const confPct = Math.round(confidence * 100);
     const botMsg = verdict === 'OK'
       ? `✅ [BOT LFA] Resultado verificado. Marcador: **${scoreFound ?? 'N/D'}** | ${game} | Confianza: ${confPct}%`
       : verdict === 'SUSPICIOUS'
         ? `🚨 [BOT LFA] Resultado SOSPECHOSO (${confPct}%). ${isEdited ? 'Imagen posiblemente editada.' : !resultScreen ? 'No parece pantalla de resultado.' : 'Verificación fallida.'} Un moderador revisará el caso.`
-        : `🔍 [BOT LFA] Resultado con confianza media (${confPct}%). Requiere revisión manual del Staff. Detalles: ${details.slice(0,120)}`;
+        : `🔍 [BOT LFA] Resultado con confianza media (${confPct}%). Requiere revisión manual del Staff.`;
 
-    await adminDb.collection('cantina_messages').add({
+    await adminDb.collection('match_chat').add({
+      matchId,
+      tournamentId:  match.tournamentId || null,
       uid:           'BOT_LFA',
       nombre:        '🤖 BOT LFA',
       avatar_url:    null,
       rol:           'bot',
       texto:         botMsg,
-      is_bot_verify: true,
+      is_bot_result: true,
       verdict,
-      match_id:      matchId,
       timestamp:     FieldValue.serverTimestamp(),
-      deleted:       false,
     });
 
     return NextResponse.json(result);

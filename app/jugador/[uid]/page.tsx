@@ -22,20 +22,10 @@ interface Room {
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
-function FlagImg({ code, size = 24 }: { code?: string; size?: number }) {
-  if (!code || code.length !== 2) return null;
-  const c = code.toLowerCase();
-  return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${c}.png`}
-      srcSet={`https://flagcdn.com/w${size * 2}/${c}.png 2x`}
-      width={size}
-      height={Math.round(size * 0.67)}
-      alt={code.toUpperCase()}
-      title={code.toUpperCase()}
-      style={{ display: 'inline-block', borderRadius: 2, objectFit: 'cover', verticalAlign: 'middle', flexShrink: 0 }}
-    />
-  );
+function countryFlag(code = '') {
+  if (!code || code.length !== 2) return '🏳️';
+  const o = 0x1F1E6 - 65;
+  return String.fromCodePoint(code.toUpperCase().charCodeAt(0)+o, code.toUpperCase().charCodeAt(1)+o);
 }
 function getTier(t: number) {
   if (t >= 50) return { label:'LEYENDA', color:'#ff4757', icon:'👑', glow:'rgba(255,71,87,0.35)' };
@@ -154,7 +144,7 @@ export default function JugadorPage() {
                   <h1 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'clamp(1.2rem,3vw,1.8rem)', fontWeight:900, margin:0 }}>
                     {player.nombre || 'ANÓNIMO'}
                   </h1>
-                  {player.country && <FlagImg code={player.country} size={26} />}
+                  {player.country && <span style={{ fontSize:'1.5rem' }} title={player.countryName}>{countryFlag(player.country)}</span>}
                   {player.es_afiliado && <span style={{ color:'#ffd700', fontSize:'0.7rem', fontWeight:700, background:'rgba(255,215,0,0.08)', padding:'2px 8px', borderRadius:6 }}>⭐ AFILIADO</span>}
                   {isMe && <span style={{ color:'#00ff88', fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif" }}>← TÚ</span>}
                 </div>

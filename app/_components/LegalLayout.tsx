@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface LegalLayoutProps {
   title: string;
@@ -11,7 +11,6 @@ interface LegalLayoutProps {
 }
 
 export default function LegalLayout({ title, emoji, accentColor, h2Color, date, children }: LegalLayoutProps) {
-  const router = useRouter();
   return (
     <div style={{ margin: 0, fontFamily: "'Roboto', sans-serif", background: '#0b0e14', color: 'white', minHeight: '100vh', lineHeight: 1.6 }}>
       <header style={{
@@ -27,19 +26,19 @@ export default function LegalLayout({ title, emoji, accentColor, h2Color, date, 
         <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '1.5rem', fontWeight: 700, color: 'white', letterSpacing: 2 }}>
           SOMOS<span style={{ color: accentColor }}>LFA</span>
         </span>
-        <button onClick={() => router.back()} style={{
+        <Link href="/" style={{
           background: 'transparent',
           border: '1px solid #8b949e',
           color: 'white',
           padding: '8px 15px',
           borderRadius: 8,
           fontFamily: "'Orbitron', sans-serif",
+          textDecoration: 'none',
           fontSize: '0.8rem',
           transition: '0.3s',
-          cursor: 'pointer',
         }}>
           ← VOLVER
-        </button>
+        </Link>
       </header>
 
       <div style={{ padding: '30px 16px 60px' }}>

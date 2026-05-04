@@ -31,14 +31,13 @@ export default function MatchPage() {
 
   return (
     <>
-      <div style={{ background: '#0d1117', borderBottom: '1px solid #30363d', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 30, backdropFilter: 'blur(8px)' }}>
-        <a href="/dashboard" style={{ color: '#8b949e', textDecoration: 'none', fontSize: '0.75rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div className="bg-gray-900/80 backdrop-blur border-b border-gray-800 px-4 py-2 flex items-center gap-3 sticky top-0 z-30">
+        <Link href="/dashboard"
+          className="text-xs font-semibold text-gray-400 hover:text-white transition flex items-center gap-1">
           ← ARENA
-        </a>
-        <span style={{ color: '#30363d' }}>|</span>
-        <span style={{ color: '#ffd700', fontFamily: "'Orbitron',sans-serif", fontSize: '0.75rem', fontWeight: 900, letterSpacing: 2 }}>
-          ⚔️ SALA DE MATCH
-        </span>
+        </Link>
+        <span className="text-gray-700">|</span>
+        <span className="text-xs text-yellow-400 font-black tracking-widest">SALA DE MATCH</span>
       </div>
       <MatchRoom matchId={matchId} />
     </>

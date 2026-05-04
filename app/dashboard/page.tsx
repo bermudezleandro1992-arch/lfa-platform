@@ -11,9 +11,10 @@ import Link                    from 'next/link';
 import dynamic                 from 'next/dynamic';
 import LangDropdown, { useLang } from '@/app/_components/LangDropdown';
 
-const RankingInline    = dynamic(() => import('@/app/_components/dashboard/RankingInline'),    { ssr: false });
-const LfaTV            = dynamic(() => import('@/app/_components/dashboard/LfaTV'),            { ssr: false });
-const OrganizadorPanel = dynamic(() => import('@/app/_components/dashboard/OrganizadorPanel'), { ssr: false });
+const RankingInline       = dynamic(() => import('@/app/_components/dashboard/RankingInline'),       { ssr: false });
+const LfaTV               = dynamic(() => import('@/app/_components/dashboard/LfaTV'),               { ssr: false });
+const OrganizadorPanel    = dynamic(() => import('@/app/_components/dashboard/OrganizadorPanel'),    { ssr: false });
+const ResultadosEnVivo    = dynamic(() => import('@/app/_components/dashboard/ResultadosEnVivo'),    { ssr: false });
 
 
 export default function DashboardPage() {
@@ -31,12 +32,12 @@ function DashboardContent() {
   const [ready,    setReady]    = useState(false);
   const [uid,      setUid]      = useState('');
   const [userRol,  setUserRol]  = useState('');
-  const [tab,      setTab]      = useState<'arena'|'ranking'|'tv'|'organizador'>(() => 'arena');
+  const [tab,      setTab]      = useState<'arena'|'ranking'|'tv'|'resultados'|'organizador'>(() => 'arena');
 
   // Leer ?tab= de la URL al montar
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'ranking' || t === 'tv' || t === 'organizador') setTab(t as 'ranking'|'tv'|'organizador');
+    if (t === 'ranking' || t === 'tv' || t === 'resultados' || t === 'organizador') setTab(t as 'ranking'|'tv'|'resultados'|'organizador');
   }, [searchParams]);
 
   useEffect(() => {
@@ -99,6 +100,9 @@ function DashboardContent() {
         <button onClick={() => setTab('tv')} style={{ background:'transparent', border:'none', borderBottom: tab==='tv' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='tv' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
           📺 {t.dash_tab_tv}
         </button>
+        <button onClick={() => setTab('resultados')} style={{ background:'transparent', border:'none', borderBottom: tab==='resultados' ? '2px solid #00ff88' : '2px solid transparent', color: tab==='resultados' ? '#00ff88' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
+          ⚡ EN VIVO
+        </button>
         {userRol === 'organizador' && (
           <button onClick={() => setTab('organizador')} style={{ background:'transparent', border:'none', borderBottom: tab==='organizador' ? '2px solid #a371f7' : '2px solid transparent', color: tab==='organizador' ? '#a371f7' : '#8b949e', fontFamily:"'Orbitron',sans-serif", fontSize:'0.68rem', fontWeight:900, padding:'0 16px', cursor:'pointer', letterSpacing:1, transition:'0.15s' }}>
             🎙️ ORGANIZADOR
@@ -124,6 +128,7 @@ function DashboardContent() {
       )}
       {tab === 'ranking'      && <RankingInline />}
       {tab === 'tv'           && <LfaTV uid={uid} />}
+      {tab === 'resultados'   && <ResultadosEnVivo />}
       {tab === 'organizador'  && <OrganizadorPanel />}
 
 

@@ -8,10 +8,12 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
+  signOut,
   updateProfile,
   GoogleAuthProvider,
   FacebookAuthProvider,
   AuthError,
+  type User,
 } from 'firebase/auth';
 import {
   doc,
@@ -130,7 +132,12 @@ export default function AuthPage() {
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState('');
   const [success,       setSuccess]       = useState('');
-
+  // Usuario social pendiente de aceptar Términos (Google/Facebook nuevo)
+  const [pendingSocialUser, setPendingSocialUser] = useState<{
+    user: User;
+    geo:  RegionDetectionResult;
+    provider: 'google' | 'facebook';
+  } | null>(null);
   // ── Estado de formulario ───────────────────────────────────
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -156,10 +163,45 @@ export default function AuthPage() {
     [termsAccepted],
   );
 
-  const handleTermsAccept = () => {
+  const handleTermsAccept = async () => {
     setTermsAccepted(true);
     setShowTerms(false);
+
+    // Si hay un registro social pendiente, completarlo ahora que el usuario aceptó
+    if (pendingSocialUser) {
+      const { user, geo, provider } = pendingSocialUser;
+      setPendingSocialUser(null);
+      setLoading(true);
+      try {
+        await saveUserToFirestore(
+          user.uid, user.email,
+          user.displayName ?? 'Jugador LFA',
+          user.photoURL, provider, geo,
+        );
+        const token = await user.getIdToken();
+        await fetch('/api/tos/accept', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        router.push('/hub');
+      } catch (err) {
+        setError(mapFirebaseError(err as AuthError));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setMode('register');
+  };
+
+  // Si el usuario cierra el modal con un social login pendiente, hacer sign-out
+  const handleTermsClose = async () => {
+    if (pendingSocialUser) {
+      setPendingSocialUser(null);
+      await signOut(auth).catch(() => {});
+    }
+    setShowTerms(false);
   };
 
   // ── Registro Email/Password ────────────────────────────────
@@ -227,24 +269,14 @@ export default function AuthPage() {
         // Verificar si el usuario ya existe en Firestore
         const userSnap = await getDoc(doc(db, 'usuarios', user.uid));
         const isNewUser = !userSnap.exists();
+
         if (isNewUser) {
+          // Nuevo usuario: debe aceptar Términos ANTES de crear su cuenta
           const geo = await detectRegion();
-          await saveUserToFirestore(
-            user.uid,
-            user.email,
-            user.displayName ?? 'Jugador LFA',
-            user.photoURL,
-            provider,
-            geo,
-          );
-          // Audit log TOS para nuevos usuarios sociales
-          try {
-            const token = await user.getIdToken();
-            await fetch('/api/tos/accept', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-          } catch { /* no bloquear login por fallo del log */ }
+          setPendingSocialUser({ user, geo, provider });
+          setShowTerms(true);
+          setLoading(false);
+          return; // No redirigir hasta que acepte
         }
 
         router.push('/hub');
@@ -269,7 +301,7 @@ export default function AuthPage() {
       {showTerms && (
         <TermsModal
           onAccept={handleTermsAccept}
-          onClose={() => setShowTerms(false)}
+          onClose={handleTermsClose}
         />
       )}
 

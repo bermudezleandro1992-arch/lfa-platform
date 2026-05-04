@@ -45,41 +45,25 @@ export default function IntroOverlay({ onSkip }: IntroOverlayProps) {
       {!showVideo && (
         <div className="text-center px-5 animate-fade-in">
           {/* Corona */}
-          <div className="text-lfa-gold text-6xl mb-4">♛</div>
+          <div className="text-lfa-gold text-6xl mb-5">♛</div>
 
           {/* Logo */}
-          <div className="leading-none mb-2">
-            <p
-              className="title-orbitron text-lfa-neon font-black m-0 leading-none"
-              style={{ fontSize: '1.6rem', letterSpacing: '8px' }}
-            >
-              SOMOS
-            </p>
-            <h1
-              className="title-orbitron text-white font-black m-0 leading-none"
-              style={{
-                fontSize: '4.5rem',
-                textShadow: '0 0 20px #00ff88',
-              }}
-            >
-              LFA
-            </h1>
-          </div>
+          <h1
+            className="title-orbitron text-white font-black m-0 leading-none"
+            style={{
+              fontSize: '4rem',
+              textShadow: '0 0 20px #00ff88',
+            }}
+          >
+            LFA
+          </h1>
 
           {/* Sub-tagline */}
           <p
-            className="title-orbitron text-lfa-neon font-bold mb-4"
-            style={{ letterSpacing: '5px', marginTop: '4px' }}
+            className="title-orbitron text-lfa-neon font-bold mb-10"
+            style={{ letterSpacing: '5px', marginTop: '8px' }}
           >
             E-SPORTS DE ÉLITE
-          </p>
-
-          {/* CTA */}
-          <p
-            className="text-gray-400 text-sm mb-8"
-            style={{ letterSpacing: '1px' }}
-          >
-            Registrate o ingresá con tu cuenta
           </p>
 
           {/* Botón reproducir */}
