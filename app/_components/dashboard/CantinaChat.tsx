@@ -203,7 +203,7 @@ export default function CantinaChat({ uid, nombre: nombreProp, avatarUrl: avatar
         const data = d.data() as Presence;
         // Incluir siempre; solo filtrar docs muy viejos (sin actividad en 3 min)
         const lastPing = data.ping_ms ?? data.ultimo_ping?.toDate?.()?.getTime?.() ?? now;
-        if (now - lastPing < 180_000) {
+        if (now - lastPing < 180_000 && d.id !== 'BOT_LFA') {
           list.push({ ...data, uid: d.id });
         }
       });
