@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { doc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth, storage }                from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import BracketView                          from "./BracketView";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface BotVerification {
@@ -449,140 +450,20 @@ export default function MatchRoom({ matchId }: Props) {
         )}
 
         {/* ── BRACKETS PANEL ── */}
-        {showBrackets && brackets.length > 0 && (() => {
-          const rounds = Array.from(new Set(brackets.map(m => m.round))).sort((a, b) => {
-            if (a === "final") return 1; if (b === "final") return -1;
-            const na = parseInt(a.replace(/\D/g, "") || "0", 10);
-            const nb = parseInt(b.replace(/\D/g, "") || "0", 10);
-            return na - nb;
-          });
-          const isTournamentDone = brackets.every(m => m.status === "FINISHED");
-          const champion = isTournamentDone
-            ? (() => {
-                const finalMatch = brackets.find(m => m.round === "final" || rounds[rounds.length - 1] === m.round);
-                if (!finalMatch?.winner) return null;
-                return finalMatch.winner === finalMatch.p1
-                  ? (finalMatch.p1_username || finalMatch.p1?.slice(0, 12) || "Campeón")
-                  : (finalMatch.p2_username || finalMatch.p2?.slice(0, 12) || "Campeón");
-              })()
-            : null;
-
-          return (
-            <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-              {/* Header */}
-              <div style={{ background: "linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,215,0,0.04))", borderBottom: "1px solid rgba(255,215,0,0.2)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.78rem", fontWeight: 700 }}>🏆 BRACKETS EN VIVO</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#00ff88", animation: "pulse 2s infinite", boxShadow: "0 0 6px #00ff88" }} />
-                  <span style={{ color: "#00ff88", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif" }}>LIVE</span>
-                </div>
-              </div>
-
-              {/* Champion banner */}
-              {champion && (
-                <div style={{ background: "linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.08))", borderBottom: "1px solid rgba(255,215,0,0.3)", padding: "16px", textAlign: "center" }}>
-                  <div style={{ fontSize: "3rem", animation: "trophy-pop 0.6s ease-out", display: "inline-block" }}>🏆</div>
-                  <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.95rem", fontWeight: 900, marginTop: 4 }}>CAMPEÓN</div>
-                  <div style={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, marginTop: 4 }}>{champion}</div>
-                </div>
-              )}
-
-              <div style={{ padding: "12px 14px", overflowX: "auto" }}>
-                {/* Bracket rounds as columns */}
-                <div style={{ display: "flex", gap: 10, minWidth: `${rounds.length * 170}px` }}>
-                  {rounds.map((round, ri) => {
-                    const roundMatches = brackets.filter(m => m.round === round);
-                    const isFinalRound = ri === rounds.length - 1;
-                    return (
-                      <div key={round} style={{ flex: 1, minWidth: 150 }}>
-                        {/* Round label */}
-                        <div style={{ textAlign: "center", marginBottom: 8, padding: "4px 8px", background: isFinalRound ? "rgba(255,215,0,0.1)" : "rgba(255,255,255,0.03)", borderRadius: 6, border: `1px solid ${isFinalRound ? "rgba(255,215,0,0.3)" : "#30363d"}` }}>
-                          <span style={{ color: isFinalRound ? "#ffd700" : "#8b949e", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
-                            {roundLabels[round] || round.toUpperCase()}
-                          </span>
-                        </div>
-
-                        {/* Matches in this round */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          {roundMatches.map(m => {
-                            const isCurrent    = m.id === matchId;
-                            const isFinished   = m.status === "FINISHED";
-                            const isActive     = m.status === "WAITING" || m.status === "PENDING_RESULT";
-                            const p1Won        = isFinished && m.winner === m.p1;
-                            const p2Won        = isFinished && m.winner === m.p2;
-                            const p1Name       = m.p1_username || m.p1?.slice(0, 12) || "TBD";
-                            const p2Name       = m.p2_username || m.p2?.slice(0, 12) || "TBD";
-                            const hasAdvanced  = isFinished && isFinalRound; // champion match
-
-                            return (
-                              <div key={m.id} style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${isCurrent ? "rgba(255,215,0,0.7)" : isActive ? "rgba(0,255,136,0.3)" : isFinished ? "rgba(255,255,255,0.08)" : "#30363d"}`, boxShadow: isCurrent ? "0 0 12px rgba(255,215,0,0.2)" : "none", transition: "all .3s" }}>
-
-                                {/* P1 row */}
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: p1Won ? "rgba(0,255,136,0.1)" : "rgba(22,27,34,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                                  <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{p1Won ? "🏆" : !isFinished ? (m.p1 ? "▶" : "·") : "·"}</span>
-                                  <span style={{ flex: 1, fontSize: "0.7rem", color: p1Won ? "#00ff88" : !isFinished && m.p1 ? "white" : "#555", fontWeight: p1Won ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {p1Name}
-                                  </span>
-                                  {isFinished && m.score && (
-                                    <span style={{ color: p1Won ? "#00ff88" : "#444", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>
-                                      {m.score.split("-")[0] ?? "-"}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* P2 row */}
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: p2Won ? "rgba(0,255,136,0.1)" : "rgba(15,19,26,0.8)" }}>
-                                  <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{p2Won ? "🏆" : !isFinished ? (m.p2 ? "▶" : "·") : "·"}</span>
-                                  <span style={{ flex: 1, fontSize: "0.7rem", color: p2Won ? "#00ff88" : !isFinished && m.p2 ? "white" : "#555", fontWeight: p2Won ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {p2Name}
-                                  </span>
-                                  {isFinished && m.score && (
-                                    <span style={{ color: p2Won ? "#00ff88" : "#444", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>
-                                      {m.score.split("-")[1] ?? "-"}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Status badge + advance banner */}
-                                {isCurrent && (
-                                  <div style={{ padding: "3px 8px", background: "rgba(255,215,0,0.1)", textAlign: "center" }}>
-                                    <span style={{ color: "#ffd700", fontSize: "0.55rem", fontFamily: "'Orbitron',sans-serif" }}>◉ ESTA SALA</span>
-                                  </div>
-                                )}
-                                {isFinished && !isCurrent && m.winner && (() => {
-                                  const winName = m.winner === m.p1 ? p1Name : p2Name;
-                                  const nextRoundIdx = ri + 1;
-                                  const hasNext = nextRoundIdx < rounds.length;
-                                  return (
-                                    <div style={{ padding: "3px 8px", background: "rgba(0,255,136,0.05)", textAlign: "center", animation: "advance-in .4s ease-out" }}>
-                                      <span style={{ color: "#00ff88", fontSize: "0.55rem" }}>
-                                        {hasNext ? `✓ ${winName} avanza` : `🏆 ${winName} campeón`}
-                                      </span>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            );
-                          })}
-
-                          {/* Trophy at bottom of final column */}
-                          {isFinalRound && (
-                            <div style={{ textAlign: "center", marginTop: 8 }}>
-                              <div style={{ fontSize: "2rem", filter: isTournamentDone ? "drop-shadow(0 0 12px #ffd700)" : "grayscale(1) opacity(0.3)" }}>🏆</div>
-                              <div style={{ color: isTournamentDone ? "#ffd700" : "#30363d", fontSize: "0.55rem", fontFamily: "'Orbitron',sans-serif", marginTop: 2 }}>
-                                {isTournamentDone ? "FINALIZADO" : "FINAL"}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+        {showBrackets && brackets.length > 0 && (
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+            <div style={{ background: "linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,215,0,0.04))", borderBottom: "1px solid rgba(255,215,0,0.2)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.78rem", fontWeight: 700 }}>🏆 BRACKETS EN VIVO</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#00ff88", animation: "pulse 2s infinite", boxShadow: "0 0 6px #00ff88" }} />
+                <span style={{ color: "#00ff88", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif" }}>LIVE</span>
               </div>
             </div>
-          );
-        })()}
+            <div style={{ padding: "12px 14px" }}>
+              <BracketView brackets={brackets} currentMatchId={matchId} myUid={uid ?? ""} />
+            </div>
+          </div>
+        )}
 
         {/* ── BOT VERIFICATION ── */}
         {bv && (

@@ -221,6 +221,48 @@ export async function POST(req: NextRequest) {
     const id2 = useKonamiId ? (match.p2_konami_id ?? match.p2_ea_id) : match.p2_ea_id;
     const { found1, found2 } = checkPlayerIds(rawText, id1, id2);
 
+    /* ── Detectar pantalla de DERROTA ───────────────────────
+     * Si el screenshot muestra "DEFEAT" / "DERROTA" / etc. es
+     * probable que el reportero subió la pantalla del perdedor.
+     */
+    const DEFEAT_WORDS = ['defeat', 'derrota', 'you lose', 'perdiste', 'abandono', 'desconectado'];
+    const isDefeatScreen = DEFEAT_WORDS.some(w => rawText.toLowerCase().includes(w));
+
+    /* ── Consistencia score → ganador ────────────────────────
+     * Puerto del algoritmo procesarArbitrajeNube (Cloud Functions).
+     * Usa la posición de los IDs de jugador en el texto OCR para
+     * determinar qué goles corresponden a cada lado.
+     */
+    const reporterIsP1  = uid === match.p1;
+    const reporterGameId = reporterIsP1 ? id1 : id2;
+    const rivalGameId    = reporterIsP1 ? id2 : id1;
+
+    let reporterGoals: number | null = null;
+    let rivalGoals:    number | null = null;
+    let isReporterLoser = false;
+    let isDrawScore     = false;
+
+    if (scoreFound) {
+      const parts = scoreFound.split('-');
+      let golesA = parseInt(parts[0] ?? '0', 10);
+      let golesB = parseInt(parts[1] ?? '0', 10);
+
+      const lowerText  = rawText.toLowerCase();
+      const normalizeId = (s: string) => s.toLowerCase().replace(/[_@#\-. ]/g, '').trim();
+      const posReporter = reporterGameId ? lowerText.indexOf(normalizeId(reporterGameId)) : -1;
+      const posRival    = rivalGameId    ? lowerText.indexOf(normalizeId(rivalGameId))    : -1;
+
+      // Si el rival aparece ANTES en el texto → el primer número es del rival, intercambiar
+      if (posRival !== -1 && posReporter !== -1 && posRival < posReporter) {
+        [golesA, golesB] = [golesB, golesA];
+      }
+
+      reporterGoals   = golesA;
+      rivalGoals      = golesB;
+      isReporterLoser = golesA < golesB;
+      isDrawScore     = golesA === golesB;
+    }
+
     const resultScreen  = isResultScreen(rawText, game);
 
     const safeSearch = response?.safeSearchAnnotation;
@@ -247,6 +289,10 @@ export async function POST(req: NextRequest) {
     if (found2)             confidence += 0.10;
     if (scoreFound && reportedScore && scoreFound === reportedScore) confidence += 0.15;
     if (isEdited)           confidence -= 0.50;
+    // Penalizaciones por resultado incoherente
+    if (isDefeatScreen)     confidence -= 0.50; // pantalla de DERROTA → el reportero perdió
+    if (isDrawScore)        confidence -= 0.40; // empate no tiene ganador
+    if (isReporterLoser)    confidence -= 0.50; // reportero subió marcador donde perdió
 
     confidence = Math.max(0, Math.min(1, confidence));
 
@@ -302,9 +348,14 @@ export async function POST(req: NextRequest) {
       // scheduler de Cloud Functions lo procese enseguida.
       // También actualizamos el score con el detectado por OCR.
       const { Timestamp } = await import('firebase-admin/firestore');
-      matchUpdate.score             = scoreFound ?? match.score ?? '?-?';
+      // Normalizar score con goles del reportero primero
+      const normalizedScore = (reporterGoals !== null && rivalGoals !== null)
+        ? `${reporterGoals}-${rivalGoals}`
+        : (scoreFound ?? match.score ?? '?-?');
+      matchUpdate.score             = normalizedScore;
       matchUpdate.dispute_deadline  = Timestamp.fromMillis(Date.now() + 30_000);
       matchUpdate.bot_auto_resolve  = true;
+      matchUpdate.bot_winner_uid    = uid;
       matchUpdate.updated_at        = FieldValue.serverTimestamp();
     }
 
@@ -315,10 +366,27 @@ export async function POST(req: NextRequest) {
 
     /* ── Publicar en match_chat como BOT (NO en cantina global) ── */
     const confPct = Math.round(confidence * 100);
+    // Para el mensaje OK, buscar el nombre del reportero
+    let reporterName = 'Jugador';
+    if (verdict === 'OK') {
+      try {
+        const userSnap = await adminDb.collection('usuarios').doc(uid).get();
+        reporterName   = (userSnap.data()?.nombre as string | undefined) ?? reporterName;
+      } catch { /* no critical */ }
+    }
+    const displayScore = (reporterGoals !== null && rivalGoals !== null)
+      ? `${reporterGoals}-${rivalGoals}`
+      : (scoreFound ?? 'N/D');
     const botMsg = verdict === 'OK'
-      ? `✅ [BOT LFA] Resultado verificado. Marcador: **${scoreFound ?? 'N/D'}** | ${game} | Confianza: ${confPct}%`
+      ? `✅ [BOT LFA] **${reporterName}** gana. Marcador: **${displayScore}** | ${game} | Confianza: ${confPct}%`
       : verdict === 'SUSPICIOUS'
-        ? `🚨 [BOT LFA] Resultado SOSPECHOSO (${confPct}%). ${isEdited ? 'Imagen posiblemente editada.' : !resultScreen ? 'No parece pantalla de resultado.' : 'Verificación fallida.'} Un moderador revisará el caso.`
+        ? `🚨 [BOT LFA] Resultado SOSPECHOSO (${confPct}%). ${
+            isDefeatScreen   ? 'Pantalla de derrota detectada.' :
+            isReporterLoser  ? 'El marcador indica que el reportero perdió.' :
+            isDrawScore      ? 'Empate — no hay ganador válido.' :
+            isEdited         ? 'Imagen posiblemente editada.' :
+            !resultScreen    ? 'No parece pantalla de resultado.' :
+            'Verificación fallida.'} Un moderador revisará el caso.`
         : `🔍 [BOT LFA] Resultado con confianza media (${confPct}%). Requiere revisión manual del Staff.`;
 
     await adminDb.collection('match_chat').add({
