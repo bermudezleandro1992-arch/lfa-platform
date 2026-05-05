@@ -16,6 +16,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import LfaModal, { LfaModalHandle } from '@/app/_components/LfaModal';
+import dynamic from 'next/dynamic';
+const LigasPROTab = dynamic(() => import('@/app/_components/pro/LigasPROTab'), { ssr: false });
 
 /* ─── Tipos ──────────────────────────────────────────────── */
 interface Jugador {
@@ -129,7 +131,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -732,7 +734,7 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
@@ -740,6 +742,7 @@ export default function CeoPage() {
     { id:'finanzas',  label:'💰 Finanzas',  badge: retPend + pagPend },
     { id:'disputas',  label:'⚖️ Disputas',  badge: disputasPend },
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
+    { id:'ligas',     label:'🏅 Ligas PRO', badge: 0 },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
     { id:'leads',     label:'🎙️ Streamers', badge: leads.length },
     { id:'vision',    label:'🔬 Vision AI', badge: visionLogs.filter(v => v.verdict === 'SUSPICIOUS').length },
@@ -1745,6 +1748,9 @@ export default function CeoPage() {
               </div>
             </div>
           </>}
+
+          {/* ══ LIGAS PRO ════════════════════════════════════ */}
+          {tab === 'ligas' && <LigasPROTab />}
 
           {/* ══ SISTEMA ═════════════════════════════════════ */}
           {tab === 'sistema' && <>

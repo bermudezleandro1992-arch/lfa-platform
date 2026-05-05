@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Firestore }       from 'firebase-admin/firestore';
 import { getAuth, Auth }                 from 'firebase-admin/auth';
+import type { NextRequest }              from 'next/server';
 
 function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
@@ -27,3 +28,16 @@ function lazyProxy<T extends object>(factory: () => T): T {
 
 export const adminDb   = lazyProxy<Firestore>(() => getFirestore(getAdminApp()));
 export const adminAuth = lazyProxy<Auth>(() => getAuth(getAdminApp()));
+
+/** Verifica el Bearer token y devuelve el UID o null */
+export async function verifyToken(req: NextRequest): Promise<string | null> {
+  const auth = req.headers.get('authorization') ?? '';
+  if (!auth.startsWith('Bearer ')) return null;
+  const token = auth.slice(7);
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    return decoded.uid ?? null;
+  } catch {
+    return null;
+  }
+}
