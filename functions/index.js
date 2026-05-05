@@ -1,4 +1,4 @@
-﻿const functions = require("firebase-functions");
+const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
 const crypto = require("crypto"); 
@@ -12,43 +12,43 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ==========================================
-// ðŸ”‘ TUS LLAVES MAESTRAS DE PASARELAS
+// 🔑 TUS LLAVES MAESTRAS DE PASARELAS
 // ==========================================
-// ðŸš¨ LEE EL TOKEN DE MERCADO PAGO DESDE EL ARCHIVO .env ðŸš¨
+// 🚨 LEE EL TOKEN DE MERCADO PAGO DESDE EL ARCHIVO .env 🚨
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_TOKEN;
 
 const client = new vision.ImageAnnotatorClient();
 
 // ==========================================
-// ðŸ›¡ï¸ MIDDLEWARE DE SEGURIDAD: VERIFICAR TOKEN
+// 🛡️ MIDDLEWARE DE SEGURIDAD: VERIFICAR TOKEN
 // ==========================================
 async function verificarIdentidad(req) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new Error("SEGURIDAD LFA: Acceso denegado. Falta token de autorizaciÃ³n.");
+        throw new Error("SEGURIDAD LFA: Acceso denegado. Falta token de autorización.");
     }
     const idToken = authHeader.split('Bearer ')[1];
     try {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         if (!decodedToken || !decodedToken.uid) {
-            throw new Error("SEGURIDAD LFA: Token invÃ¡lido o sin UID.");
+            throw new Error("SEGURIDAD LFA: Token inválido o sin UID.");
         }
         return decodedToken.uid;
     } catch (e) {
-        throw new Error("SEGURIDAD LFA: Token invÃ¡lido, expirado o manipulado.");
+        throw new Error("SEGURIDAD LFA: Token inválido, expirado o manipulado.");
     }
 }
 
 function validarMonto(monto) {
     const valor = Number(monto);
     if (!Number.isFinite(valor) || valor <= 0) {
-        throw new Error("SEGURIDAD LFA: Monto invÃ¡lido.");
+        throw new Error("SEGURIDAD LFA: Monto inválido.");
     }
     return valor;
 }
 
 async function obtenerUsuario(uid) {
-    if (!uid) throw new Error("SEGURIDAD LFA: UID invÃ¡lido.");
+    if (!uid) throw new Error("SEGURIDAD LFA: UID inválido.");
     const userDoc = await db.collection('usuarios').doc(uid).get();
     if (!userDoc.exists) throw new Error("SEGURIDAD LFA: Usuario no encontrado en BD.");
     return { uid, data: userDoc.data() };
@@ -75,21 +75,21 @@ async function verificarCapitan(uid) {
         return { uid, rol, isAuthorized: true };
     }
 
-    throw new Error(`SEGURIDAD LFA: Usuario no tiene permisos de capitÃ¡n. UID: ${uid}, Rol: ${rol}`);
+    throw new Error(`SEGURIDAD LFA: Usuario no tiene permisos de capitán. UID: ${uid}, Rol: ${rol}`);
 }
 
-// CatÃ¡logo inmutable de precios en el servidor
+// Catálogo inmutable de precios en el servidor
 // 1 USD = 1000 LFA Coins
 const PACKS_OFICIALES = {
     "INICIAL": { usd: 2.00, coins: 2_000 },
-    "BÃSICO":  { usd: 5.00, coins: 5_000 },
+    "BÁSICO":  { usd: 5.00, coins: 5_000 },
     "BASICO":  { usd: 5.00, coins: 5_000 },
     "PRO":     { usd: 10.00, coins: 10_000 },
     "WHALE":   { usd: 20.00, coins: 22_000 } // WHALE CON 2000 COINS DE REGALO
 };
 
 // ============================================================================
-// ðŸ‡¦ðŸ‡· 1ï¸âƒ£ CREAR PAGO MERCADO PAGO (AUTOMÃTICO, BLINDADO Y EN VIVO)
+// 🇦🇷 1️⃣ CREAR PAGO MERCADO PAGO (AUTOMÁTICO, BLINDADO Y EN VIVO)
 // ============================================================================
 exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -103,8 +103,8 @@ exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
         // 1. VALIDAR TOKEN DE FIREBASE
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            console.error("[crearPagoMP] Header de autorizaciÃ³n faltante o mal formado");
-            return res.status(401).json({ error: "Token de autorizaciÃ³n requerido", success: false });
+            console.error("[crearPagoMP] Header de autorización faltante o mal formado");
+            return res.status(401).json({ error: "Token de autorización requerido", success: false });
         }
 
         const idToken = authHeader.split('Bearer ')[1];
@@ -112,8 +112,8 @@ exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
         try {
             decodedToken = await admin.auth().verifyIdToken(idToken);
         } catch (tokenError) {
-            console.error("[crearPagoMP] Token invÃ¡lido:", tokenError.message);
-            return res.status(401).json({ error: "Token invÃ¡lido o expirado", success: false });
+            console.error("[crearPagoMP] Token inválido:", tokenError.message);
+            return res.status(401).json({ error: "Token inválido o expirado", success: false });
         }
 
         const uidReal = decodedToken.uid;
@@ -127,33 +127,33 @@ exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
 
         const packSeguro = PACKS_OFICIALES[pack_name];
         if (!packSeguro) {
-            console.warn(`[crearPagoMP] Pack no vÃ¡lido: ${pack_name}`);
+            console.warn(`[crearPagoMP] Pack no válido: ${pack_name}`);
             return res.status(400).json({ error: "Pack inexistente o modificado por el cliente.", success: false });
         }
 
         // 3. VERIFICAR MERCADO PAGO TOKEN
         if (!MERCADOPAGO_ACCESS_TOKEN) {
             console.error("[crearPagoMP] MERCADOPAGO_ACCESS_TOKEN no configurado");
-            return res.status(500).json({ error: "Error de configuraciÃ³n del servidor", success: false });
+            return res.status(500).json({ error: "Error de configuración del servidor", success: false });
         }
 
-        // 4. OBTENER COTIZACIÃ“N DÃ“LAR CRIPTO
+        // 4. OBTENER COTIZACIÓN DÓLAR CRIPTO
         let valorDolarCripto = 1466;
         try {
             const resDolar = await fetch("https://dolarapi.com/v1/dolares/cripto");
             const dataDolar = await resDolar.json();
             if (dataDolar && dataDolar.venta) {
                 valorDolarCripto = dataDolar.venta;
-                console.log(`[crearPagoMP] DÃ³lar Cripto: ${valorDolarCripto}`);
+                console.log(`[crearPagoMP] Dólar Cripto: ${valorDolarCripto}`);
             }
         } catch (error) {
-            console.error("[crearPagoMP] Error leyendo DÃ³lar Cripto, usando fallback:", error.message);
+            console.error("[crearPagoMP] Error leyendo Dólar Cripto, usando fallback:", error.message);
         }
 
         // 5. CALCULAR PRECIO EN ARS
         const costoBaseARS = packSeguro.usd * valorDolarCripto;
         const priceARS = Math.round(costoBaseARS * 1.10);
-        console.log(`[crearPagoMP] Precio calculado: ${packSeguro.usd} USD â†’ ${priceARS} ARS`);
+        console.log(`[crearPagoMP] Precio calculado: ${packSeguro.usd} USD → ${priceARS} ARS`);
 
         // 6. OBTENER EMAIL DEL USUARIO
         let userDoc;
@@ -229,7 +229,7 @@ exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
             }
             res.status(200).json({ init_point: mpData.init_point, success: true });
         } else {
-            console.error("[crearPagoMP] Mercado Pago rechazÃ³:", mpData);
+            console.error("[crearPagoMP] Mercado Pago rechazó:", mpData);
             res.status(400).json({ error: mpData.message || "Rechazado por Mercado Pago", success: false });
         }
     } catch (error) {
@@ -239,10 +239,10 @@ exports.crearPagoMP = functions.https.onRequest(async (req, res) => {
 });
 
 // ============================================================================
-// ðŸ”” 2ï¸âƒ£ WEBHOOK DE MERCADO PAGO (EL COBRADOR INVISIBLE)
+// 🔔 2️⃣ WEBHOOK DE MERCADO PAGO (EL COBRADOR INVISIBLE)
 // ============================================================================
 exports.webhookMP = functions.https.onRequest(async (req, res) => {
-    // Mercado Pago manda notificaciones. Siempre hay que responderle 200 rÃ¡pido.
+    // Mercado Pago manda notificaciones. Siempre hay que responderle 200 rápido.
     res.status(200).send("OK");
 
     const topic = req.query.topic || req.query.type;
@@ -270,7 +270,7 @@ exports.webhookMP = functions.https.onRequest(async (req, res) => {
 
         const partesRef = extRef.split("_");
         if (partesRef.length < 3) {
-            console.warn("Webhook MP: formato de external_reference no vÃ¡lido.", extRef);
+            console.warn("Webhook MP: formato de external_reference no válido.", extRef);
             return;
         }
 
@@ -279,7 +279,7 @@ exports.webhookMP = functions.https.onRequest(async (req, res) => {
         const uid = partesRef.slice(0, partesRef.length - 2).join("_");
 
         if (!uid || Number.isNaN(coins) || Number.isNaN(timestamp) || coins <= 0) {
-            console.warn("Webhook MP: external_reference invÃ¡lido.", extRef);
+            console.warn("Webhook MP: external_reference inválido.", extRef);
             return;
         }
 
@@ -315,7 +315,7 @@ exports.webhookMP = functions.https.onRequest(async (req, res) => {
 });
 
 // ==========================================
-// ðŸŽŸï¸ 3ï¸âƒ£ INSCRIPCIÃ“N A TORNEOS (BLINDADO)
+// 🎟️ 3️⃣ INSCRIPCIÓN A TORNEOS (BLINDADO)
 // ==========================================
 exports.inscribirTorneo = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -345,7 +345,7 @@ exports.inscribirTorneo = functions.https.onRequest(async (req, res) => {
             if (torneoData.participantes && torneoData.participantes.includes(uidReal)) throw new Error("YA_INSCRITO");
             if (torneoData.participantes && torneoData.participantes.length >= torneoData.cupos_totales) throw new Error("TORNEO_LLENO");
             if ((userData.number || 0) < torneoData.costo_inscripcion) throw new Error("SALDO_INSUFICIENTE");
-            if ((userData.fair_play !== undefined ? userData.fair_play : 100) < 50) throw new Error("Cuenta RESTRINGIDA por comportamiento tÃ³xico."); 
+            if ((userData.fair_play !== undefined ? userData.fair_play : 100) < 50) throw new Error("Cuenta RESTRINGIDA por comportamiento tóxico."); 
 
             transaction.update(userRef, { number: (userData.number || 0) - torneoData.costo_inscripcion });
             
@@ -372,7 +372,7 @@ exports.inscribirTorneo = functions.https.onRequest(async (req, res) => {
 });
 
 // ==========================================
-// ðŸ’¸ 4ï¸âƒ£ REPARTIR PREMIOS (CEO - CATEGORÃAS SEPARADAS)
+// 💸 4️⃣ REPARTIR PREMIOS (CEO - CATEGORÍAS SEPARADAS)
 // ==========================================
 exports.repartirPremios = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -384,7 +384,7 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
 
     try {
         const uidReal = await verificarIdentidad(req);
-        // ðŸ›¡ï¸ VALIDACIÃ“N REAL DE ADMIN EN SERVER
+        // 🛡️ VALIDACIÓN REAL DE ADMIN EN SERVER
         await verificarAdmin(uidReal);
 
         const { torneoId, ganador1Id, ganador2Id, ganador3Id } = req.body;
@@ -424,7 +424,7 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
             premioG3 = pozoNeto * 0.15;
         }
 
-        // ðŸ§  SISTEMA DE CATEGORÃAS SEPARADAS PARA EL RANKING
+        // 🧠 SISTEMA DE CATEGORÍAS SEPARADAS PARA EL RANKING
         let modoCat = "titulos_otros";
         let m = (torneoData.modo || "").toUpperCase();
         if(m.includes("ULTIMATE")) modoCat = "titulos_ut";
@@ -436,14 +436,14 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
         const batch = db.batch();
 
         if (feeOrg > 0) {
-            // â”€â”€ TesorerÃ­a LFA: el 10% va a un doc separado, NO a la billetera personal del CEO â”€â”€
+            // ── Tesorería LFA: el 10% va a un doc separado, NO a la billetera personal del CEO ──
             const treasuryRef = db.collection('lfa_config').doc('treasury');
             batch.set(treasuryRef, {
                 balance_coins:    admin.firestore.FieldValue.increment(feeOrg),
                 total_acumulado:  admin.firestore.FieldValue.increment(feeOrg),
                 ultimo_ingreso:   admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-            // Log de auditorÃ­a de cada ingreso
+            // Log de auditoría de cada ingreso
             batch.set(db.collection('treasury_log').doc(), {
                 torneoId,
                 pozoBruto,
@@ -463,7 +463,7 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
                 fair_play: admin.firestore.FieldValue.increment(2) 
             });
             
-            // PREMIOS 2VS2: Si el torneo fue Co-Op, tambiÃ©n le damos las stats al Equipo
+            // PREMIOS 2VS2: Si el torneo fue Co-Op, también le damos las stats al Equipo
             if(torneoData.formato && torneoData.formato.toLowerCase().includes("2vs2")) {
                 const eqRef = db.collection('equipos_coop').doc(ganador1Id);
                 batch.update(eqRef, {
@@ -501,7 +501,7 @@ exports.repartirPremios = functions.https.onRequest(async (req, res) => {
 });
 
 // ==========================================
-// ðŸ¦ 5ï¸âƒ£ SOLICITAR RETIRO (BLINDADO)
+// 🏦 5️⃣ SOLICITAR RETIRO (BLINDADO)
 // ==========================================
 exports.solicitarRetiro = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -523,8 +523,8 @@ exports.solicitarRetiro = functions.https.onRequest(async (req, res) => {
             const fairPlayActual = uData.fair_play !== undefined ? uData.fair_play : 100;
 
             if ((uData.number || 0) < montoCoins) throw new Error("Saldo insuficiente");
-            if (fairPlayActual < 60) throw new Error("Billetera Congelada por comportamiento tÃ³xico.");
-            if ((uData.torneos_pagos_jugados || 0) < 1) throw new Error("DebÃ©s participar en al menos 1 torneo pago para habilitar los retiros. Los torneos gratuitos y las coins de referido no habilitan retiros.");
+            if (fairPlayActual < 60) throw new Error("Billetera Congelada por comportamiento tóxico.");
+            if ((uData.torneos_pagos_jugados || 0) < 1) throw new Error("Debés participar en al menos 1 torneo pago para habilitar los retiros. Los torneos gratuitos y las coins de referido no habilitan retiros.");
 
             transaction.update(userRef, { number: admin.firestore.FieldValue.increment(-montoCoins) });
             
@@ -547,7 +547,7 @@ exports.solicitarRetiro = functions.https.onRequest(async (req, res) => {
 });
 
 // ==========================================
-// ðŸ¤– 6ï¸âƒ£ LFA BOT IA (VAR MULTI-JUEGO ESTRICTO SUPREMO)
+// 🤖 6️⃣ LFA BOT IA (VAR MULTI-JUEGO ESTRICTO SUPREMO)
 // ==========================================
 exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", async (event) => {
     const snap = event.data;
@@ -626,7 +626,7 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
 
         if (!imagen_url) { 
             fraude = true; 
-            motivo_fraude = "âš ï¸ No se adjuntÃ³ imagen al reporte."; 
+            motivo_fraude = "⚠️ No se adjuntó imagen al reporte."; 
         } else {
             try {
                 const [result] = await client.textDetection(imagen_url);
@@ -636,7 +636,7 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                     const texto_completo = texts[0].description.toLowerCase();
                     const textoUpper = texto_completo.toUpperCase();
                     
-                    // Palabras de derrota en inglÃ©s y espaÃ±ol (eFootball y FC26)
+                    // Palabras de derrota en inglés y español (eFootball y FC26)
                     const palabrasDerrota = ["DERROTA", "PERDISTE", "DEFEAT", "LOSE", "ABANDONO", "DESCONECTADO", "YOU LOSE"];
                     let esDerrota = palabrasDerrota.some(p => textoUpper.includes(p));
 
@@ -649,11 +649,11 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                         // Penalizar puntos de tienda si FP cae por debajo de 70
                         if (nuevoFP < 70) {
                             const penPct = nuevoFP >= 60 ? 0.05 : nuevoFP >= 50 ? 0.10 : nuevoFP >= 40 ? 0.15 : nuevoFP >= 30 ? 0.20 : 0.30;
-                            await aplicarPenalizacionPuntos(u_id, penPct, 'SubiÃ³ captura de derrota (fraude detectado por VAR LFA)');
+                            await aplicarPenalizacionPuntos(u_id, penPct, 'Subió captura de derrota (fraude detectado por VAR LFA)');
                         }
                         return chat_ref.add({ 
-                            autorId: 'BOT', autorNombre: 'ðŸ¤– VAR LFA', tipo: 'alerta', 
-                            texto: `ðŸš¨ <b>Â¡VAR LFA INTERVIENE!</b><br>@${nombre} subiÃ³ una captura de DERROTA. Â¡Solo el ganador reporta!<br><b>(-15% Fair Play${nuevoFP < 70 ? ' + penalizaciÃ³n puntos Tienda' : ''})</b>`, 
+                            autorId: 'BOT', autorNombre: '🤖 VAR LFA', tipo: 'alerta', 
+                            texto: `🚨 <b>¡VAR LFA INTERVIENE!</b><br>@${nombre} subió una captura de DERROTA. ¡Solo el ganador reporta!<br><b>(-15% Fair Play${nuevoFP < 70 ? ' + penalización puntos Tienda' : ''})</b>`, 
                             timestamp: admin.firestore.FieldValue.serverTimestamp() 
                         });
                     }
@@ -665,34 +665,34 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                     const miNom = limpiar(nombre);
                     let encontroYo = textoLimpio.includes(miNom) || miNom.split(' ').some(p => p.length > 3 && textoLimpio.includes(p));
 
-                    // Para CO-OP: verificar tambiÃ©n al compaÃ±ero (la sala muestra los 4 IDs)
+                    // Para CO-OP: verificar también al compañero (la sala muestra los 4 IDs)
                     let encontroCompanero = true;
                     if (esCoop && miCompanero_nombre) {
                         const compNom = limpiar(miCompanero_nombre);
                         encontroCompanero = textoLimpio.includes(compNom) || compNom.split(' ').some(p => p.length > 3 && textoLimpio.includes(p));
                     }
 
-                    // Para CO-OP: si en la sala aparecen los 4 IDs, mejor â€” pero no exigimos los 4 si el juego los trunca
+                    // Para CO-OP: si en la sala aparecen los 4 IDs, mejor — pero no exigimos los 4 si el juego los trunca
                     if (!encontroYo && !encontroCompanero) {
                         fraude = true; 
-                        motivo_fraude = `âš ï¸ FRAUDE: NingÃºn ID de tu dupla ('${nombre}'${miCompanero_nombre ? ` / ${miCompanero_nombre}` : ''}) aparece en la imagen.`;
+                        motivo_fraude = `⚠️ FRAUDE: Ningún ID de tu dupla ('${nombre}'${miCompanero_nombre ? ` / ${miCompanero_nombre}` : ''}) aparece en la imagen.`;
                     } 
                     
                     if (!fraude) {
                         let golesA = -1; let golesB = -1;
 
-                        // Patrones de marcador: "3 - 2", "3:2", "3â€“2"
+                        // Patrones de marcador: "3 - 2", "3:2", "3–2"
                         const patterns = [
-                            /\b(\d{1,2})\s*[\-\:â€“]\s*(\d{1,2})\b/g,
+                            /\b(\d{1,2})\s*[\-\:–]\s*(\d{1,2})\b/g,
                             /\b(\d{1,2})\s*\n\s*(\d{1,2})\b/g,
                         ];
 
                         for (const pat of patterns) {
                             const matches = [...texto_completo.matchAll(pat)];
-                            // Filtrar marcadores imposibles (mÃ¡s de 20 goles)
+                            // Filtrar marcadores imposibles (más de 20 goles)
                             const validos = matches.filter(m => parseInt(m[1]) <= 20 && parseInt(m[2]) <= 20);
                             if (validos.length > 0) {
-                                // Tomar el Ãºltimo marcador (suele ser el final en capturas de eFootball)
+                                // Tomar el último marcador (suele ser el final en capturas de eFootball)
                                 const ultimo = validos[validos.length - 1];
                                 golesA = parseInt(ultimo[1]);
                                 golesB = parseInt(ultimo[2]);
@@ -700,7 +700,7 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                             }
                         }
 
-                        // Fallback: buscar dos nÃºmeros solitarios en contexto de resultado
+                        // Fallback: buscar dos números solitarios en contexto de resultado
                         if (golesA === -1) {
                             const victoria = ["victoria", "win", "ganaste", "you win", "winner", "resultado"];
                             const hayContexto = victoria.some(v => texto_completo.includes(v));
@@ -714,7 +714,7 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                         }
 
                         if (golesA !== -1 && golesB !== -1) {
-                            // Determinar quÃ© goles corresponden a quiÃ©n segÃºn posiciÃ³n en el texto
+                            // Determinar qué goles corresponden a quién según posición en el texto
                             const posYo = textoLimpio.indexOf(miNom);
                             const posRival = textoLimpio.indexOf(limpiar(rival_nombre));
                             let misGoles = golesA; let rivalGoles = golesB;
@@ -725,27 +725,27 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
 
                             if (misGoles === rivalGoles) { 
                                 fraude = true; 
-                                motivo_fraude = `âŒ EMPATE (${misGoles}-${rivalGoles}). Definan por Penales y vuelvan a subir el resultado.`; 
+                                motivo_fraude = `❌ EMPATE (${misGoles}-${rivalGoles}). Definan por Penales y vuelvan a subir el resultado.`; 
                             } else if (misGoles > rivalGoles) { 
                                 idGanador = u_id; 
                                 nombreGanador = esCoop ? (nombre + (miCompanero_nombre ? ` / ${miCompanero_nombre}` : "")) : nombre;
                                 marcadorMostrado = `${misGoles} - ${rivalGoles}`; 
                             } else { 
                                 fraude = true; 
-                                motivo_fraude = `âŒ El marcador indica que perdiste (${misGoles}-${rivalGoles}). Solo el GANADOR sube el resultado.`;
+                                motivo_fraude = `❌ El marcador indica que perdiste (${misGoles}-${rivalGoles}). Solo el GANADOR sube el resultado.`;
                             }
                         } else { 
                             fraude = true; 
-                            motivo_fraude = "âš ï¸ El VAR no detectÃ³ un resultado claro. SubÃ­ la captura con el marcador visible (Ej: 3 - 0). Para eFootball CO-OP, capturÃ¡ la pantalla de resultados de la sala."; 
+                            motivo_fraude = "⚠️ El VAR no detectó un resultado claro. Subí la captura con el marcador visible (Ej: 3 - 0). Para eFootball CO-OP, capturá la pantalla de resultados de la sala."; 
                         }
                     }
                 } else { 
                     fraude = true; 
-                    motivo_fraude = "Imagen vacÃ­a o ilegible. IntentÃ¡ con mejor calidad."; 
+                    motivo_fraude = "Imagen vacía o ilegible. Intentá con mejor calidad."; 
                 }
             } catch (visionError) { 
                 fraude = true; 
-                motivo_fraude = "âŒ Error en el sistema de IA. El Staff revisarÃ¡ manualmente."; 
+                motivo_fraude = "❌ Error en el sistema de IA. El Staff revisará manualmente."; 
                 console.error("Vision API error:", visionError.message);
             }
         }
@@ -760,10 +760,10 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
                 const penPct = nuevoFPFraude >= 60 ? 0.05 : nuevoFPFraude >= 50 ? 0.10 : nuevoFPFraude >= 40 ? 0.15 : nuevoFPFraude >= 30 ? 0.20 : 0.30;
                 await aplicarPenalizacionPuntos(u_id, penPct, `Fraude detectado por VAR LFA: ${motivo_fraude}`);
             }
-            return chat_ref.add({ autorId: 'BOT', autorNombre: 'ðŸ¤– VAR LFA', tipo: 'alerta', texto: `ðŸš¨ ANÃLISIS RECHAZADO: ${motivo_fraude}<br><b>(-15% Fair Play${nuevoFPFraude < 70 ? ' + penalizaciÃ³n puntos Tienda' : ''})</b>`, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+            return chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 VAR LFA', tipo: 'alerta', texto: `🚨 ANÁLISIS RECHAZADO: ${motivo_fraude}<br><b>(-15% Fair Play${nuevoFPFraude < 70 ? ' + penalización puntos Tienda' : ''})</b>`, timestamp: admin.firestore.FieldValue.serverTimestamp() });
         }
 
-        // âœ… RESULTADO VÃLIDO â€” Actualizar segÃºn formato del torneo
+        // ✅ RESULTADO VÁLIDO — Actualizar según formato del torneo
         let modoCat = "titulos_otros";
         let m = (t_data.modo || "").toUpperCase();
         if(m.includes("ULTIMATE")) modoCat = "titulos_ut";
@@ -794,22 +794,22 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
             await userRef.update(updatesUsuario);
             await torneoRef.update({ ganador_final: idGanador, estado: 'finalizado_premios', marcador_final: marcadorMostrado, campeon_nombre: nombreGanador });
             await snap.ref.update({ estado: 'aprobado', marcador_leido: marcadorMostrado });
-            let msj = `âœ… <b>MARCADOR VALIDADO: ${marcadorMostrado}</b><br>âš½ Â¡${nombreGanador} se lleva la victoria!`;
-            await chat_ref.add({ autorId: 'BOT', autorNombre: 'ðŸ¤– LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+            let msj = `✅ <b>MARCADOR VALIDADO: ${marcadorMostrado}</b><br>⚽ ¡${nombreGanador} se lleva la victoria!`;
+            await chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
         } else {
             let ronda2 = t_data.llaves_ronda2 || [];
             if (!ronda2.includes(idGanador) && ronda2.length < 2) {
                 ronda2.push(idGanador);
                 await torneoRef.update({ llaves_ronda2: ronda2, marcador_semis: marcadorMostrado });
                 await snap.ref.update({ estado: 'aprobado', marcador_leido: marcadorMostrado });
-                let msj = `âœ… <b>RESULTADO VALIDADO: ${marcadorMostrado}</b><br>ðŸ”¥ Â¡${nombreGanador} avanza a la Final!`;
-                await chat_ref.add({ autorId: 'BOT', autorNombre: 'ðŸ¤– LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+                let msj = `✅ <b>RESULTADO VALIDADO: ${marcadorMostrado}</b><br>🔥 ¡${nombreGanador} avanza a la Final!`;
+                await chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
             } else if (ronda2.includes(idGanador)) {
                 await userRef.update(updatesUsuario);
                 await torneoRef.update({ ganador_final: idGanador, estado: 'finalizado_premios', marcador_final: marcadorMostrado, campeon_nombre: nombreGanador });
                 await snap.ref.update({ estado: 'aprobado', marcador_leido: marcadorMostrado });
-                let msj = `ðŸ† <b>Â¡TENEMOS CAMPEÃ“N!</b><br>ðŸ¥‡ ${nombreGanador} gana la Final (${marcadorMostrado}).`;
-                await chat_ref.add({ autorId: 'BOT', autorNombre: 'ðŸ¤– LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+                let msj = `🏆 <b>¡TENEMOS CAMPEÓN!</b><br>🥇 ${nombreGanador} gana la Final (${marcadorMostrado}).`;
+                await chat_ref.add({ autorId: 'BOT', autorNombre: '🤖 LFA BOT', tipo: 'sistema', texto: msj, timestamp: admin.firestore.FieldValue.serverTimestamp() });
             }
         }
     } catch (e) { 
@@ -820,7 +820,7 @@ exports.procesarArbitrajeNube = onDocumentCreated("reportes_ia/{reporteId}", asy
 
 
 // ==========================================
-// ðŸ›°ï¸ 7ï¸âƒ£ ÃRBITRO DE RED ORIGINAL (PING LATENCIA)
+// 🛰️ 7️⃣ ÁRBITRO DE RED ORIGINAL (PING LATENCIA)
 // ==========================================
 exports.asignarHostPorPing = onDocumentCreated("torneos/{t_id}/pings/{u_id}", async (event) => {
     const t_id = event.params.t_id; 
@@ -840,16 +840,16 @@ exports.asignarHostPorPing = onDocumentCreated("torneos/{t_id}/pings/{u_id}", as
         
         await db.collection("torneos").doc(t_id).collection("mensajes").add({
             autorId: 'BOT', 
-            autorNombre: 'ðŸ¤– LFA RADAR', 
+            autorNombre: '🤖 LFA RADAR', 
             tipo: 'sistema', 
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            texto: `ðŸ“¡ <b>TEST DE LATENCIA COMPLETADO</b><br>El sistema detecta que <b>${nombreHost.toUpperCase()}</b> tiene mejor conexiÃ³n a los servidores.<br>ðŸ‘‰ <i>DeberÃ­a ser el HOST de la partida para evitar Lag.</i>`
+            texto: `📡 <b>TEST DE LATENCIA COMPLETADO</b><br>El sistema detecta que <b>${nombreHost.toUpperCase()}</b> tiene mejor conexión a los servidores.<br>👉 <i>Debería ser el HOST de la partida para evitar Lag.</i>`
         });
     }
 });
 
 // ==========================================
-// âš–ï¸ 8ï¸âƒ£ PANEL ADMIN: GESTIÃ“N DE FAIR PLAY
+// ⚖️ 8️⃣ PANEL ADMIN: GESTIÓN DE FAIR PLAY
 // ==========================================
 exports.modificarFairPlay = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -876,15 +876,15 @@ exports.modificarFairPlay = functions.https.onRequest(async (req, res) => {
 
         const updates = { fair_play: nuevoFP };
 
-        /* â”€â”€ PenalizaciÃ³n de puntos de tienda por Fair Play bajo â”€â”€
+        /* ── Penalización de puntos de tienda por Fair Play bajo ──
          * Solo aplica si el fair_play CAE por debajo de 70 (racha mala).
          * Escala progresiva:
-         *   FP 60-69 â†’ -5%  de los puntos actuales
-         *   FP 50-59 â†’ -10%
-         *   FP 40-49 â†’ -15%
-         *   FP 30-39 â†’ -20%
-         *   FP < 30  â†’ -30%
-         * Solo descuenta si el nuevo FP es MENOR al anterior (el CEO lo bajÃ³).
+         *   FP 60-69 → -5%  de los puntos actuales
+         *   FP 50-59 → -10%
+         *   FP 40-49 → -15%
+         *   FP 30-39 → -20%
+         *   FP < 30  → -30%
+         * Solo descuenta si el nuevo FP es MENOR al anterior (el CEO lo bajó).
          */
         if (nuevoFP < anteriorFP && nuevoFP < 70 && puntosActuales > 0) {
             let penaltyPct = 0;
@@ -898,7 +898,7 @@ exports.modificarFairPlay = functions.https.onRequest(async (req, res) => {
             const nuevosPuntos      = Math.max(0, puntosActuales - puntosDescontados);
             updates.puntos_gratis   = nuevosPuntos;
 
-            // Registrar la penalizaciÃ³n en un log
+            // Registrar la penalización en un log
             await db.collection('puntos_log').add({
                 uid:          jugadorUid,
                 tipo:         'PENALIZACION_FAIR_PLAY',
@@ -917,13 +917,13 @@ exports.modificarFairPlay = functions.https.onRequest(async (req, res) => {
 
         res.json({
             success: true,
-            mensaje: `Fair Play actualizado a ${nuevoFP}%.${updates.puntos_gratis !== undefined ? ` PenalizaciÃ³n aplicada: -${Math.ceil((puntosActuales - updates.puntos_gratis) / puntosActuales * 100)}% de puntos de tienda (${puntosActuales} â†’ ${updates.puntos_gratis} pts).` : ''}`,
+            mensaje: `Fair Play actualizado a ${nuevoFP}%.${updates.puntos_gratis !== undefined ? ` Penalización aplicada: -${Math.ceil((puntosActuales - updates.puntos_gratis) / puntosActuales * 100)}% de puntos de tienda (${puntosActuales} → ${updates.puntos_gratis} pts).` : ''}`,
         });
     } catch (error) { res.json({ success: false, error: error.message }); }
 });
 
 // ==========================================
-// âš–ï¸ HELPER: PenalizaciÃ³n de puntos de tienda por Fair Play bajo
+// ⚖️ HELPER: Penalización de puntos de tienda por Fair Play bajo
 // Llamar cada vez que el sistema baja el fair_play de un usuario.
 // penaltyPct: porcentaje a descontar (0.05 a 0.30)
 // ==========================================
@@ -956,7 +956,7 @@ async function aplicarPenalizacionPuntos(uid, penaltyPct, motivo) {
 }
 
 // ==========================================
-// ðŸš€ 9ï¸âƒ£ AUTO-SPAWNER (CREADOR AUTOMÃTICO DE SALAS)
+// 🚀 9️⃣ AUTO-SPAWNER (CREADOR AUTOMÁTICO DE SALAS)
 // ==========================================
 exports.autoSpawnerSalas = onDocumentUpdated("torneos/{torneoId}", async (event) => {
     const dataAntes = event.data.before.data();
@@ -982,7 +982,7 @@ exports.autoSpawnerSalas = onDocumentUpdated("torneos/{torneoId}", async (event)
 });
 
 // ==========================================
-// ðŸ¤ SISTEMA DE REFERIDOS (VINCULACIÃ“N)
+// 🤝 SISTEMA DE REFERIDOS (VINCULACIÓN)
 // ==========================================
 exports.vincularReferido = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -997,33 +997,33 @@ exports.vincularReferido = functions.https.onRequest(async (req, res) => {
         const codigo_invitador = (req.body.codigo_invitador || "").toString().trim();
         const ip_registro = (req.body.ip_registro || "").toString().trim();
 
-        if (!codigo_invitador) throw new Error("CÃ³digo vacÃ­o");
+        if (!codigo_invitador) throw new Error("Código vacío");
 
         // Buscamos al invitador por su Nombre (ID de plataforma)
         const invitadorQuery = await db.collection("usuarios").where("nombre", "==", codigo_invitador.toUpperCase()).get();
-        if (invitadorQuery.empty) throw new Error("El cÃ³digo del creador/amigo no existe.");
+        if (invitadorQuery.empty) throw new Error("El código del creador/amigo no existe.");
 
         const invitadorDoc = invitadorQuery.docs[0];
-        if (invitadorDoc.id === uidReal) throw new Error("No podÃ©s referirte a ti mismo, pillo.");
+        if (invitadorDoc.id === uidReal) throw new Error("No podés referirte a ti mismo, pillo.");
 
         const userRef = db.collection("usuarios").doc(uidReal);
         const userDoc = await userRef.get();
 
-        if (userDoc.data().referido_por) throw new Error("Ya fuiste referido por alguien mÃ¡s.");
+        if (userDoc.data().referido_por) throw new Error("Ya fuiste referido por alguien más.");
 
-        // Guardamos el vÃ­nculo y la IP para el Anti-Fraude
+        // Guardamos el vínculo y la IP para el Anti-Fraude
         await userRef.update({ 
             referido_por: invitadorDoc.id, 
             bono_referido_entregado: false,
             ip_registro_referido: ip_registro || "Desconocida"
         });
 
-        res.json({ success: true, mensaje: "Â¡CÃ³digo vinculado al Ã©xito!" });
+        res.json({ success: true, mensaje: "¡Código vinculado al éxito!" });
     } catch (error) { res.json({ success: false, error: error.message }); }
 });
 
 // ==========================================
-// ðŸ’¸ MOTOR DE PAGOS BOCA A BOCA Y AFILIADOS PRO
+// 💸 MOTOR DE PAGOS BOCA A BOCA Y AFILIADOS PRO
 // ==========================================
 exports.procesarSistemaReferidos = onDocumentUpdated("torneos/{torneoId}", async (event) => {
     const dataAntes = event.data.before.data();
@@ -1046,7 +1046,7 @@ exports.procesarSistemaReferidos = onDocumentUpdated("torneos/{torneoId}", async
             const userDoc = await userRef.get();
             if (!userDoc.exists) continue;
 
-            // Registrar participaciÃ³n en torneo pago (habilita retiros)
+            // Registrar participación en torneo pago (habilita retiros)
             batch.update(userRef, { torneos_pagos_jugados: admin.firestore.FieldValue.increment(1) });
 
             const uData = userDoc.data();
@@ -1059,16 +1059,16 @@ exports.procesarSistemaReferidos = onDocumentUpdated("torneos/{torneoId}", async
                 if (invitadorDoc.exists) {
                     const invData = invitadorDoc.data();
 
-                    // ðŸŽ 1. SISTEMA BOCA A BOCA (Solo gana el INVITADOR: 0.50 LFA)
+                    // 🎁 1. SISTEMA BOCA A BOCA (Solo gana el INVITADOR: 0.50 LFA)
                     if (costo >= 2 && uData.bono_referido_entregado !== true) {
-                        // ðŸ›¡ï¸ BARRERA ANTI-FRAUDE: Verificamos que no sea el mismo pibe con 2 cuentas
+                        // 🛡️ BARRERA ANTI-FRAUDE: Verificamos que no sea el mismo pibe con 2 cuentas
                         const ipUser = uData.ip_registro_referido || "IP1";
                         const ipInviter = invData.ip_registro_referido || "IP2";
 
                         if (ipUser === ipInviter && ipUser !== "Desconocida") {
                             console.log(`Fraude bloqueado. IP Duplicada: ${ipUser}`);
                         } else {
-                            // Marcamos el bono como usado para el nuevo (para que no lo use mÃ¡s)
+                            // Marcamos el bono como usado para el nuevo (para que no lo use más)
                             batch.update(userRef, { bono_referido_entregado: true });
                             // +50 LFA Coins al invitador, trackeadas como bonus (no retirables)
                             batch.update(invitadorRef, {
@@ -1078,7 +1078,7 @@ exports.procesarSistemaReferidos = onDocumentUpdated("torneos/{torneoId}", async
                         }
                     }
 
-                    // ðŸ’Ž 2. SISTEMA AFILIADOS PRO (Ingreso Pasivo para Streamers)
+                    // 💎 2. SISTEMA AFILIADOS PRO (Ingreso Pasivo para Streamers)
                     // Si el invitador tiene el tag de "streamer", cobra por CADA sala que juegue su referido
                     if (invData.rol === "streamer" || invData.es_afiliado === true) {
                         batch.update(invitadorRef, {
@@ -1095,7 +1095,7 @@ exports.procesarSistemaReferidos = onDocumentUpdated("torneos/{torneoId}", async
 
 // ============================================================
 // ============================================================
-// ðŸ”§ LÃ“GICA COMPARTIDA DE SORTEO (usada por auto-trigger y funciÃ³n manual)
+// 🔧 LÓGICA COMPARTIDA DE SORTEO (usada por auto-trigger y función manual)
 // ============================================================
 async function ejecutarSorteoLogic(torneoId, torneo) {
     const jugadores = torneo.jugadores_individuales || [];
@@ -1181,8 +1181,8 @@ async function ejecutarSorteoLogic(torneoId, torneo) {
                 batch.set(eqRef, {
                     dupla_id: dupla.id,
                     dupla_nombre: dupla.nombre_equipo,
-                    compaÃ±ero_uid: j.uid === dupla.jugador1.uid ? dupla.jugador2.uid : dupla.jugador1.uid,
-                    compaÃ±ero_nombre: j.uid === dupla.jugador1.uid ? dupla.jugador2.nombre : dupla.jugador1.nombre,
+                    compañero_uid: j.uid === dupla.jugador1.uid ? dupla.jugador2.uid : dupla.jugador1.uid,
+                    compañero_nombre: j.uid === dupla.jugador1.uid ? dupla.jugador2.nombre : dupla.jugador1.nombre,
                     torneo_activo: torneoId,
                     actualizado: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
@@ -1196,8 +1196,8 @@ async function ejecutarSorteoLogic(torneoId, torneo) {
 }
 
 // ============================================================
-// âš¡ AUTO-SORTEO: Se dispara automÃ¡ticamente cuando el torneo
-// pasa a estado "esperando_sorteo" y los cupos estÃ¡n llenos.
+// ⚡ AUTO-SORTEO: Se dispara automáticamente cuando el torneo
+// pasa a estado "esperando_sorteo" y los cupos están llenos.
 // ============================================================
 exports.autoSorteoCoopDraft = onDocumentUpdated("torneos/{torneoId}", async (event) => {
     const antes = event.data.before.data();
@@ -1213,13 +1213,13 @@ exports.autoSorteoCoopDraft = onDocumentUpdated("torneos/{torneoId}", async (eve
 
     const jugadores = despues.jugadores_individuales || [];
     if (jugadores.length < 2) {
-        console.log(`[autoSorteo] ${torneoId}: insuficientes jugadores (${jugadores.length}), esperando mÃ¡s.`);
+        console.log(`[autoSorteo] ${torneoId}: insuficientes jugadores (${jugadores.length}), esperando más.`);
         return;
     }
 
     console.log(`[autoSorteo] ${torneoId}: ejecutando sorteo con ${jugadores.length} jugadores.`);
 
-    // PequeÃ±a demora para que los clientes vean el estado "esperando_sorteo" y animen el lobby
+    // Pequeña demora para que los clientes vean el estado "esperando_sorteo" y animen el lobby
     await new Promise(r => setTimeout(r, 4000));
 
     try {
@@ -1228,9 +1228,9 @@ exports.autoSorteoCoopDraft = onDocumentUpdated("torneos/{torneoId}", async (eve
         if (!snap.exists) return;
         const torneoActualizado = snap.data();
 
-        // Verificar que el estado sigue siendo esperando_sorteo y no se sorteÃ³ ya
+        // Verificar que el estado sigue siendo esperando_sorteo y no se sorteó ya
         if (torneoActualizado.estado !== "esperando_sorteo") {
-            console.log(`[autoSorteo] ${torneoId}: estado cambiÃ³ durante el delay, abortando.`);
+            console.log(`[autoSorteo] ${torneoId}: estado cambió durante el delay, abortando.`);
             return;
         }
         if (torneoActualizado.duplas_sorteadas && torneoActualizado.duplas_sorteadas.length > 0) {
@@ -1240,15 +1240,15 @@ exports.autoSorteoCoopDraft = onDocumentUpdated("torneos/{torneoId}", async (eve
 
         const result = await ejecutarSorteoLogic(torneoId, torneoActualizado);
         if (result) {
-            console.log(`[autoSorteo] ${torneoId}: âœ… ${result.duplas_creadas} duplas creadas, ${result.bracket_rondas} rondas.`);
+            console.log(`[autoSorteo] ${torneoId}: ✅ ${result.duplas_creadas} duplas creadas, ${result.bracket_rondas} rondas.`);
 
-            // â”€â”€ AUTO-SPAWN: Abrir nueva sala idÃ©ntica cuando esta se llenÃ³ â”€â”€
+            // ── AUTO-SPAWN: Abrir nueva sala idéntica cuando esta se llenó ──
             try {
                 const configDoc = await db.collection("configuracion").doc("spawner").get();
                 const spawnerActivo = !configDoc.exists || configDoc.data().activo !== false; // activo por defecto
                 if (spawnerActivo) {
                     let nuevoTitulo = torneoActualizado.titulo || "CO-OP DRAFT";
-                    // Generar nuevo nÃºmero de sala
+                    // Generar nuevo número de sala
                     if (nuevoTitulo.includes('#')) {
                         const base = nuevoTitulo.split('#')[0].trim();
                         nuevoTitulo = `${base} #${Math.floor(Math.random() * 9000 + 1000)}`;
@@ -1286,12 +1286,12 @@ exports.autoSorteoCoopDraft = onDocumentUpdated("torneos/{torneoId}", async (eve
 });
 
 // ============================================================
-// ðŸŽ² EJECUTAR SORTEO COOP MANUAL (CEO/ADMIN)
+// 🎲 EJECUTAR SORTEO COOP MANUAL (CEO/ADMIN)
 // Baraja los jugadores individuales y arma las duplas al azar.
 // Luego genera el bracket completo.
 // ============================================================
 exports.ejecutarSorteo = functions.https.onCall(async (data, context) => {
-    // 1. Verificar que es admin (UID del dueÃ±o de LFA)
+    // 1. Verificar que es admin (UID del dueño de LFA)
     const ADMIN_UID = "2bOrFxTAcPgFPoHKJHQfYxoQJpw1";
     if (!context.auth || context.auth.uid !== ADMIN_UID) {
       throw new functions.https.HttpsError(
@@ -1315,7 +1315,7 @@ exports.ejecutarSorteo = functions.https.onCall(async (data, context) => {
     if (torneo.estado !== "esperando_sorteo" && torneo.estado !== "abierto") {
       throw new functions.https.HttpsError(
         "failed-precondition",
-        `Estado invÃ¡lido: ${torneo.estado}. Debe ser 'esperando_sorteo' o 'abierto'.`
+        `Estado inválido: ${torneo.estado}. Debe ser 'esperando_sorteo' o 'abierto'.`
       );
     }
 
@@ -1337,7 +1337,7 @@ exports.ejecutarSorteo = functions.https.onCall(async (data, context) => {
 
 
 // ============================================================
-// ðŸ”¢ HELPERS
+// 🔢 HELPERS
 // ============================================================
 function siguientePotenciaDeDos(n) {
   let p = 1;
@@ -1372,11 +1372,11 @@ function generarBracket(duplas) {
 }
 
 // ============================================================
-// ðŸŽŸï¸ INSCRIBIR EN TORNEO COOP (onCall)
+// 🎟️ INSCRIBIR EN TORNEO COOP (onCall)
 // ============================================================
 // ============================================================================
-// ðŸŽ® INSCRIBIR EN TORNEO CO-OP (onRequest â€” igual que el resto del proyecto)
-// REEMPLAZA la funciÃ³n inscribirTorneoCoop que estaba como onCall
+// 🎮 INSCRIBIR EN TORNEO CO-OP (onRequest — igual que el resto del proyecto)
+// REEMPLAZA la función inscribirTorneoCoop que estaba como onCall
 // ============================================================================
 exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -1387,7 +1387,7 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        // Usa la misma funciÃ³n verificarIdentidad que ya existe en el proyecto
+        // Usa la misma función verificarIdentidad que ya existe en el proyecto
         const uid = await verificarIdentidad(req);
         const { torneoId, nombreEquipo } = req.body;
 
@@ -1413,7 +1413,7 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
             }
 
             if (usuario.baneado === true) {
-                throw new Error("Tu cuenta estÃ¡ suspendida.");
+                throw new Error("Tu cuenta está suspendida.");
             }
 
             const esDraft = torneo.formato === "2vs2_draft";
@@ -1422,16 +1422,16 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
                 : (torneo.participantes || []);
 
             if (listaActual.includes(uid)) {
-                throw new Error("Ya estÃ¡s inscripto en este torneo.");
+                throw new Error("Ya estás inscripto en este torneo.");
             }
 
             if (listaActual.length >= torneo.cupos_totales) {
-                throw new Error("Los cupos estÃ¡n llenos.");
+                throw new Error("Los cupos están llenos.");
             }
 
             const costo = torneo.costo_inscripcion || 0;
             if (costo > 0 && (usuario.number || 0) < costo) {
-                throw new Error(`Saldo insuficiente. NecesitÃ¡s ${costo} LFA Coins.`);
+                throw new Error(`Saldo insuficiente. Necesitás ${costo} LFA Coins.`);
             }
 
             // Debitar saldo si tiene costo
@@ -1441,7 +1441,7 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
                 });
             }
 
-            // Agregar al jugador en el campo correcto segÃºn el formato
+            // Agregar al jugador en el campo correcto según el formato
             const campoLista = esDraft ? "jugadores_individuales" : "participantes";
             tx.update(torneoRef, {
                 [campoLista]: admin.firestore.FieldValue.arrayUnion(uid),
@@ -1455,7 +1455,7 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
                 success: true,
                 esDraft,
                 message: esDraft
-                    ? "Inscripto en el Draft. El sorteo comenzarÃ¡ pronto."
+                    ? "Inscripto en el Draft. El sorteo comenzará pronto."
                     : "Equipo inscripto exitosamente.",
             };
         });
@@ -1469,28 +1469,28 @@ exports.inscribirTorneoCoop = functions.https.onRequest(async (req, res) => {
 });
 
 // ============================================================
-// â° AUTO-SPAWNER HORARIO â€” Crea 2 salas por modo cada hora
-//    en la colecciÃ³n `tournaments` (sistema Arena 1VS1 Next.js)
+// ⏰ AUTO-SPAWNER HORARIO — Crea 2 salas por modo cada hora
+//    en la colección `tournaments` (sistema Arena 1VS1 Next.js)
 // ============================================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-// 78 slots Ã— 4 modos Ã— 5 regiones = 1560 plantillas
+// 78 slots × 4 modos × 5 regiones = 1560 plantillas
 // GRATIS: fee=0 | RECREATIVO: 500-1000 | COMPETITIVO: 2000-8000 | ELITE: 10000-20000
 const SALA_SLOTS_SPAWN = [
-    // GRATIS (6 combos: 6 tamaÃ±os Ã— 1 precio)
+    // GRATIS (6 combos: 6 tamaños × 1 precio)
     [2,0],  [4,0],  [6,0],  [8,0],  [12,0], [16,0],
-    // RECREATIVO (18 combos: 6 tamaÃ±os Ã— 3 precios)
+    // RECREATIVO (18 combos: 6 tamaños × 3 precios)
     [2,500], [4,500], [6,500], [8,500], [12,500], [16,500],
     [2,750], [4,750], [6,750], [8,750], [12,750], [16,750],
     [2,1000],[4,1000],[6,1000],[8,1000],[12,1000],[16,1000],
-    // COMPETITIVO (36 combos: 6 tamaÃ±os Ã— 6 precios)
+    // COMPETITIVO (36 combos: 6 tamaños × 6 precios)
     [2,2000],[4,2000],[6,2000],[8,2000],[12,2000],[16,2000],
     [2,3000],[4,3000],[6,3000],[8,3000],[12,3000],[16,3000],
     [2,4000],[4,4000],[6,4000],[8,4000],[12,4000],[16,4000],
     [2,5000],[4,5000],[6,5000],[8,5000],[12,5000],[16,5000],
     [2,6000],[4,6000],[6,6000],[8,6000],[12,6000],[16,6000],
     [2,8000],[4,8000],[6,8000],[8,8000],[12,8000],[16,8000],
-    // ELITE (18 combos: 6 tamaÃ±os Ã— 3 precios)
+    // ELITE (18 combos: 6 tamaños × 3 precios)
     [2,10000],[4,10000],[6,10000],[8,10000],[12,10000],[16,10000],
     [2,15000],[4,15000],[6,15000],[8,15000],[12,15000],[16,15000],
     [2,20000],[4,20000],[6,20000],[8,20000],[12,20000],[16,20000],
@@ -1514,29 +1514,29 @@ function calcPrizePool(capacity, entry_fee) {
 }
 
 function calcPrizes(capacity, entry_fee) {
-    if (entry_fee === 0) return [{ place: 1, label: "ðŸ¥‡ 1Â°", percentage: 100, coins: 0 }];
+    if (entry_fee === 0) return [{ place: 1, label: "🥇 1°", percentage: 100, coins: 0 }];
     const pot = calcPrizePool(capacity, entry_fee);
-    // 2â€“6 jugadores â†’ ganador Ãºnico
+    // 2–6 jugadores → ganador único
     if (capacity <= 6) return [
-        { place: 1, label: "ðŸ¥‡ 1Â°", percentage: 100, coins: pot },
+        { place: 1, label: "🥇 1°", percentage: 100, coins: pot },
     ];
-    // 8â€“16 jugadores â†’ top 2
+    // 8–16 jugadores → top 2
     if (capacity <= 16) return [
-        { place: 1, label: "ðŸ¥‡ 1Â°", percentage: 70, coins: Math.floor(pot * 0.70) },
-        { place: 2, label: "ðŸ¥ˆ 2Â°", percentage: 30, coins: Math.floor(pot * 0.30) },
+        { place: 1, label: "🥇 1°", percentage: 70, coins: Math.floor(pot * 0.70) },
+        { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pot * 0.30) },
     ];
-    // 32 jugadores â†’ top 3
+    // 32 jugadores → top 3
     if (capacity <= 32) return [
-        { place: 1, label: "ðŸ¥‡ 1Â°", percentage: 60, coins: Math.floor(pot * 0.60) },
-        { place: 2, label: "ðŸ¥ˆ 2Â°", percentage: 25, coins: Math.floor(pot * 0.25) },
-        { place: 3, label: "ðŸ¥‰ 3Â°", percentage: 15, coins: Math.floor(pot * 0.15) },
+        { place: 1, label: "🥇 1°", percentage: 60, coins: Math.floor(pot * 0.60) },
+        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
+        { place: 3, label: "🥉 3°", percentage: 15, coins: Math.floor(pot * 0.15) },
     ];
-    // 64+ jugadores â†’ top 4
+    // 64+ jugadores → top 4
     return [
-        { place: 1, label: "ðŸ¥‡ 1Â°", percentage: 50, coins: Math.floor(pot * 0.50) },
-        { place: 2, label: "ðŸ¥ˆ 2Â°", percentage: 25, coins: Math.floor(pot * 0.25) },
-        { place: 3, label: "ðŸ¥‰ 3Â°", percentage: 15, coins: Math.floor(pot * 0.15) },
-        { place: 4, label: "4Â°",    percentage: 10, coins: Math.floor(pot * 0.10) },
+        { place: 1, label: "🥇 1°", percentage: 50, coins: Math.floor(pot * 0.50) },
+        { place: 2, label: "🥈 2°", percentage: 25, coins: Math.floor(pot * 0.25) },
+        { place: 3, label: "🥉 3°", percentage: 15, coins: Math.floor(pot * 0.15) },
+        { place: 4, label: "4°",    percentage: 10, coins: Math.floor(pot * 0.10) },
     ];
 }
 
@@ -1554,7 +1554,7 @@ for (const g of _SPAWN_GAMES) {
     }
 }
 
-// Slots activos por defecto â€” todos los 78 slots por los 4 modos de juego = 312 claves
+// Slots activos por defecto — todos los 78 slots por los 4 modos de juego = 312 claves
 const DEFAULT_SLOTS_ACTIVOS = (() => {
     const keys = [];
     for (const g of _SPAWN_GAMES) {
@@ -1570,7 +1570,7 @@ const DEFAULT_SLOTS_ACTIVOS = (() => {
 async function runSpawnCycle() {
     const configDoc = await db.collection("configuracion").doc("spawner").get();
     if (!configDoc.exists || configDoc.data().activo !== true) {
-        console.log("[Spawner] Desactivado en configuraciÃ³n, saltando ciclo.");
+        console.log("[Spawner] Desactivado en configuración, saltando ciclo.");
         return { created: 0, checked: 0 };
     }
 
@@ -1583,13 +1583,13 @@ async function runSpawnCycle() {
         activoSet.has(`${tpl.game}|${tpl.mode}|${tpl.capacity}|${tpl.entry_fee}`)
     );
 
-    // â”€â”€ Leer TODAS las salas OPEN spawned de una sola vez (1 query) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Leer TODAS las salas OPEN spawned de una sola vez (1 query) ──────────
     const openSnap = await db.collection("tournaments")
         .where("status",  "==", "OPEN")
         .where("spawned", "==", true)
         .get();
 
-    // Construir mapa: clave â†’ cantidad existente
+    // Construir mapa: clave → cantidad existente
     const existingCount = {};
     for (const d of openSnap.docs) {
         const data = d.data();
@@ -1623,7 +1623,7 @@ async function runSpawnCycle() {
             });
             created++;
         }
-        // Firestore batch max = 500 writes â†’ flush and start new batch
+        // Firestore batch max = 500 writes → flush and start new batch
         if (created > 0 && created % 490 === 0) {
             await batch.commit();
         }
@@ -1641,7 +1641,7 @@ async function runSpawnCycle() {
     return { created, checked: templates.length };
 }
 
-// Trigger automÃ¡tico cada hora
+// Trigger automático cada hora
 exports.autoSpawnHorario = onSchedule({
     schedule:  "0 * * * *",
     timeZone:  "America/Buenos_Aires",
@@ -1657,26 +1657,26 @@ exports.autoSpawnHorario = onSchedule({
         const elapsedMs = Date.now() - cfg.last_run.toMillis();
         const neededMs  = intervalHours * 60 * 60 * 1000;
         if (elapsedMs < neededMs) {
-            console.log(`[autoSpawnHorario] Saltando â€” solo pasaron ${Math.round(elapsedMs/60000)}min de ${intervalHours*60}min requeridos`);
+            console.log(`[autoSpawnHorario] Saltando — solo pasaron ${Math.round(elapsedMs/60000)}min de ${intervalHours*60}min requeridos`);
             return;
         }
     }
     await runSpawnCycle();
 });
 
-// Trigger tambiÃ©n cuando una sala se llena (reposiciÃ³n inmediata)
+// Trigger también cuando una sala se llena (reposición inmediata)
 exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) => {
     const antes   = event.data.before.data();
     const despues = event.data.after.data();
 
-    // Solo cuando pasa de OPEN â†’ otra cosa
+    // Solo cuando pasa de OPEN → otra cosa
     if (antes.status !== "OPEN" || despues.status === "OPEN") return;
 
     // Salas manuales con auto_respawn=true: reponer igual
     if (!despues.spawned && despues.auto_respawn === true) {
         try {
             const intervalHours = despues.spawn_interval_hours ?? 1;
-            // Verificar que no haya ya una sala idÃ©ntica abierta
+            // Verificar que no haya ya una sala idéntica abierta
             const snap = await db.collection("tournaments")
                 .where("game",      "==", despues.game)
                 .where("mode",      "==", despues.mode)
@@ -1767,9 +1767,9 @@ exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) =
 });
 
 // ============================================================
-// ðŸ† SPAWNER FIN DE SEMANA â€” Torneos especiales de 32 jugadores
-//    Corre viernes a las 23:00 hs ARG (sÃ¡bado 02:00 UTC)
-//    Crea: 2 salas Ã— 3 regiones Ã— 2 modos Ã— 2 juegos = 24 torneos
+// 🏆 SPAWNER FIN DE SEMANA — Torneos especiales de 32 jugadores
+//    Corre viernes a las 23:00 hs ARG (sábado 02:00 UTC)
+//    Crea: 2 salas × 3 regiones × 2 modos × 2 juegos = 24 torneos
 // ============================================================
 const _WEEKEND_GAMES = [
     { game: "FC26",      modes: ["GENERAL_95", "ULTIMATE"] },
@@ -1787,9 +1787,9 @@ function calcWeekendPrizes(entry_fee) {
     return {
         prize_pool: pool,
         prizes: [
-            { place: 1, label: "ðŸ¥‡ 1Â°", percentage: 60, coins: Math.floor(pool * 0.60) },
-            { place: 2, label: "ðŸ¥ˆ 2Â°", percentage: 30, coins: Math.floor(pool * 0.30) },
-            { place: 3, label: "ðŸ¥‰ 3Â°", percentage: 10, coins: Math.floor(pool * 0.10) },
+            { place: 1, label: "🥇 1°", percentage: 60, coins: Math.floor(pool * 0.60) },
+            { place: 2, label: "🥈 2°", percentage: 30, coins: Math.floor(pool * 0.30) },
+            { place: 3, label: "🥉 3°", percentage: 10, coins: Math.floor(pool * 0.10) },
         ],
     };
 }
@@ -1840,7 +1840,7 @@ async function runWeekendSpawn() {
     return { created };
 }
 
-// Viernes 23:00 ARG = SÃ¡bado 02:00 UTC
+// Viernes 23:00 ARG = Sábado 02:00 UTC
 exports.weekendSpawn = onSchedule({
     schedule: "0 2 * * 6",
     timeZone: "UTC",
@@ -1849,15 +1849,15 @@ exports.weekendSpawn = onSchedule({
     await runWeekendSpawn();
 });
 
-// â”€â”€â”€ autoSpawnPaises â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── autoSpawnPaises ────────────────────────────────────────────────────────
 // Runs every hour (junto con autoSpawnHorario).
-// Lee configuracion/spawner_paises â†’ { paises: ["Argentina","MÃ©xico",...] }
-// Por cada paÃ­s activo crea (si no existen ya):
+// Lee configuracion/spawner_paises → { paises: ["Argentina","México",...] }
+// Por cada país activo crea (si no existen ya):
 //   - 1 sala GRATIS  8j  FC26 + 1 sala GRATIS  8j  eFootball
 //   - 1 sala GRATIS 16j  FC26 + 1 sala GRATIS 16j  eFootball
 //   - 1 sala RECR.  8j  FC26 (500 LFC) + 1 sala RECR. 8j eFootball
 //   - 1 sala RECR. 16j  FC26 (500 LFC) + 1 sala RECR. 16j eFootball
-// = 8 salas por paÃ­s, 1 de cada combinaciÃ³n (no 2 como las regionales)
+// = 8 salas por país, 1 de cada combinación (no 2 como las regionales)
 
 const _PAIS_CAPACITIES  = [8, 16];
 const _PAIS_GAMES       = ["FC26", "EFOOTBALL"];
@@ -1877,7 +1877,7 @@ async function runPaisSpawnCycle() {
         for (const game of _PAIS_GAMES) {
             for (const capacity of _PAIS_CAPACITIES) {
                 for (const { entry_fee, tier } of _PAIS_TIERS) {
-                    // Verificar si ya existe 1 sala abierta con este paÃ­s
+                    // Verificar si ya existe 1 sala abierta con este país
                     const snap = await db.collection("tournaments")
                         .where("game",     "==", game)
                         .where("capacity", "==", capacity)
@@ -1887,7 +1887,7 @@ async function runPaisSpawnCycle() {
                         .limit(1)
                         .get();
 
-                    if (!snap.empty) continue; // ya existe â†’ no crear
+                    if (!snap.empty) continue; // ya existe → no crear
 
                     const ref = db.collection("tournaments").doc();
                     const prizes = calcPrizes(capacity, entry_fee);
@@ -1913,7 +1913,7 @@ async function runPaisSpawnCycle() {
             }
         }
     }
-    console.log(`[PaisSpawn] Salas creadas: ${created} para ${paises.length} paÃ­ses`);
+    console.log(`[PaisSpawn] Salas creadas: ${created} para ${paises.length} países`);
     return { created };
 }
 
@@ -1925,12 +1925,12 @@ exports.autoSpawnPaises = onSchedule({
     await runPaisSpawnCycle();
 });
 
-// â”€â”€â”€ checkWaitingRooms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── checkWaitingRooms ──────────────────────────────────────────────────────
 // Runs every 5 min. After 10 min with no fill:
-//   - Paid rooms with players â†’ sets waiting_alert_sent + waiting_expires_at
-//   - Paid rooms with 0 players â†’ deletes them
-//   - Free rooms â†’ closes/deletes them (no refund needed)
-// Rooms where waiting_expires_at has passed â†’ closes and auto-refunds all players
+//   - Paid rooms with players → sets waiting_alert_sent + waiting_expires_at
+//   - Paid rooms with 0 players → deletes them
+//   - Free rooms → closes/deletes them (no refund needed)
+// Rooms where waiting_expires_at has passed → closes and auto-refunds all players
 exports.checkWaitingRooms = onSchedule({
     schedule: "every 5 minutes",
     timeZone: "UTC",
@@ -1954,16 +1954,16 @@ exports.checkWaitingRooms = onSchedule({
         const alerted = t.waiting_alert_sent === true;
         const expMs   = t.waiting_expires_at?.toMillis?.() ?? 0;
 
-        // â”€â”€ 1. Room already alerted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── 1. Room already alerted ─────────────────────────────────────────
         if (alerted) {
             if (expMs > 0 && expMs < now) {
-                // Window expired â†’ close room and refund all players
+                // Window expired → close room and refund all players
                 ops.push({ ref: docSnap.ref, action: "close", players, entry_fee: t.entry_fee ?? 0, isFree });
             }
             return; // still within extension window, skip
         }
 
-        // â”€â”€ 2. Room not yet alerted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── 2. Room not yet alerted ─────────────────────────────────────────
         if (created === 0 || now - created < alertMs) return; // too soon
 
         if (isFree) {
@@ -2032,11 +2032,11 @@ exports.manualSpawn = functions.https.onRequest(async (req, res) => {
 });
 
 // ============================================================
-// ðŸ’° TREASURY AUTO-SWEEP â€” Todos los dÃ­as a las 03:00 ARG
-//    Si hay â‰¥ 50.000 coins (50 USDT) acumulados en tesorerÃ­a,
-//    los envÃ­a automÃ¡ticamente a la subcuenta Binance TRC20.
+// 💰 TREASURY AUTO-SWEEP — Todos los días a las 03:00 ARG
+//    Si hay ≥ 50.000 coins (50 USDT) acumulados en tesorería,
+//    los envía automáticamente a la subcuenta Binance TRC20.
 // ============================================================
-const TREASURY_MIN_SWEEP = 50_000; // coins mÃ­nimos para disparar el sweep
+const TREASURY_MIN_SWEEP = 50_000; // coins mínimos para disparar el sweep
 
 async function runTreasurySweep() {
     const treasuryRef = db.collection("lfa_config").doc("treasury");
@@ -2044,7 +2044,7 @@ async function runTreasurySweep() {
     const balance = treasurySnap.exists ? (treasurySnap.data().balance ?? 0) : 0;
 
     if (balance < TREASURY_MIN_SWEEP) {
-        console.log(`[TreasurySweep] Saldo insuficiente: ${balance} coins (mÃ­nimo ${TREASURY_MIN_SWEEP}). Omitiendo.`);
+        console.log(`[TreasurySweep] Saldo insuficiente: ${balance} coins (mínimo ${TREASURY_MIN_SWEEP}). Omitiendo.`);
         return { skipped: true, balance };
     }
 
@@ -2055,7 +2055,7 @@ async function runTreasurySweep() {
         console.error("[TreasurySweep] LFA_TREASURY_WALLET no configurado.");
         await db.collection("alertas_ceo").add({
             tipo: "TREASURY_CONFIG_ERROR",
-            mensaje: "LFA_TREASURY_WALLET no estÃ¡ configurado. El sweep automÃ¡tico no pudo ejecutarse.",
+            mensaje: "LFA_TREASURY_WALLET no está configurado. El sweep automático no pudo ejecutarse.",
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
         return { error: "WALLET_NOT_CONFIGURED" };
@@ -2083,7 +2083,7 @@ async function runTreasurySweep() {
     const signature = crypto.createHmac("sha256", apiSecret).update(params.toString()).digest("hex");
     params.append("signature", signature);
 
-    // Deducir de Firestore de forma atÃ³mica ANTES de enviar
+    // Deducir de Firestore de forma atómica ANTES de enviar
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(treasuryRef);
         const current = snap.exists ? (snap.data().balance ?? 0) : 0;
@@ -2091,7 +2091,7 @@ async function runTreasurySweep() {
         tx.set(treasuryRef, { balance: 0, last_sweep: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
     });
 
-    // Enviar a Binance vÃ­a Fixie proxy
+    // Enviar a Binance vía Fixie proxy
     let withdrawId = null;
     try {
         const { ProxyAgent, fetch: uFetch } = require("undici");
@@ -2109,7 +2109,7 @@ async function runTreasurySweep() {
         }
         withdrawId = data.id;
     } catch (binanceErr) {
-        // Revertir saldo si Binance fallÃ³
+        // Revertir saldo si Binance falló
         await db.runTransaction(async (tx) => {
             const snap = await tx.get(treasuryRef);
             const current = snap.exists ? (snap.data().balance ?? 0) : 0;
@@ -2118,7 +2118,7 @@ async function runTreasurySweep() {
         console.error("[TreasurySweep] Error Binance, saldo revertido:", binanceErr.message);
         await db.collection("alertas_ceo").add({
             tipo: "TREASURY_SWEEP_FAILED",
-            mensaje: `Sweep automÃ¡tico fallÃ³: ${binanceErr.message}. Saldo revertido.`,
+            mensaje: `Sweep automático falló: ${binanceErr.message}. Saldo revertido.`,
             coins: balance,
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -2136,11 +2136,11 @@ async function runTreasurySweep() {
         ts:         admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`[TreasurySweep] OK â€” ${usdtAmount} USDT enviados. withdrawId: ${withdrawId}`);
+    console.log(`[TreasurySweep] OK — ${usdtAmount} USDT enviados. withdrawId: ${withdrawId}`);
     return { ok: true, usdtAmount, withdrawId };
 }
 
-// Cron: todos los dÃ­as a las 03:00 ARG (06:00 UTC)
+// Cron: todos los días a las 03:00 ARG (06:00 UTC)
 exports.autoTreasurySweep = onSchedule({
     schedule: "0 6 * * *",
     timeZone: "UTC",
@@ -2150,19 +2150,19 @@ exports.autoTreasurySweep = onSchedule({
 });
 
 // ============================================================================
-// ðŸ¤– BOT LFA â€” AUTO-AVANCE DE BRACKETS CADA 2 MINUTOS
+// 🤖 BOT LFA — AUTO-AVANCE DE BRACKETS CADA 2 MINUTOS
 // ============================================================================
-// LÃ³gica:
+// Lógica:
 //  1. Busca matches con status=PENDING_RESULT y dispute_deadline vencida
-//  2. Si no hay disputa activa â†’ marca FINISHED, define winner
+//  2. Si no hay disputa activa → marca FINISHED, define winner
 //  3. Actualiza el bracket del torneo con el ganador
-//  4. Si todos los matches de la ronda terminaron â†’ crea la siguiente ronda
-//  5. Si era la final â†’ distribuye premios segÃºn cantidad de jugadores
+//  4. Si todos los matches de la ronda terminaron → crea la siguiente ronda
+//  5. Si era la final → distribuye premios según cantidad de jugadores
 //
-// Premios: 2/4/6 jugadores â†’ 1 premio (100% del pozo)
-//          8/16 â†’ 2 premios (70% + 30%)
-//          32   â†’ 3 premios (60% + 25% + 15%)
-//          64   â†’ 4 premios (50% + 25% + 15% + 10%)
+// Premios: 2/4/6 jugadores → 1 premio (100% del pozo)
+//          8/16 → 2 premios (70% + 30%)
+//          32   → 3 premios (60% + 25% + 15%)
+//          64   → 4 premios (50% + 25% + 15% + 10%)
 
 const PRIZE_DISTRIBUTION = {
     2:  [100],
@@ -2179,7 +2179,7 @@ const DISPUTE_WINDOW_MS = 5 * 60 * 1000; // 5 minutos
 async function botBotMsg(texto, matchId, tournamentId) {
     await db.collection('cantina_messages').add({
         uid:          'BOT_LFA',
-        nombre:       'ðŸ¤– BOT LFA',
+        nombre:       '🤖 BOT LFA',
         avatar_url:   null,
         rol:          'bot',
         texto,
@@ -2200,7 +2200,7 @@ async function getUserName(uid) {
 async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
     const matchId      = matchDoc.id;
     const tournamentId = tournamentDoc.id;
-    const winnerId     = matchData.reported_by; // quien reportÃ³ gana si no hay disputa
+    const winnerId     = matchData.reported_by; // quien reportó gana si no hay disputa
     const loserScore   = matchData.score || '1-0';
     const round        = matchData.round || 'round_1';
 
@@ -2212,11 +2212,11 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
     });
 
     const winnerName = await getUserName(winnerId);
-    console.log(`[BOT] Match ${matchId} FINISHED â†’ ganador: ${winnerName} (${winnerId})`);
+    console.log(`[BOT] Match ${matchId} FINISHED → ganador: ${winnerName} (${winnerId})`);
 
     // Publicar resultado en cantina
     await botBotMsg(
-        `âœ… [BOT LFA] Tiempo de verificaciÃ³n vencido. **${winnerName}** avanza en el bracket. Marcador: ${loserScore}. Si hay algÃºn error contactÃ¡ al Staff.`,
+        `✅ [BOT LFA] Tiempo de verificación vencido. **${winnerName}** avanza en el bracket. Marcador: ${loserScore}. Si hay algún error contactá al Staff.`,
         matchId, tournamentId
     );
 
@@ -2244,15 +2244,15 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
         return;
     }
 
-    // â”€â”€ Todos los matches de la ronda terminaron â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Todos los matches de la ronda terminaron ────────────────────
     const winners = roundMatches.map(m => m.winner).filter(Boolean);
     console.log(`[BOT] Ronda ${round} completa. Ganadores: ${winners.join(', ')}`);
 
-    // Â¿Era la final?
+    // ¿Era la final?
     const isFinal = round === 'final' || winners.length === 1;
 
     if (isFinal) {
-        // â”€â”€ DISTRIBUIR PREMIOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── DISTRIBUIR PREMIOS ──────────────────────────────────────
         const capacity     = tournament.capacity || 2;
         const totalPrize   = tournament.prize_pool || 0;     // en LFA Coins
         const prizeLayout  = PRIZE_DISTRIBUTION[capacity] || [100];
@@ -2286,33 +2286,33 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
                     tournamentId,
                     round:       'final',
                     position:    i + 1,
-                    description: `Premio ${['1Â°','2Â°','3Â°','4Â°'][i] || (i+1)+'Â°'} lugar â€” Torneo ${tournament.name || tournamentId.slice(-5)}`,
+                    description: `Premio ${['1°','2°','3°','4°'][i] || (i+1)+'°'} lugar — Torneo ${tournament.name || tournamentId.slice(-5)}`,
                     timestamp:   admin.firestore.FieldValue.serverTimestamp(),
                     created_at:  admin.firestore.FieldValue.serverTimestamp(),
                 });
             });
 
             const name = await getUserName(winnerUid);
-            const pos  = ['ðŸ¥‡','ðŸ¥ˆ','ðŸ¥‰','ðŸ…'][i] || `${i+1}Â°`;
+            const pos  = ['🥇','🥈','🥉','🏅'][i] || `${i+1}°`;
             await botBotMsg(
-                `${pos} **${name}** recibe ðŸª™${prizeCoins.toLocaleString()} coins por llegar al ${['1er','2do','3er','4to'][i] || (i+1)+'to'} lugar. Â¡Felicitaciones campeÃ³n! ðŸŽ‰`,
+                `${pos} **${name}** recibe 🪙${prizeCoins.toLocaleString()} coins por llegar al ${['1er','2do','3er','4to'][i] || (i+1)+'to'} lugar. ¡Felicitaciones campeón! 🎉`,
                 null, tournamentId
             );
         }
 
         await botBotMsg(
-            `ðŸ† [TORNEO FINALIZADO] El torneo **${tournament.name || ''}** ha concluido. Premios distribuidos. Â¡Gracias a todos los participantes!`,
+            `🏆 [TORNEO FINALIZADO] El torneo **${tournament.name || ''}** ha concluido. Premios distribuidos. ¡Gracias a todos los participantes!`,
             null, tournamentId
         );
         return;
     }
 
-    // â”€â”€ Generar siguiente ronda â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Generar siguiente ronda ─────────────────────────────────────
     const roundNum    = parseInt((round.match(/\d+/) || ['1'])[0], 10);
     const nextRoundNum = roundNum + 1;
     const totalRounds  = Math.log2(tournament.capacity || 2);
     const nextRound    = nextRoundNum >= totalRounds ? 'final' : `round_${nextRoundNum}`;
-    const roundLabel   = nextRound === 'final' ? 'ðŸ† FINAL' : `Round ${nextRoundNum}`;
+    const roundLabel   = nextRound === 'final' ? '🏆 FINAL' : `Round ${nextRoundNum}`;
 
     // Crear matches de la siguiente ronda en Firestore
     const nextMatches = [];
@@ -2365,7 +2365,7 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
         const p1Name = matchData2.p1_username || p1.slice(0,8);
         const p2Name = matchData2.p2_username || p2.slice(0,8);
         await botBotMsg(
-            `âš”ï¸ [${roundLabel}] **${p1Name}** vs **${p2Name}** â€” El partido comenzÃ³. Â¡El ganador tiene que reportar el resultado!`,
+            `⚔️ [${roundLabel}] **${p1Name}** vs **${p2Name}** — El partido comenzó. ¡El ganador tiene que reportar el resultado!`,
             newMatchRef.id, tournamentId
         );
     }
@@ -2374,7 +2374,7 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
     await tournamentDoc.ref.update({ brackets, current_round: nextRound });
 
     await botBotMsg(
-        `ðŸš€ [BOT LFA] La ronda **${round}** terminÃ³. ComenzÃ³ **${roundLabel}** con ${winners.length / 2} partidos. Â¡Suerte a todos!`,
+        `🚀 [BOT LFA] La ronda **${round}** terminó. Comenzó **${roundLabel}** con ${winners.length / 2} partidos. ¡Suerte a todos!`,
         null, tournamentId
     );
 }
@@ -2403,7 +2403,7 @@ async function processPendingMatches() {
             .where('status', '==', 'PENDING')
             .limit(1).get();
         if (!disputaSnap.empty) {
-            console.log(`[BOT] Match ${matchDoc.id} tiene disputa activa â€” skip.`);
+            console.log(`[BOT] Match ${matchDoc.id} tiene disputa activa — skip.`);
             continue;
         }
 
@@ -2430,7 +2430,7 @@ exports.botBracketScheduler = onSchedule({
     await processPendingMatches();
 });
 
-// TambiÃ©n disponible como HTTP para testing manual del CEO
+// También disponible como HTTP para testing manual del CEO
 exports.botBracketManual = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') { return res.status(204).send(''); }
@@ -2444,7 +2444,7 @@ exports.botBracketManual = functions.https.onRequest(async (req, res) => {
     }
 });
 
-// â”€â”€â”€ Trigger: avance instantÃ¡neo cuando el BOT dice OK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Trigger: avance instantáneo cuando el BOT dice OK ───────────────────────
 // Escucha cambios en matches. Si bot_verification.verdict pasa a 'OK' y el
 // match sigue en PENDING_RESULT (sin disputa), adelanta el bracket de inmediato.
 exports.onMatchBotVerify = onDocumentUpdated({
@@ -2454,7 +2454,7 @@ exports.onMatchBotVerify = onDocumentUpdated({
     const before = event.data.before.data();
     const after  = event.data.after.data();
 
-    // Solo actuar cuando verdict cambia a 'OK' y estaba vacÃ­o antes
+    // Solo actuar cuando verdict cambia a 'OK' y estaba vacío antes
     const verdictBefore = before?.bot_verification?.verdict;
     const verdictAfter  = after?.bot_verification?.verdict;
     if (verdictAfter !== 'OK' || verdictBefore === 'OK') return;
@@ -2466,7 +2466,7 @@ exports.onMatchBotVerify = onDocumentUpdated({
         .where('status', '==', 'PENDING')
         .limit(1).get();
     if (!disputaSnap.empty) {
-        console.log(`[BOT] Match ${event.data.after.id} tiene disputa activa â€” no auto-avanzo.`);
+        console.log(`[BOT] Match ${event.data.after.id} tiene disputa activa — no auto-avanzo.`);
         return;
     }
 
@@ -2482,175 +2482,5 @@ exports.onMatchBotVerify = onDocumentUpdated({
         console.error(`[BOT] Error en onMatchBotVerify:`, err.message);
     }
 });
-// ══════════════════════════════════════════════════════════════════
-//  LIGA 1vs1 PRO — Cloud Functions
-// ══════════════════════════════════════════════════════════════════
-
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onSchedule }         = require('firebase-functions/v2/scheduler');
-const { FieldValue }         = require('firebase-admin/firestore');
-
-const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
-
-/** Round Robin fixture generator — returns array of rounds */
-function buildRoundRobin(players) {
-    const n     = players.length % 2 === 0 ? players.length : players.length + 1;
-    const fixed = players[0];
-    const rest  = players.slice(1);
-    const rounds = [];
-
-    for (let r = 0; r < n - 1; r++) {
-        const round = [];
-        const rRotated = [...rest.slice(r), ...rest.slice(0, r)];
-        const allPlayers = [fixed, ...rRotated];
-
-        for (let i = 0; i < n / 2; i++) {
-            const home = allPlayers[i];
-            const away = allPlayers[n - 1 - i];
-            if (!home || !away) continue; // bye
-            if (home.uid === undefined || away.uid === undefined) continue;
-            round.push({ home, away });
-        }
-        rounds.push(round);
-    }
-    return rounds;
-}
-
-/** Genera el fixture de una liga — solo CEO puede llamarlo */
-exports.generateLeagueFixture = onCall({ region: 'us-central1' }, async (request) => {
-    if (request.auth?.uid !== CEO_UID) {
-        throw new HttpsError('permission-denied', 'Solo el CEO puede generar fixtures.');
-    }
-    const { leagueId } = request.data;
-    if (!leagueId) throw new HttpsError('invalid-argument', 'leagueId requerido.');
-
-    const leagueRef  = db.collection('leagues').doc(leagueId);
-    const leagueSnap = await leagueRef.get();
-    if (!leagueSnap.exists) throw new HttpsError('not-found', 'Liga no encontrada.');
-
-    const league = leagueSnap.data();
-    if (league.status !== 'inscripcion') {
-        throw new HttpsError('failed-precondition', 'La liga no está en inscripción.');
-    }
-
-    // Get participants
-    const partSnap = await leagueRef.collection('participants').get();
-    if (partSnap.size < 2) throw new HttpsError('failed-precondition', 'Mínimo 2 participantes.');
-
-    const players = partSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-    const rounds  = buildRoundRobin(players);
-
-    const batch = db.batch();
-    let matchCount = 0;
-
-    rounds.forEach((roundMatches, roundIdx) => {
-        roundMatches.forEach(({ home, away }) => {
-            const matchRef = db.collection('league_matches').doc();
-            batch.set(matchRef, {
-                league_id:          leagueId,
-                round:              roundIdx + 1,
-                player1_uid:        home.uid,
-                player2_uid:        away.uid,
-                player1_name:       home.display_name,
-                player2_name:       away.display_name,
-                player1_team:       home.team_name,
-                player2_team:       away.team_name,
-                player1_logo:       home.logo_url ?? '⚽',
-                player2_logo:       away.logo_url ?? '⚽',
-                player1_whatsapp:   home.whatsapp ?? '',
-                player2_whatsapp:   away.whatsapp ?? '',
-                player1_platform_id: home.platform_id ?? '',
-                player2_platform_id: away.platform_id ?? '',
-                status:             'pending',
-                score:              null,
-                winner_uid:         null,
-                photo_url:          null,
-                ocr_score:          null,
-                ocr_confidence:     null,
-                reported_by:        null,
-                validation_deadline: null,
-                room_code:          null,
-                dispute_reason:     null,
-                created_at:         new Date().toISOString(),
-                updated_at:         new Date().toISOString(),
-            });
-            matchCount++;
-        });
-    });
-
-    batch.update(leagueRef, {
-        status:        'activa',
-        current_round: 1,
-        total_rounds:  rounds.length,
-    });
-
-    await batch.commit();
-
-    return { success: true, rounds: rounds.length, matches: matchCount };
-});
-
-/** Auto-cierre de partidos en validación que superaron el deadline */
-exports.autoCloseLeagueMatches = onSchedule({
-    schedule:  'every 10 minutes',
-    region:    'us-central1',
-    timeZone:  'America/Buenos_Aires',
-}, async () => {
-    const now     = Date.now();
-    const snap    = await db.collection('league_matches')
-        .where('status', '==', 'validating')
-        .get();
-
-    const expired = snap.docs.filter(d => {
-        const dl = d.data().validation_deadline;
-        return dl && dl <= now;
-    });
-
-    if (expired.length === 0) return;
-
-    const batch = db.batch();
-
-    for (const doc of expired) {
-        const match = doc.data();
-        const s1    = match.score?.[match.player1_uid] ?? 0;
-        const s2    = match.score?.[match.player2_uid] ?? 0;
-        let winner_uid;
-        if (s1 > s2) winner_uid = match.player1_uid;
-        else if (s2 > s1) winner_uid = match.player2_uid;
-        else winner_uid = 'draw';
-
-        batch.update(doc.ref, {
-            status:     'closed',
-            winner_uid,
-            auto_closed: true,
-            updated_at:  new Date().toISOString(),
-        });
-
-        // Update ranking
-        const leagueRef = db.collection('leagues').doc(match.league_id);
-        const p1Ref = leagueRef.collection('participants').doc(match.player1_uid);
-        const p2Ref = leagueRef.collection('participants').doc(match.player2_uid);
-
-        batch.update(p1Ref, {
-            pj:  FieldValue.increment(1),
-            gf:  FieldValue.increment(s1),
-            gc:  FieldValue.increment(s2),
-            pg:  FieldValue.increment(winner_uid === match.player1_uid ? 1 : 0),
-            pe:  FieldValue.increment(winner_uid === 'draw' ? 1 : 0),
-            pp:  FieldValue.increment(winner_uid === match.player2_uid ? 1 : 0),
-            pts: FieldValue.increment(winner_uid === match.player1_uid ? 3 : winner_uid === 'draw' ? 1 : 0),
-        });
-
-        batch.update(p2Ref, {
-            pj:  FieldValue.increment(1),
-            gf:  FieldValue.increment(s2),
-            gc:  FieldValue.increment(s1),
-            pg:  FieldValue.increment(winner_uid === match.player2_uid ? 1 : 0),
-            pe:  FieldValue.increment(winner_uid === 'draw' ? 1 : 0),
-            pp:  FieldValue.increment(winner_uid === match.player1_uid ? 1 : 0),
-            pts: FieldValue.increment(winner_uid === match.player2_uid ? 3 : winner_uid === 'draw' ? 1 : 0),
-        });
-    }
-
-    await batch.commit();
-    console.log(`[autoCloseLeagueMatches] Cerrados ${expired.length} partidos expirados.`);
-});
+// Liga PRO Functions
+const ligaPro = require('./ligaPro'); Object.assign(exports, ligaPro);
