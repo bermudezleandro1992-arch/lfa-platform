@@ -104,7 +104,7 @@ exports.generateLeagueFixture = onCall({ region: 'us-central1' }, async (request
 
 /** Scheduled: auto-close validating matches that passed their deadline */
 exports.autoCloseLeagueMatches = onSchedule({
-    schedule: 'every 10 minutes',
+    schedule: 'every 2 minutes',
     region:   'us-central1',
     timeZone: 'America/Buenos_Aires',
 }, async () => {

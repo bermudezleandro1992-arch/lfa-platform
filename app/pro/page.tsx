@@ -89,8 +89,8 @@ export default function ProPage() {
         <div style={{ maxWidth:920, margin:'0 auto', padding:'20px 20px 0' }}>
           {/* Nav */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:28, flexWrap:'wrap', gap:8 }}>
-            <Link href="/dashboard" style={{ color:'#8b949e', textDecoration:'none', fontSize:'0.78rem' }}>
-              ← Dashboard
+            <Link href="/hub" style={{ color:'#8b949e', textDecoration:'none', fontSize:'0.78rem' }}>
+              ← Hub
             </Link>
             <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
               <Link href="/pro/perfil" style={{

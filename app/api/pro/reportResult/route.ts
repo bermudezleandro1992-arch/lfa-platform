@@ -68,18 +68,14 @@ export async function POST(req: NextRequest) {
       console.warn('[pro/reportResult] Vision API error:', visionErr);
     }
 
-    // Validation deadline: 10 minutes from now
-    const validation_deadline = Date.now() + 10 * 60 * 1000;
-
+    // Save photo + OCR result only — do NOT change status yet.
+    // The player must call /api/pro/confirmScore to set the score and move to 'validating'.
     await matchRef.update({
-      status: 'validating',
-      reported_by: uid,
       photo_url,
       storage_path: storage_path ?? null,
       ocr_score: ocrScore,
       ocr_text: ocrText.slice(0, 500),
       ocr_confidence: ocrConfidence,
-      validation_deadline,
       updated_at: new Date().toISOString(),
     });
 

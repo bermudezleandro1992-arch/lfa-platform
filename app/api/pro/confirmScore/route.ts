@@ -19,8 +19,12 @@ export async function POST(req: NextRequest) {
     if (match.player1_uid !== uid && match.player2_uid !== uid) {
       return NextResponse.json({ error: 'No sos parte de este partido.' }, { status: 403 });
     }
-    if (match.status !== 'challenged') {
+    if (match.status !== 'challenged' && match.status !== 'validating') {
       return NextResponse.json({ error: 'Estado de partido incorrecto.' }, { status: 400 });
+    }
+    // If already validating, only the original reporter can update the score
+    if (match.status === 'validating' && match.reported_by && match.reported_by !== uid) {
+      return NextResponse.json({ error: 'Ya fue reportado por tu rival.' }, { status: 400 });
     }
 
     // Validate score values

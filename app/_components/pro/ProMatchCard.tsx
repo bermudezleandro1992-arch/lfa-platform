@@ -23,6 +23,41 @@ const STATUS_CONFIG = {
   bye:        { label:'LIBRE',       color:'#555',    bg:'#55555522' },
 };
 
+/** Small button that lets a player reopen a closed match for disputing */
+function ReopenMatchButton({ matchId, leagueId: _lid, uid: _uid }: { matchId: string; leagueId: string; uid: string }) {
+  const [loading, setLoading] = useState(false);
+  const [done,    setDone]    = useState(false);
+
+  async function reopen() {
+    if (!confirm('¿Querés reabrir este partido para disputar el resultado?')) return;
+    setLoading(true);
+    try {
+      const token = await (await import('firebase/auth')).getAuth().currentUser!.getIdToken();
+      const res = await fetch('/api/pro/reopenMatch', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ match_id: matchId }),
+      });
+      const d = await res.json();
+      if (res.ok) setDone(true);
+      else alert(d.error ?? 'Error al reabrir.');
+    } catch { alert('Error de conexión.'); }
+    finally { setLoading(false); }
+  }
+
+  if (done) return <div style={{ flex:1, padding:'8px', textAlign:'center', color:'#ffd700', fontSize:'0.72rem' }}>Reabierto ✓</div>;
+  return (
+    <button onClick={reopen} disabled={loading} style={{
+      padding:'8px 14px', borderRadius:8, cursor:'pointer',
+      background:'transparent', border:'1px solid #ffd70044', color:'#ffd700',
+      fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.65rem',
+      opacity: loading ? 0.6 : 1,
+    }}>
+      🔓 DISPUTAR
+    </button>
+  );
+}
+
 function useCountdownSecs(deadline: number | null) {
   const [secs, setSecs] = useState(0);
   useEffect(() => {
@@ -170,11 +205,24 @@ export default function ProMatchCard({ match, uid, leagueId, compact }: Props) {
           {match.status === 'closed' && match.winner_uid && (
             <div style={{
               marginTop:10, textAlign:'center',
-              color: match.winner_uid === uid ? '#00ff88' : '#ff6b6b',
+              color: match.winner_uid === 'draw' ? '#ffd700' : match.winner_uid === uid ? '#00ff88' : '#ff6b6b',
               fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.72rem',
             }}>
-              {match.winner_uid === uid ? '🏆 VICTORIA' : '❌ DERROTA'}
-              {match.winner_uid === 'draw' && '🤝 EMPATE'}
+              {match.winner_uid === 'draw' ? '🤝 EMPATE' : match.winner_uid === uid ? '🏆 VICTORIA' : '❌ DERROTA'}
+            </div>
+          )}
+
+          {/* Screenshot thumbnail */}
+          {match.photo_url && (match.status === 'closed' || match.status === 'validating' || match.status === 'dispute') && (
+            <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:8 }}>
+              <a href={match.photo_url} target="_blank" rel="noreferrer"
+                style={{ display:'flex', alignItems:'center', gap:6, textDecoration:'none' }}>
+                <img src={match.photo_url} alt="Captura" style={{
+                  width:48, height:36, objectFit:'cover', borderRadius:6,
+                  border:'1px solid #30363d',
+                }} />
+                <span style={{ color:'#8b949e', fontSize:'0.62rem' }}>📷 Ver captura</span>
+              </a>
             </div>
           )}
 
@@ -257,6 +305,11 @@ export default function ProMatchCard({ match, uid, leagueId, compact }: Props) {
                 }}>
                   ⏳ Esperando al rival...
                 </div>
+              )}
+
+              {/* CLOSED → Reopen (only shown if match can be disputed after closing) */}
+              {match.status === 'closed' && isMyMatch && (
+                <ReopenMatchButton matchId={match.id} leagueId={leagueId} uid={uid} />
               )}
             </div>
           )}
