@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,11 +15,12 @@ import Link from 'next/link';
 const EnrollModal = dynamic(() => import('@/app/_components/pro/EnrollModal'), { ssr: false });
 
 // -- Helpers ----------------------------------------------------------------
-const GAME_LABEL: Record<string, string> = { efootball: 'eFootball', fc26: 'FC 26' };
-const GAME_COLOR: Record<string, string> = { efootball: '#00c3ff', fc26: '#ff6b00' };
+const GAME_LABEL: Record<string, string> = { efootball: 'eFootball', fc26: 'FC 26', mobile: 'Mobile' };
+const GAME_COLOR: Record<string, string> = { efootball: '#00c3ff', fc26: '#ff6b00', mobile: '#00ff88' };
 const MODE_LABEL: Record<string, string> = {
-  dream_team: 'Dream Team', general_libre: 'General Libre',
-  '95gen': '95 Gen', ultimate_team: 'Ultimate Team',
+  dream_team: 'Dream Team', ultimate_team: 'Ultimate Team',
+  general_95: 'General 95', seleccion: 'Selección', equipos: 'Equipos',
+  general_libre: 'General Libre', '95gen': '95 Gen',
 };
 const STATUS_LABEL: Record<string, string> = {
   inscripcion: 'INSCRIPCIONES ABIERTAS', activa: 'EN JUEGO',
@@ -36,7 +37,7 @@ export default function ProPage() {
   const [leagues,    setLeagues]    = useState<ProLeague[]>([]);
   const [enrolled,   setEnrolled]   = useState<Set<string>>(new Set());
   const [enrolling,  setEnrolling]  = useState<ProLeague | null>(null);
-  const [filterGame, setFilterGame] = useState<'all' | 'efootball' | 'fc26'>('all');
+  const [filterGame, setFilterGame] = useState<'all' | 'efootball' | 'fc26' | 'mobile'>('all');
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -106,7 +107,7 @@ export default function ProPage() {
               LIGA 1vs1
             </div>
             <div style={{ color:'#8b949e', marginTop:8, fontSize:'0.88rem', maxWidth:500, margin:'8px auto 0' }}>
-              Round Robin + Playoffs � Report� con IA � Automatizaci�n total
+              Round Robin + Playoffs · Reportes con IA · Automatización total
             </div>
 
             {/* Stats */}
@@ -126,7 +127,7 @@ export default function ProPage() {
 
           {/* Filter tabs */}
           <div style={{ display:'flex', gap:0, borderBottom:'1px solid #30363d' }}>
-            {(['all','efootball','fc26'] as const).map(g => (
+            {(['all','efootball','fc26','mobile'] as const).map(g => (
               <button key={g} onClick={() => setFilterGame(g)}
                 style={{
                   padding:'10px 22px', border:'none', background:'transparent', cursor:'pointer',

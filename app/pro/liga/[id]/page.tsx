@@ -4,8 +4,8 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, where, onSnapshot, orderBy,
-  doc, getDoc, getDocs,
+  collection, query, where, onSnapshot,
+  doc, getDoc,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { ProLeague, LeagueParticipant, LeagueMatch } from '@/lib/types';
@@ -76,11 +76,16 @@ export default function LeagueDetailPage({ params }: { params: Promise<{ id: str
     if (!id) return;
     const q = query(
       collection(db, 'league_matches'),
-      where('league_id', '==', id),
-      orderBy('round', 'asc')
+      where('league_id', '==', id)
     );
-    const unsub = onSnapshot(q, snap =>
-      setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() } as LeagueMatch)))
+    const unsub = onSnapshot(
+      q,
+      snap => setMatches(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as LeagueMatch))
+          .sort((a, b) => a.round - b.round)
+      ),
+      err => console.error('[Liga] matches error:', err.message)
     );
     return unsub;
   }, [id]);

@@ -13,8 +13,11 @@ export interface RegionDetectionResult {
 // LIGAS 1VS1 — SomosLFA PRO
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type LeagueGame     = 'efootball' | 'fc26';
-export type LeaguePlatform = 'PS5' | 'Xbox' | 'PC' | 'Mobile' | 'All';
+export type LeagueGame     = 'efootball' | 'fc26' | 'mobile';
+export type LeaguePlatform = 'Crossplay' | 'PS5' | 'Xbox' | 'PC' | 'Mobile';
+export type LeagueMode     =
+  | 'dream_team' | 'ultimate_team'
+  | 'general_95' | 'seleccion' | 'equipos';
 export type LeagueRegion   = 'LATAM_SUR' | 'LATAM_NORTE' | 'GLOBAL';
 export type LeagueStatus   = 'inscripcion' | 'activa' | 'playoffs' | 'finalizada';
 
@@ -30,8 +33,8 @@ export interface ProLeague {
   id: string;
   name: string;
   game: LeagueGame;
-  mode: string;           // 'dream_team' | '95gen' | 'general_libre' | 'ultimate_team'
-  platform: LeaguePlatform;
+  mode: LeagueMode | string;
+  platform: LeaguePlatform | string;
   region: LeagueRegion;
   status: LeagueStatus;
   max_players: number;

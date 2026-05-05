@@ -20,8 +20,43 @@ const btn = (bg: string, color = '#000'): React.CSSProperties => ({
   fontWeight: 700, fontSize: '0.68rem', letterSpacing: 0.5,
 });
 
+// Modos disponibles por juego
+const MODES_BY_GAME: Record<string, { value: string; label: string }[]> = {
+  efootball: [
+    { value: 'dream_team',    label: 'Dream Team' },
+    { value: 'ultimate_team', label: 'Ultimate Team' },
+  ],
+  fc26: [
+    { value: 'ultimate_team', label: 'Ultimate Team' },
+    { value: 'general_95',   label: 'General 95' },
+    { value: 'seleccion',    label: 'Selección' },
+    { value: 'equipos',      label: 'Equipos' },
+  ],
+  mobile: [
+    { value: 'dream_team',    label: 'Dream Team' },
+    { value: 'ultimate_team', label: 'Ultimate Team' },
+  ],
+};
+
+const GAME_OPTIONS = [
+  { value: 'efootball', label: 'eFootball' },
+  { value: 'fc26',      label: 'FC 26' },
+  { value: 'mobile',    label: 'Mobile' },
+];
+
+const PLATFORM_OPTIONS = [
+  { value: 'Crossplay', label: 'Crossplay (PC+PS5+Xbox)' },
+  { value: 'PS5',       label: 'PS5' },
+  { value: 'Xbox',      label: 'Xbox' },
+  { value: 'PC',        label: 'PC' },
+  { value: 'Mobile',    label: 'Mobile' },
+];
+
+const REGION_OPTIONS = ['LATAM_SUR', 'LATAM_NORTE', 'GLOBAL'];
+const MAX_PLAYERS_OPTIONS = ['4', '6', '8', '10', '12', '16'];
+
 const INITIAL_FORM = {
-  name: '', game: 'efootball', mode: '1vs1', platform: 'All',
+  name: '', game: 'efootball', mode: 'dream_team', platform: 'Crossplay',
   region: 'LATAM_SUR', max_players: '8', entry_fee: '0',
   rules: '', prize_info: '',
 };
@@ -113,12 +148,8 @@ export default function LigasPROTab() {
     finally { setResolveLoading(null); }
   }
 
-  const GAME_OPTIONS = ['efootball', 'fc26'];
-  const PLATFORM_OPTIONS = ['All', 'PS5', 'Xbox', 'PC', 'Mobile'];
-  const REGION_OPTIONS = ['LATAM_SUR', 'LATAM_NORTE', 'GLOBAL'];
-  const MAX_PLAYERS_OPTIONS = ['4', '6', '8', '10', '12', '16'];
-
   const SEL: React.CSSProperties = { ...inp, width: 'auto', flex: 1 };
+  const currentModes = MODES_BY_GAME[form.game] ?? MODES_BY_GAME.efootball;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -145,23 +176,47 @@ export default function LigasPROTab() {
           <div style={{ gridColumn: '1/-1' }}>
             <input style={inp} placeholder="Nombre de la liga" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
-          <select style={SEL} value={form.game} onChange={e => setForm(f => ({ ...f, game: e.target.value }))}>
-            {GAME_OPTIONS.map(g => <option key={g} value={g}>{g === 'efootball' ? 'eFootball' : 'FC 26'}</option>)}
+
+          {/* Juego */}
+          <select style={SEL} value={form.game} onChange={e => {
+            const g = e.target.value;
+            const firstMode = (MODES_BY_GAME[g] ?? MODES_BY_GAME.efootball)[0].value;
+            setForm(f => ({ ...f, game: g, mode: firstMode }));
+          }}>
+            {GAME_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
           </select>
+
+          {/* Modo — dinámico por juego */}
+          <select style={SEL} value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
+            {currentModes.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+
+          {/* Plataforma */}
           <select style={SEL} value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
-            {PLATFORM_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+            {PLATFORM_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
+
+          {/* Región */}
           <select style={SEL} value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))}>
             {REGION_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
+
+          {/* Max jugadores */}
           <select style={SEL} value={form.max_players} onChange={e => setForm(f => ({ ...f, max_players: e.target.value }))}>
             {MAX_PLAYERS_OPTIONS.map(n => <option key={n} value={n}>{n} jugadores</option>)}
           </select>
+
+          {/* Entry fee — 0 = gratuita */}
           <div>
-            <input style={inp} type="number" min={0} placeholder="Entry fee (LFA Coins)" value={form.entry_fee} onChange={e => setForm(f => ({ ...f, entry_fee: e.target.value }))} />
+            <input style={inp} type="number" min={0} step={1}
+              placeholder="0 = Gratuita  |  Liga Premium: N° de LFA Coins"
+              value={form.entry_fee}
+              onChange={e => setForm(f => ({ ...f, entry_fee: e.target.value }))} />
           </div>
-          <div>
-            <input style={inp} placeholder="Premio (ej: 500 LFA Coins al campeón)" value={form.prize_info} onChange={e => setForm(f => ({ ...f, prize_info: e.target.value }))} />
+
+          {/* Premio */}
+          <div style={{ gridColumn: '1/-1' }}>
+            <input style={inp} placeholder="Premio (ej: 500 LFA Coins al campeón — dejar vacío si es gratuita)" value={form.prize_info} onChange={e => setForm(f => ({ ...f, prize_info: e.target.value }))} />
           </div>
           <div style={{ gridColumn: '1/-1' }}>
             <textarea style={{ ...inp, resize: 'vertical', minHeight: 60 }} placeholder="Reglamento de la liga..." value={form.rules} onChange={e => setForm(f => ({ ...f, rules: e.target.value }))} />
@@ -190,7 +245,7 @@ export default function LigasPROTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#e6edf3', fontSize: '0.82rem' }}>{lg.name}</div>
                   <div style={{ color: '#8b949e', fontSize: '0.68rem' }}>
-                    {lg.game === 'efootball' ? 'eFootball' : 'FC 26'} · {lg.platform} · {lg.region} · {lg.current_players}/{lg.max_players} jugadores
+                    {lg.game === 'efootball' ? 'eFootball' : lg.game === 'fc26' ? 'FC 26' : 'Mobile'} · {lg.platform} · {lg.region} · {lg.current_players}/{lg.max_players} jugadores
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                     {[
