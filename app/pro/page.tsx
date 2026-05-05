@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, where, onSnapshot,
-  orderBy, doc, getDoc,
+  collection, onSnapshot,
+  doc, getDoc,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { ProLeague } from '@/lib/types';
@@ -49,12 +49,15 @@ export default function ProPage() {
   }, [router]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'leagues'),
-      orderBy('created_at', 'desc')
-    );
-    const unsub = onSnapshot(q, snap => {
-      setLeagues(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProLeague)));
+    const unsub = onSnapshot(collection(db, 'leagues'), snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProLeague));
+      // Sort client-side (no orderBy to avoid composite index)
+      all.sort((a, b) => {
+        const ta = (a.created_at as { seconds?: number })?.seconds ?? 0;
+        const tb = (b.created_at as { seconds?: number })?.seconds ?? 0;
+        return tb - ta;
+      });
+      setLeagues(all);
     });
     return unsub;
   }, []);

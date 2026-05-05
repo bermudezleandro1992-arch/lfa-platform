@@ -68,6 +68,8 @@ export default function LigasPROTab() {
   const [msg, setMsg] = useState('');
   const [genLoading, setGenLoading] = useState<string | null>(null);
   const [playoffLoading, setPlayoffLoading] = useState<string | null>(null);
+  const [clearLoading, setClearLoading] = useState<string | null>(null);
+  const [seedLoading, setSeedLoading] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<Array<Record<string, string | number | null>>>([]);
   const [resolveLoading, setResolveLoading] = useState<string | null>(null);
 
@@ -149,6 +151,39 @@ export default function LigasPROTab() {
       setMsg(`✅ Playoffs iniciados: ${data.matches} partidos — ${data.round}`);
     } catch { setMsg('❌ Error iniciando playoffs.'); }
     finally { setPlayoffLoading(null); }
+  }
+
+  async function seedBots(leagueId: string) {
+    setSeedLoading(leagueId);
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/pro/seedBots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ league_id: leagueId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg(`❌ ${data.error}`); return; }
+      setMsg(`✅ ${data.added} bots agregados: ${(data.bots as string[]).join(', ')}`);
+    } catch { setMsg('❌ Error agregando bots.'); }
+    finally { setSeedLoading(null); }
+  }
+
+  async function clearLeague(leagueId: string, leagueName: string) {
+    if (!confirm(`⚠️ ¿Eliminar la liga "${leagueName}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+    setClearLoading(leagueId);
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/pro/clearLeague', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ league_id: leagueId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg(`❌ ${data.error}`); return; }
+      setMsg(`✅ Liga eliminada. ${data.deleted.matches} partidos borrados.`);
+    } catch { setMsg('❌ Error eliminando liga.'); }
+    finally { setClearLoading(null); }
   }
 
   async function resolveDispute(matchId: string, resolution: 'p1' | 'p2' | 'draw' | 'annul') {
@@ -283,6 +318,16 @@ export default function LigasPROTab() {
                       {genLoading === lg.id ? '⏳...' : '⚡ GENERAR FIXTURE'}
                     </button>
                   )}
+                  {lg.status === 'inscripcion' && lg.current_players < lg.max_players && (
+                    <button
+                      onClick={() => seedBots(lg.id)}
+                      disabled={seedLoading === lg.id}
+                      style={btn(seedLoading === lg.id ? '#30363d' : '#7c3aed22', '#a78bfa')}
+                      title="Llenar con bots para testear"
+                    >
+                      {seedLoading === lg.id ? '⏳...' : '🤖 BOTS'}
+                    </button>
+                  )}
                   {lg.status === 'activa' && (
                     <>
                       <button
@@ -307,6 +352,14 @@ export default function LigasPROTab() {
                     style={{ ...btn('#30363d', '#c9d1d9'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
                     👁️ VER
                   </a>
+                  <button
+                    onClick={() => clearLeague(lg.id, lg.name)}
+                    disabled={clearLoading === lg.id}
+                    style={btn(clearLoading === lg.id ? '#30363d' : '#ff000022', '#ff6b6b')}
+                    title="Eliminar liga y todos sus datos"
+                  >
+                    {clearLoading === lg.id ? '⏳...' : '🗑️ BORRAR'}
+                  </button>
                 </div>
               </div>
             ))}
