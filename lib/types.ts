@@ -47,6 +47,9 @@ export interface ProLeague {
   banner_url?: string;
   created_at: unknown;
   start_date?: unknown;
+  division?: string;               // 'A' | 'B' | 'C' | 'D' | 'GLOBAL'
+  country_restriction?: string;    // country name or 'GLOBAL'
+  promotion_relegation?: boolean;  // top 4 up, bottom 4 down
 }
 
 export interface LeagueParticipant {

@@ -337,7 +337,7 @@ export default function ProPerfilPage() {
                       <span style={{ fontSize:'1.1rem' }}>📧</span>
                       <div>
                         <div style={{ color:'#555', fontSize:'0.62rem', letterSpacing:1 }}>EMAIL</div>
-                        <div style={{ color:'#c9d1d9', fontSize:'0.8rem', wordBreak:'break-all' }}>{userInfo.email}</div>
+                        <div style={{ color:'#555', fontSize:'0.8rem', fontStyle:'italic' }}>privado 🔒</div>
                       </div>
                     </div>
                   )}

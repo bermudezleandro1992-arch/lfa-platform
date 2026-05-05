@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
     const cleanTeam = String(team_name).trim().slice(0, 30).replace(/[<>'"`;]/g, '');
     const cleanPlatId = String(platform_id).trim().slice(0, 50).replace(/[<>'"`;]/g, '');
     const cleanWA = String(whatsapp).trim().slice(0, 20).replace(/[^+\d\s\-()]/g, '');
-    const cleanLogo = String(logo_url || '⚽').slice(0, 10);
+    // Logo: allow emoji (1-4 chars) or HTTPS URL (up to 500 chars)
+    const rawLogo = String(logo_url || '⚽').trim();
+    const cleanLogo = rawLogo.startsWith('https://') ? rawLogo.slice(0, 500) : rawLogo.slice(0, 10);
 
     const leagueRef = adminDb.collection('leagues').doc(league_id);
     const leagueSnap = await leagueRef.get();
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'La liga está completa.' }, { status: 400 });
     }
 
-    // Get user display name
+    // Get user display name + country
     const userSnap = await adminDb.collection('usuarios').doc(uid).get();
     const displayName = userSnap.exists
       ? (userSnap.data()?.nombre || userSnap.data()?.displayName || 'Jugador')
@@ -52,6 +54,17 @@ export async function POST(req: NextRequest) {
     const country = (typeof bodyCountry === 'string' && bodyCountry.trim())
       ? bodyCountry.trim().slice(0, 30).replace(/[<>'"`;]/g, '')
       : userSnap.exists ? (userSnap.data()?.pais || userSnap.data()?.country || '') : '';
+
+    // ── Country restriction check ──────────────────────────────────────────
+    const restriction = league.country_restriction;
+    if (restriction && restriction !== 'GLOBAL') {
+      const userCountry = country || (userSnap.exists ? (userSnap.data()?.pais || '') : '');
+      if (userCountry.toLowerCase() !== restriction.toLowerCase()) {
+        return NextResponse.json({
+          error: `Esta liga es solo para jugadores de ${restriction}. Tu país registrado: ${userCountry || 'no especificado'}. Actualizá tu país en Mi Perfil.`,
+        }, { status: 403 });
+      }
+    }
 
     // Batch write
     const batch = adminDb.batch();

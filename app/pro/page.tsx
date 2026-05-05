@@ -202,6 +202,120 @@ export default function ProPage() {
           onSuccess={() => { setEnrolled(prev => new Set(Array.from(prev).concat(enrolling!.id))); setEnrolling(null); }}
         />
       )}
+
+      <HelpWidget />
+    </div>
+  );
+}
+
+// --- Help Widget -------------------------------------------------------------
+const WA_GROUP = 'https://chat.whatsapp.com/FIEQYxN6u1pCWYMdrNMuu4';
+
+const FAQ_ITEMS = [
+  {
+    q: '¿Cómo reporto mi resultado?',
+    a: 'Al terminar el partido, entrá a la web, buscá tu partido activo y tocá en "Subir Captura". Subí la foto de la pantalla final donde se vean los goles. ¡La IA la validará en segundos!',
+  },
+  {
+    q: 'Mi rival no responde, ¿qué hago?',
+    a: 'Si pasaron más de 10 minutos y tu rival no contesta, tocá el botón "Disputar" en tu partido. El Staff revisará el caso y te dará la victoria por W.O.',
+  },
+  {
+    q: 'La IA leyó mal mi resultado, ¿cómo lo arreglo?',
+    a: 'Si el marcador detectado es incorrecto, no confirmes el resultado. Abrí el partido y tocá "Reabrir". Un árbitro humano mirará la foto y corregirá el marcador manualmente.',
+  },
+  {
+    q: '¿Puedo cambiar mi ID de jugador (PSN/EA/Konami)?',
+    a: 'Sí, andá a "Mi Perfil" en la web y tocá EDITAR. Recordá que si jugás con un ID distinto al registrado podés ser descalificado del torneo por seguridad.',
+  },
+  {
+    q: '¿Cómo sé cuándo es mi próximo partido?',
+    a: 'Entrá a tu liga y verás los partidos pendientes en "Mis Partidos". Mantenete atento porque cuando el sistema asigna la jornada ya podés desafiar a tu rival.',
+  },
+];
+
+function HelpWidget() {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  return (
+    <div style={{ position:'fixed', bottom:24, right:24, zIndex:999, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:10 }}>
+      {/* WA community floating */}
+      <a href={WA_GROUP} target="_blank" rel="noreferrer" title="Unirse al grupo LFA en WhatsApp"
+        style={{
+          width:50, height:50, borderRadius:25, background:'#25d366',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          boxShadow:'0 4px 20px rgba(37,211,102,0.5)',
+          textDecoration:'none', fontSize:'1.5rem',
+          border:'2px solid rgba(37,211,102,0.4)',
+          transition:'transform 0.2s',
+        }}>
+        💬
+      </a>
+
+      {/* FAQ panel */}
+      {open && (
+        <div style={{
+          width:300, background:'#161b22', borderRadius:16,
+          border:'1px solid #30363d', boxShadow:'0 8px 40px rgba(0,0,0,0.7)',
+          padding:'18px 16px', maxHeight:'80vh', overflowY:'auto',
+        }}>
+          <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.68rem', color:'#00ff88', letterSpacing:1, marginBottom:4 }}>
+            🆘 AUTO-AYUDA — SOMOS LFA PRO
+          </div>
+          <div style={{ color:'#555', fontSize:'0.63rem', marginBottom:14 }}>Tocá una pregunta para ver la respuesta</div>
+
+          {FAQ_ITEMS.map((item, i) => (
+            <div key={i} style={{ marginBottom:8, background:'#0d1117', borderRadius:10, overflow:'hidden', border:`1px solid ${expanded===i ? '#00ff8844' : '#21262d'}` }}>
+              <button onClick={() => setExpanded(expanded===i ? null : i)} style={{
+                width:'100%', textAlign:'left', background:'none', border:'none',
+                padding:'10px 12px', cursor:'pointer', color:'#c9d1d9',
+                fontSize:'0.75rem', fontWeight:600, display:'flex', justifyContent:'space-between', alignItems:'center', gap:8,
+              }}>
+                <span style={{ flex:1 }}>{item.q}</span>
+                <span style={{ color:'#00ff88', flexShrink:0, fontSize:'0.65rem' }}>{expanded===i ? '▲' : '▼'}</span>
+              </button>
+              {expanded===i && (
+                <div style={{ padding:'0 12px 12px', color:'#8b949e', fontSize:'0.73rem', lineHeight:1.7 }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div style={{ borderTop:'1px solid #21262d', marginTop:14, paddingTop:14, display:'flex', flexDirection:'column', gap:8 }}>
+            <a href={WA_GROUP} target="_blank" rel="noreferrer" style={{
+              display:'flex', alignItems:'center', gap:8, padding:'10px 12px',
+              background:'#25d36618', border:'1px solid #25d36633', borderRadius:10,
+              textDecoration:'none', color:'#25d366', fontSize:'0.75rem', fontWeight:600,
+            }}>
+              💬 Unirse al Grupo LFA en WhatsApp
+            </a>
+            <Link href="/reglamento" style={{
+              display:'flex', alignItems:'center', gap:8, padding:'10px 12px',
+              background:'#21262d', border:'1px solid #30363d', borderRadius:10,
+              textDecoration:'none', color:'#8b949e', fontSize:'0.75rem',
+            }}>
+              📋 Reglamento oficial
+            </Link>
+          </div>
+          <div style={{ marginTop:10, fontSize:'0.62rem', color:'#555', textAlign:'center' }}>
+            ⚡ Respondemos en menos de 24hs
+          </div>
+        </div>
+      )}
+
+      {/* Toggle button */}
+      <button onClick={() => setOpen(o => !o)} style={{
+        width:52, height:52, borderRadius:26, border:'2px solid #00ff8844',
+        background: open ? '#ff4757' : 'linear-gradient(135deg,#00ff88,#00cc6a)',
+        color: open ? '#fff' : '#000', fontSize:'1.4rem', cursor:'pointer',
+        boxShadow:'0 4px 20px rgba(0,255,136,0.4)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        transition:'all 0.2s',
+      }}>
+        {open ? '✕' : '?'}
+      </button>
     </div>
   );
 }

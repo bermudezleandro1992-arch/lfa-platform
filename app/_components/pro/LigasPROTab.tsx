@@ -53,12 +53,33 @@ const PLATFORM_OPTIONS = [
 ];
 
 const REGION_OPTIONS = ['LATAM_SUR', 'LATAM_NORTE', 'GLOBAL'];
-const MAX_PLAYERS_OPTIONS = ['4', '6', '8', '10', '12', '16'];
+const MAX_PLAYERS_OPTIONS = ['4', '6', '8', '10', '12', '16', '18', '20', '24', '30'];
+const DIVISION_OPTIONS = [
+  { value: 'GLOBAL', label: '🌐 Sin división (Global)' },
+  { value: 'A', label: '🥇 División A — Elite' },
+  { value: 'B', label: '🥈 División B — Competitiva' },
+  { value: 'C', label: '🥉 División C — Amateur' },
+  { value: 'D', label: '🎮 División D — Principiantes' },
+];
+const COUNTRY_RESTRICTION_OPTIONS = [
+  { value: 'GLOBAL', label: '🌍 Abierta — todos los países' },
+  { value: 'Argentina', label: '🇦🇷 Argentina' },
+  { value: 'Brasil', label: '🇧🇷 Brasil' },
+  { value: 'Colombia', label: '🇨🇴 Colombia' },
+  { value: 'Chile', label: '🇨🇱 Chile' },
+  { value: 'México', label: '🇲🇽 México' },
+  { value: 'Perú', label: '🇵🇪 Perú' },
+  { value: 'Uruguay', label: '🇺🇾 Uruguay' },
+  { value: 'Paraguay', label: '🇵🇾 Paraguay' },
+  { value: 'Ecuador', label: '🇪🇨 Ecuador' },
+  { value: 'Bolivia', label: '🇧🇴 Bolivia' },
+  { value: 'Venezuela', label: '🇻🇪 Venezuela' },
+];
 
 const INITIAL_FORM = {
   name: '', game: 'efootball', mode: 'dream_team', platform: 'Crossplay',
   region: 'LATAM_SUR', max_players: '8', entry_fee: '0',
-  rules: '', prize_info: '',
+  rules: '', prize_info: '', division: 'GLOBAL', country_restriction: 'GLOBAL',
 };
 
 export default function LigasPROTab() {
@@ -114,6 +135,9 @@ export default function LigasPROTab() {
         prize_info: form.prize_info.trim().slice(0, 200),
         entry_fee: parseFloat(form.entry_fee) || 0,
         banner_url: null,
+        division: form.division || 'GLOBAL',
+        country_restriction: form.country_restriction || 'GLOBAL',
+        promotion_relegation: parseInt(form.max_players) >= 12,
         created_at: serverTimestamp(),
         start_date: null,
       });
@@ -258,13 +282,37 @@ export default function LigasPROTab() {
             {MAX_PLAYERS_OPTIONS.map(n => <option key={n} value={n}>{n} jugadores</option>)}
           </select>
 
+          {/* División */}
+          <select style={SEL} value={form.division} onChange={e => setForm(f => ({ ...f, division: e.target.value }))}>
+            {DIVISION_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+          </select>
+
+          {/* Restricción de país */}
+          <select style={SEL} value={form.country_restriction} onChange={e => setForm(f => ({ ...f, country_restriction: e.target.value }))}>
+            {COUNTRY_RESTRICTION_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+
           {/* Entry fee — 0 = gratuita */}
-          <div>
+          <div style={{ gridColumn:'1/-1' }}>
             <input style={inp} type="number" min={0} step={1}
               placeholder="0 = Gratuita  |  Liga Premium: N° de LFA Coins"
               value={form.entry_fee}
               onChange={e => setForm(f => ({ ...f, entry_fee: e.target.value }))} />
           </div>
+
+          {/* Info ascensos/descensos */}
+          {parseInt(form.max_players) >= 12 && form.division !== 'GLOBAL' && (
+            <div style={{ gridColumn:'1/-1', background:'#ffd70011', border:'1px solid #ffd70033', borderRadius:8, padding:'10px 14px', fontSize:'0.72rem', color:'#ffd700' }}>
+              ⬆️ Ascensos/Descensos activos: los 4 primeros suben a Div {String.fromCharCode(form.division.charCodeAt(0)-1) || 'S/A'} · los 4 últimos bajan a Div {String.fromCharCode(form.division.charCodeAt(0)+1) || 'S/A'}
+            </div>
+          )}
+
+          {/* VPN warning */}
+          {form.country_restriction !== 'GLOBAL' && (
+            <div style={{ gridColumn:'1/-1', background:'#ff444411', border:'1px solid #ff444433', borderRadius:8, padding:'10px 14px', fontSize:'0.72rem', color:'#ff6b6b' }}>
+              🔒 Liga por país: solo jugadores con país «{form.country_restriction}» en su perfil podrán inscribirse. Detección anti-VPN activa.
+            </div>
+          )}
 
           {/* Premio */}
           <div style={{ gridColumn: '1/-1' }}>
@@ -306,6 +354,16 @@ export default function LigasPROTab() {
                     ].map(b => (
                       <span key={b.label} style={{ fontSize: '0.62rem', color: b.color, background: b.color + '18', border: `1px solid ${b.color}33`, borderRadius: 4, padding: '1px 6px' }}>{b.label}</span>
                     ))}
+                    {lg.division && lg.division !== 'GLOBAL' && (
+                      <span style={{ fontSize: '0.62rem', color: '#ffd700', background: '#ffd70018', border: '1px solid #ffd70033', borderRadius: 4, padding: '1px 6px' }}>
+                        DIV {lg.division}
+                      </span>
+                    )}
+                    {lg.country_restriction && lg.country_restriction !== 'GLOBAL' && (
+                      <span style={{ fontSize: '0.62rem', color: '#ff6b00', background: '#ff6b0018', border: '1px solid #ff6b0033', borderRadius: 4, padding: '1px 6px' }}>
+                        🌎 {lg.country_restriction}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
