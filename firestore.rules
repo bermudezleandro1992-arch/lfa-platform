@@ -290,6 +290,46 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    // ── Liga 1vs1 PRO — colecciones /leagues y /league_matches ─────────
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow create, update, delete: if esAdmin();
+
+      match /participants/{uid} {
+        allow read: if authExists();
+        // El servidor usa Admin SDK para inscripciones; solo admin puede editar
+        allow write: if esAdmin();
+      }
+    }
+
+    match /league_matches/{matchId} {
+      allow read: if authExists();
+      // Solo el campo room_code puede actualizarse desde el cliente
+      allow update: if authExists() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['room_code']);
+      allow create, delete: if false;
+    }
+
+    // ── Liga 1vs1 PRO — colecciones /leagues y /league_matches ────────
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow create, update, delete: if esAdmin();
+
+      match /participants/{uid} {
+        allow read: if authExists();
+        // El servidor usa Admin SDK para inscripciones; solo admin puede editar
+        allow write: if esAdmin();
+      }
+    }
+
+    match /league_matches/{matchId} {
+      allow read: if authExists();
+      // Solo el campo room_code puede actualizarse desde el cliente
+      allow update: if authExists() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['room_code']);
+      allow create, delete: if false;
+    }
+
     // ── Desafíos 1vs1 entre jugadores ────────────────────────────────
     match /liga_desafios/{desafioId} {
       allow read: if authExists();

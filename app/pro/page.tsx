@@ -86,7 +86,7 @@ export default function ProPage() {
           {/* Nav */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:28 }}>
             <Link href="/dashboard" style={{ color:'#8b949e', textDecoration:'none', fontSize:'0.78rem' }}>
-              ? Dashboard
+              ← Dashboard
             </Link>
             <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'0.7rem', letterSpacing:2 }}>
               SOMOS<span style={{ color:'#ffd700' }}>LFA</span>{' '}
@@ -113,7 +113,7 @@ export default function ProPage() {
             <div style={{ display:'flex', justifyContent:'center', gap:40, marginTop:24, flexWrap:'wrap' }}>
               {[
                 { label:'LIGAS ACTIVAS', val: leagues.filter(l=>l.status==='activa').length, color:'#ffd700' },
-                { label:'EN INSCRIPCI�N', val: leagues.filter(l=>l.status==='inscripcion').length, color:'#00ff88' },
+                { label:'EN INSCRIPCIÓN', val: leagues.filter(l=>l.status==='inscripcion').length, color:'#00ff88' },
                 { label:'MIS LIGAS', val: enrolled.size, color:'#00c3ff' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign:'center' }}>
@@ -148,8 +148,8 @@ export default function ProPage() {
         {visible.length === 0 && (
           <div style={{ textAlign:'center', padding:'70px 20px', color:'#8b949e' }}>
             <div style={{ fontSize:'3.5rem', marginBottom:16 }}>??</div>
-            <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'1rem' }}>Pr�ximamente</div>
-            <div style={{ fontSize:'0.82rem', marginTop:8 }}>Nuevas temporadas en preparaci�n</div>
+            <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'1rem' }}>Próximamente</div>
+            <div style={{ fontSize:'0.82rem', marginTop:8 }}>Nuevas temporadas en preparación</div>
           </div>
         )}
 
@@ -219,7 +219,7 @@ function LeagueCard({ league, isEnrolled, onEnroll }: {
               {league.name}
             </div>
             <div style={{ color:'#8b949e', fontSize:'0.76rem' }}>
-              {MODE_LABEL[league.mode] ?? league.mode} � {league.platform} � {league.rules}
+              {MODE_LABEL[league.mode] ?? league.mode} · {league.platform} · {league.region}
             </div>
           </div>
           <span style={{
@@ -248,7 +248,7 @@ function LeagueCard({ league, isEnrolled, onEnroll }: {
 
         {/* Prize */}
         {league.prize_info && (
-          <div style={{ marginTop:10, fontSize:'0.75rem', color:'#ffd700' }}>?? {league.prize_info}</div>
+          <div style={{ marginTop:10, fontSize:'0.75rem', color:'#ffd700' }}>🏆 {league.prize_info}</div>
         )}
 
         {/* Actions */}
@@ -284,7 +284,7 @@ function LeagueCard({ league, isEnrolled, onEnroll }: {
               background:'#00ff8818', border:'1px solid #00ff8833',
               color:'#00ff88', fontSize:'0.72rem', fontWeight:700,
             }}>
-              ? Inscripto
+              ✅ Inscripto
             </span>
           )}
         </div>
