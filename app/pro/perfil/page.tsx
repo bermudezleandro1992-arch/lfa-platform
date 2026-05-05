@@ -36,15 +36,26 @@ interface LeagueStat {
   status: string;
 }
 
+interface UserInfo {
+  nombre: string;
+  email: string;
+  whatsapp: string;
+  pais: string;
+  konami_id: string;
+  ea_id: string;
+  is_bot?: boolean;
+}
+
 const GAME_LABEL: Record<string, string> = { efootball: 'eFootball', fc26: 'FC 26', mobile: 'Mobile' };
 
 export default function ProPerfilPage() {
   const router = useRouter();
-  const [uid,        setUid]        = useState('');
-  const [ready,      setReady]      = useState(false);
+  const [uid,         setUid]         = useState('');
+  const [ready,       setReady]       = useState(false);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
-  const [perLeague,  setPerLeague]  = useState<LeagueStat[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const [perLeague,   setPerLeague]   = useState<LeagueStat[]>([]);
+  const [userInfo,    setUserInfo]    = useState<UserInfo | null>(null);
+  const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -61,6 +72,26 @@ export default function ProPerfilPage() {
     async function loadStats() {
       setLoading(true);
       try {
+        // 0. User profile info
+        const userSnap = await getDoc(doc(db, 'usuarios', uid));
+        if (userSnap.exists()) {
+          const u = userSnap.data();
+          setUserInfo({
+            nombre:    u.nombre    || auth.currentUser?.displayName || '',
+            email:     u.email     || auth.currentUser?.email       || '',
+            whatsapp:  u.whatsapp  || '',
+            pais:      u.pais      || u.country || '',
+            konami_id: u.konami_id || '',
+            ea_id:     u.ea_id     || '',
+          });
+        } else {
+          setUserInfo({
+            nombre:    auth.currentUser?.displayName || '',
+            email:     auth.currentUser?.email       || '',
+            whatsapp:  '', pais: '', konami_id: '', ea_id: '',
+          });
+        }
+
         // 1. Global stats from pro_global_ranking
         const globalSnap = await getDoc(doc(db, 'pro_global_ranking', uid));
 
@@ -206,6 +237,9 @@ export default function ProPerfilPage() {
                   <div style={{ color:'#8b949e', fontSize:'0.8rem', marginTop:4 }}>
                     {globalStats.display_name} · {globalStats.leagues_played} liga{globalStats.leagues_played !== 1 ? 's' : ''} jugada{globalStats.leagues_played !== 1 ? 's' : ''}
                   </div>
+                  {userInfo?.pais && (
+                    <div style={{ color:'#555', fontSize:'0.72rem', marginTop:3 }}>🌍 {userInfo.pais}</div>
+                  )}
                 </div>
                 <Link href="/pro/ranking" style={{
                   padding:'8px 18px', borderRadius:8, textDecoration:'none',
@@ -239,6 +273,60 @@ export default function ProPerfilPage() {
                 ))}
               </div>
             </div>
+
+            {/* ── Datos de contacto */}
+            {userInfo && (userInfo.email || userInfo.whatsapp || userInfo.konami_id || userInfo.ea_id) && (
+              <div style={{
+                background:'#161b22', borderRadius:14, border:'1px solid #21262d',
+                padding:'18px 22px', marginBottom:24,
+              }}>
+                <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.65rem', color:'#555', letterSpacing:2, marginBottom:14 }}>
+                  DATOS DE PERFIL
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:12 }}>
+                  {userInfo.email && (
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:'1.1rem' }}>📧</span>
+                      <div>
+                        <div style={{ color:'#555', fontSize:'0.62rem', letterSpacing:1 }}>EMAIL</div>
+                        <div style={{ color:'#c9d1d9', fontSize:'0.8rem', wordBreak:'break-all' }}>{userInfo.email}</div>
+                      </div>
+                    </div>
+                  )}
+                  {userInfo.whatsapp && (
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:'1.1rem' }}>💬</span>
+                      <div>
+                        <div style={{ color:'#555', fontSize:'0.62rem', letterSpacing:1 }}>WHATSAPP</div>
+                        <a href={`https://wa.me/${userInfo.whatsapp.replace(/\D/g,'')}`}
+                          target="_blank" rel="noreferrer"
+                          style={{ color:'#00ff88', fontSize:'0.8rem', textDecoration:'none' }}>
+                          {userInfo.whatsapp}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {userInfo.konami_id && (
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:'1.1rem' }}>🎮</span>
+                      <div>
+                        <div style={{ color:'#555', fontSize:'0.62rem', letterSpacing:1 }}>KONAMI ID</div>
+                        <div style={{ color:'#00c3ff', fontSize:'0.8rem', fontFamily:'monospace' }}>{userInfo.konami_id}</div>
+                      </div>
+                    </div>
+                  )}
+                  {userInfo.ea_id && (
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:'1.1rem' }}>🎮</span>
+                      <div>
+                        <div style={{ color:'#555', fontSize:'0.62rem', letterSpacing:1 }}>EA ID</div>
+                        <div style={{ color:'#ff6b00', fontSize:'0.8rem', fontFamily:'monospace' }}>{userInfo.ea_id}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* ── Ligas */}
             {perLeague.length > 0 && (

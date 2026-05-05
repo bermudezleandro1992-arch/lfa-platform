@@ -5,7 +5,11 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { ProLeague } from '@/lib/types';
 
-const LOGOS = ['⚽','🦁','🐺','🦅','🔥','⚡','💎','🛡️','🗡️','🏴‍☠️','🐉','🦊','🐯','🦈','🚀','💀','🏆','⭐','🌊','🎯'];
+const LOGOS_ESCUDOS = ['⚽','🦁','🐺','🦅','🔥','⚡','💎','🛡️','🗡️','🏴‍☠️','🐉','🦊','🐯','🦈','🚀','💀','🏆','⭐','🌊','🎯','🏹','⚔️','🌟','💫','🔱','🦋','🐍','🦂','🦏','🐻'];
+const LOGOS_FLAGS   = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
+const LOGOS_CLUBS   = ['🔵','🔴','⚪','⚫','🟡','🟠','🟢','🟣','🟤','🔶','🔷','🔸','🔹','❤️','💙','💛','💚','🖤','🤍','💜'];
+
+type LogoTab = 'escudos' | 'banderas' | 'colores' | 'url';
 
 interface Props {
   league: ProLeague;
@@ -18,11 +22,15 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
   const [step,       setStep]       = useState<'form'|'done'>('form');
   const [teamName,   setTeamName]   = useState('');
   const [logo,       setLogo]       = useState('⚽');
+  const [logoTab,    setLogoTab]    = useState<LogoTab>('escudos');
+  const [customUrl,  setCustomUrl]  = useState('');
   const [platformId, setPlatformId] = useState('');
   const [whatsapp,   setWhatsapp]   = useState('');
   const [country,    setCountry]    = useState('');
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState('');
+
+  const displayLogo = logoTab === 'url' && customUrl.trim() ? customUrl.trim() : logo;
 
   // Pre-fill from user data
   useEffect(() => {
@@ -63,9 +71,11 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
         body: JSON.stringify({
           league_id: league.id,
           team_name: teamName.trim(),
-          logo_url: logo,
+          logo_url: displayLogo,
           platform_id: platformId.trim(),
-          whatsapp: whatsapp.trim(),          country: country.trim(),        }),
+          whatsapp: whatsapp.trim(),
+          country: country.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Error al inscribirse.'); return; }
@@ -121,23 +131,71 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
           <div style={{ padding:'24px' }}>
             {/* Logo selector */}
             <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:'0.75rem', color:'#8b949e', marginBottom:8 }}>Elegí tu escudo</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {LOGOS.map(l => (
-                  <button key={l} onClick={() => setLogo(l)}
-                    style={{
-                      width:40, height:40, borderRadius:10, fontSize:'1.4rem',
-                      background: logo===l ? '#00ff8822' : '#21262d',
-                      border: logo===l ? '2px solid #00ff88' : '1px solid #30363d',
-                      cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-                      transition:'all 0.15s',
-                    }}
-                  >
-                    {l}
+              <div style={{ fontSize:'0.72rem', color:'#8b949e', marginBottom:8, letterSpacing:1 }}>ESCUDO DEL EQUIPO</div>
+
+              {/* Tab selector */}
+              <div style={{ display:'flex', gap:4, marginBottom:10, flexWrap:'wrap' }}>
+                {(['escudos','banderas','colores','url'] as LogoTab[]).map(t => (
+                  <button key={t} onClick={() => setLogoTab(t)} style={{
+                    padding:'4px 10px', borderRadius:6, cursor:'pointer',
+                    background: logoTab===t ? '#00ff8822' : '#21262d',
+                    border: `1px solid ${logoTab===t ? '#00ff8844' : '#30363d'}`,
+                    color: logoTab===t ? '#00ff88' : '#8b949e',
+                    fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif", fontWeight:700, letterSpacing:0.5,
+                  } as React.CSSProperties}>
+                    {t === 'escudos' ? '🛡️ ESCUDOS' : t === 'banderas' ? '🌎 BANDERAS' : t === 'colores' ? '🎨 COLORES' : '🔗 URL'}
                   </button>
                 ))}
               </div>
-              <div style={{ textAlign:'center', fontSize:'2.5rem', marginTop:8 }}>{logo}</div>
+
+              {logoTab !== 'url' && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:120, overflowY:'auto', padding:'4px 0' }}>
+                  {(logoTab === 'escudos' ? LOGOS_ESCUDOS : logoTab === 'banderas' ? LOGOS_FLAGS : LOGOS_CLUBS).map(l => (
+                    <button key={l} onClick={() => setLogo(l)}
+                      style={{
+                        width:38, height:38, borderRadius:8, fontSize:'1.3rem',
+                        background: logo===l ? '#00ff8822' : '#21262d',
+                        border: logo===l ? '2px solid #00ff88' : '1px solid #30363d',
+                        cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                        transition:'all 0.12s', flexShrink:0,
+                      }}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {logoTab === 'url' && (
+                <div>
+                  <input style={inp} value={customUrl} onChange={e => setCustomUrl(e.target.value)}
+                    placeholder="https://... URL de tu logo (imagen cuadrada recomendada)"
+                    maxLength={300}
+                  />
+                  <div style={{ fontSize:'0.68rem', color:'#555', marginTop:4 }}>
+                    Usá un link de imagen (.png / .jpg / .webp). Se verá como tu escudo en el fixture.
+                  </div>
+                  {customUrl.trim() && (
+                    <div style={{ marginTop:8, textAlign:'center' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={customUrl.trim()} alt="logo preview"
+                        style={{ width:60, height:60, borderRadius:12, objectFit:'cover', border:'1px solid #30363d' }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ textAlign:'center', fontSize:'2.5rem', marginTop:10 }}>
+                {logoTab === 'url' && customUrl.trim()
+                  ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={customUrl.trim()} alt="logo"
+                      style={{ width:50, height:50, borderRadius:10, objectFit:'cover', display:'inline-block' }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  : logo
+                }
+              </div>
             </div>
 
             {/* Form */}

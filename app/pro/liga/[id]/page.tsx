@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -23,8 +23,8 @@ const STATUS_COLOR: Record<string,string> = {
   inscripcion:'#00ff88', activa:'#ffd700', playoffs:'#ff6b00', finalizada:'#555',
 };
 
-export default function LeagueDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function LeagueDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const router  = useRouter();
 
   const [uid,          setUid]         = useState('');
