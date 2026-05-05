@@ -352,6 +352,20 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    // ── Ranking global PRO — solo lectura pública, escritura solo servidor ──
+    match /pro_global_ranking/{uid} {
+      allow read: if true;
+      allow write: if false; // solo Admin SDK (API routes + Cloud Functions)
+    }
+
+    // ── Notificaciones PRO — solo el dueño lee/marca como leído ──────
+    match /pro_notifications/{notifId} {
+      allow read: if authExists() && request.auth.uid == resource.data.uid;
+      allow update: if authExists() && request.auth.uid == resource.data.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false; // solo el servidor Cloud Function crea
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

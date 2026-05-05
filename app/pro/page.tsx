@@ -85,13 +85,29 @@ export default function ProPage() {
       <div style={{ background:'linear-gradient(180deg,#0d1117 0%,#0b0e14 100%)', borderBottom:'1px solid #30363d' }}>
         <div style={{ maxWidth:920, margin:'0 auto', padding:'20px 20px 0' }}>
           {/* Nav */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:28 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:28, flexWrap:'wrap', gap:8 }}>
             <Link href="/dashboard" style={{ color:'#8b949e', textDecoration:'none', fontSize:'0.78rem' }}>
               ← Dashboard
             </Link>
-            <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'0.7rem', letterSpacing:2 }}>
-              SOMOS<span style={{ color:'#ffd700' }}>LFA</span>{' '}
-              <span style={{ color:'#00ff88' }}>PRO</span>
+            <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <Link href="/pro/perfil" style={{
+                color:'#00ff88', textDecoration:'none', fontSize:'0.72rem',
+                fontFamily:"'Orbitron',sans-serif", fontWeight:700, letterSpacing:1,
+                border:'1px solid #00ff8833', borderRadius:6, padding:'4px 10px',
+              }}>
+                👤 MI PERFIL
+              </Link>
+              <Link href="/pro/ranking" style={{
+                color:'#ffd700', textDecoration:'none', fontSize:'0.72rem',
+                fontFamily:"'Orbitron',sans-serif", fontWeight:700, letterSpacing:1,
+                border:'1px solid #ffd70033', borderRadius:6, padding:'4px 10px',
+              }}>
+                🏆 RANKING
+              </Link>
+              <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:900, fontSize:'0.7rem', letterSpacing:2 }}>
+                SOMOS<span style={{ color:'#ffd700' }}>LFA</span>{' '}
+                <span style={{ color:'#00ff88' }}>PRO</span>
+              </div>
             </div>
           </div>
 

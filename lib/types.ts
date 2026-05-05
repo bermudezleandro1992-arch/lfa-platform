@@ -71,6 +71,10 @@ export interface LeagueMatch {
   id: string;
   league_id: string;
   round: number;
+  type?: 'roundrobin' | 'playoff';
+  playoff_round?: string;
+  player1_seed?: number;
+  player2_seed?: number;
   player1_uid: string;
   player2_uid: string;
   player1_name: string;

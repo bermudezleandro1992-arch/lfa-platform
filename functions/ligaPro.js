@@ -5,6 +5,7 @@
 const admin = require('firebase-admin');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule }         = require('firebase-functions/v2/scheduler');
+const { onDocumentWritten }  = require('firebase-functions/v2/firestore');
 const { FieldValue }         = require('firebase-admin/firestore');
 
 const db = admin.firestore();
@@ -161,4 +162,80 @@ exports.autoCloseLeagueMatches = onSchedule({
 
     await batch.commit();
     console.log('[autoCloseLeagueMatches] Cerrados ' + expired.length + ' partidos expirados.');
+});
+
+/**
+ * Firestore trigger: when a league_match changes status, create a notification record
+ * so the players can see it in-app and send a WA message.
+ */
+exports.notifyLeagueMatchChange = onDocumentWritten({
+    document: 'league_matches/{matchId}',
+    region:   'us-central1',
+}, async (event) => {
+    const before = event.data?.before?.data();
+    const after  = event.data?.after?.data();
+    if (!after) return; // deleted
+
+    const prevStatus = before?.status;
+    const newStatus  = after.status;
+    if (prevStatus === newStatus) return; // no status change
+
+    const matchId = event.params.matchId;
+
+    const buildMsg = (status, match) => {
+        const league = match.league_id ? `Liga: ${match.league_id.slice(0,6)}` : '';
+        if (status === 'challenged') {
+            return `⚡ ¡Te desafiaron en SomosLFA PRO! ${league}. Jornada ${match.round}. Rival: ${match.player1_team || match.player2_team}. Ingresá en somosifa.com/pro para coordinar.`;
+        }
+        if (status === 'validating') {
+            return `🔍 Tu rival subió el resultado. ${league}. Tenés 10 minutos para confirmar o disputar en somosifa.com/pro`;
+        }
+        if (status === 'closed') {
+            return `✅ Partido cerrado. ${league}. Resultado registrado en somosifa.com/pro`;
+        }
+        if (status === 'dispute') {
+            return `🚨 Disputa abierta. ${league}. Staff revisará y resolverá en 24hs.`;
+        }
+        return null;
+    };
+
+    const msg = buildMsg(newStatus, after);
+    if (!msg) return;
+
+    // Determine who to notify
+    const recipientUid = newStatus === 'challenged'
+        ? after.player2_uid  // notify the rival
+        : newStatus === 'validating'
+            ? (after.reported_by === after.player1_uid ? after.player2_uid : after.player1_uid)
+            : null; // closed/dispute: both get notified via in-app
+
+    const batch = db.batch();
+
+    const notifications = [];
+
+    if (recipientUid) {
+        notifications.push({ uid: recipientUid });
+    } else if (newStatus === 'closed' || newStatus === 'dispute') {
+        notifications.push({ uid: after.player1_uid });
+        notifications.push({ uid: after.player2_uid });
+    }
+
+    for (const { uid } of notifications) {
+        const wa = uid === after.player1_uid ? after.player1_whatsapp : after.player2_whatsapp;
+        const ref = db.collection('pro_notifications').doc();
+        batch.set(ref, {
+            uid,
+            match_id:  matchId,
+            league_id: after.league_id,
+            status:    newStatus,
+            message:   msg,
+            wa_number: wa || null,
+            wa_url:    wa ? `https://wa.me/${wa.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}` : null,
+            read:      false,
+            created_at: new Date().toISOString(),
+        });
+    }
+
+    await batch.commit();
+    console.log(`[notifyLeagueMatchChange] match=${matchId} status=${prevStatus}->${newStatus} notified=${notifications.length}`);
 });

@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const uid = await verifyToken(req);
     if (!uid) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
 
-    const { league_id, team_name, logo_url, platform_id, whatsapp } = await req.json();
+    const { league_id, team_name, logo_url, platform_id, whatsapp, country: bodyCountry } = await req.json();
 
     if (!league_id || !team_name?.trim() || !platform_id?.trim() || !whatsapp?.trim()) {
       return NextResponse.json({ error: 'Faltan campos obligatorios.' }, { status: 400 });
@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
       ? (userSnap.data()?.nombre || userSnap.data()?.displayName || 'Jugador')
       : 'Jugador';
 
-    const country = userSnap.exists ? (userSnap.data()?.country || '') : '';
+    const country = (typeof bodyCountry === 'string' && bodyCountry.trim())
+      ? bodyCountry.trim().slice(0, 30).replace(/[<>'"`;]/g, '')
+      : userSnap.exists ? (userSnap.data()?.pais || userSnap.data()?.country || '') : '';
 
     // Batch write
     const batch = adminDb.batch();
@@ -69,6 +71,23 @@ export async function POST(req: NextRequest) {
     batch.update(leagueRef, {
       current_players: FieldValue.increment(1),
     });
+
+    // ── Crear / actualizar pro_global_ranking para que aparezca en ranking global ──
+    const globalRef = adminDb.collection('pro_global_ranking').doc(uid);
+    batch.set(globalRef, {
+      display_name: displayName,
+      team_name:    cleanTeam,
+      logo_url:     cleanLogo,
+      leagues_played: FieldValue.increment(1),
+      total_pts: FieldValue.increment(0),
+      total_pj:  FieldValue.increment(0),
+      total_pg:  FieldValue.increment(0),
+      total_pe:  FieldValue.increment(0),
+      total_pp:  FieldValue.increment(0),
+      total_gf:  FieldValue.increment(0),
+      total_gc:  FieldValue.increment(0),
+      last_updated: new Date().toISOString(),
+    }, { merge: true });
 
     await batch.commit();
 

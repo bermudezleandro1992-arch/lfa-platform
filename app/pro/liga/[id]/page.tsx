@@ -32,7 +32,7 @@ export default function LeagueDetailPage({ params }: { params: Promise<{ id: str
   const [league,       setLeague]      = useState<ProLeague | null>(null);
   const [participants, setParticipants]= useState<LeagueParticipant[]>([]);
   const [matches,      setMatches]     = useState<LeagueMatch[]>([]);
-  const [tab,          setTab]         = useState<'mis-partidos'|'fixture'|'tabla'>('mis-partidos');
+  const [tab, setTab] = useState<'mis-partidos'|'fixture'|'tabla'|'playoffs'>('mis-partidos');
   const [myParticipant,setMyParticipant]=useState<LeagueParticipant|null>(null);
 
   // Auth
@@ -90,13 +90,23 @@ export default function LeagueDetailPage({ params }: { params: Promise<{ id: str
     return unsub;
   }, [id]);
 
-  const myMatches   = matches.filter(m => m.player1_uid === uid || m.player2_uid === uid);
-  const pendingCount= myMatches.filter(m => m.status === 'pending' || m.status === 'challenged' || m.status === 'validating').length;
+  const myMatches    = matches.filter(m => m.player1_uid === uid || m.player2_uid === uid);
+  const rrMatches    = matches.filter(m => m.type !== 'playoff');
+  const playoffMatches = matches.filter(m => m.type === 'playoff');
+  const pendingCount = myMatches.filter(m => m.status === 'pending' || m.status === 'challenged' || m.status === 'validating').length;
 
-  // Group fixture by round
-  const rounds = matches.reduce<Record<number, LeagueMatch[]>>((acc, m) => {
+  // Group fixture by round (round-robin only)
+  const rounds = rrMatches.reduce<Record<number, LeagueMatch[]>>((acc, m) => {
     if (!acc[m.round]) acc[m.round] = [];
     acc[m.round].push(m);
+    return acc;
+  }, {});
+
+  // Group playoff matches by bracket round
+  const playoffRounds = playoffMatches.reduce<Record<string, LeagueMatch[]>>((acc, m) => {
+    const key = m.playoff_round || 'Playoffs';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(m);
     return acc;
   }, {});
 
@@ -177,6 +187,7 @@ export default function LeagueDetailPage({ params }: { params: Promise<{ id: str
               { key:'mis-partidos', label:'MIS PARTIDOS', show: !!myParticipant },
               { key:'fixture',      label:'FIXTURE',      show: true },
               { key:'tabla',        label:'TABLA',        show: true },
+              { key:'playoffs',     label:'PLAYOFFS',     show: league.status === 'playoffs' || playoffMatches.length > 0 },
             ] as const).map(t => t.show && (
               <button key={t.key} onClick={() => setTab(t.key)}
                 style={{
@@ -255,6 +266,38 @@ export default function LeagueDetailPage({ params }: { params: Promise<{ id: str
         {/* TABLA */}
         {tab === 'tabla' && (
           <LeagueStandings participants={participants} myUid={uid} />
+        )}
+
+        {/* PLAYOFFS */}
+        {tab === 'playoffs' && (
+          <div>
+            {playoffMatches.length === 0 ? (
+              <div style={{ textAlign:'center', padding:60, color:'#8b949e' }}>
+                <div style={{ fontSize:'3rem', marginBottom:12 }}>🏆</div>
+                <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700 }}>Playoffs no iniciados</div>
+                <div style={{ fontSize:'0.82rem', marginTop:8 }}>El CEO debe iniciar los playoffs desde el panel.</div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
+                {Object.entries(playoffRounds).map(([roundName, pMatches]) => (
+                  <div key={roundName}>
+                    <div style={{
+                      fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.7rem',
+                      color:'#ffd700', letterSpacing:2, marginBottom:12,
+                      borderLeft:'2px solid #ffd700', paddingLeft:10,
+                    }}>
+                      🏆 {roundName.toUpperCase()}
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                      {pMatches.map(m => (
+                        <ProMatchCard key={m.id} match={m} uid={uid} leagueId={id} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -15,11 +15,12 @@ interface Props {
 }
 
 export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) {
-  const [step,       setStep]       = useState<'form'|'confirm'|'done'>('form');
+  const [step,       setStep]       = useState<'form'|'done'>('form');
   const [teamName,   setTeamName]   = useState('');
   const [logo,       setLogo]       = useState('⚽');
   const [platformId, setPlatformId] = useState('');
   const [whatsapp,   setWhatsapp]   = useState('');
+  const [country,    setCountry]    = useState('');
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState('');
 
@@ -28,13 +29,23 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
     getDoc(doc(db, 'usuarios', uid)).then(snap => {
       if (!snap.exists()) return;
       const d = snap.data();
-      if (d.whatsapp)   setWhatsapp(d.whatsapp);
-      if (d.konami_id)  setPlatformId(d.konami_id);
-      if (d.nombre)     setTeamName(d.nombre + ' FC');
+      if (d.whatsapp)                               setWhatsapp(d.whatsapp);
+      if (d.pais || d.country)                      setCountry(d.pais || d.country);
+      if (d.nombre)                                 setTeamName(d.nombre + ' FC');
+      // Prefill platform ID by game
+      if (league.game === 'efootball' && d.konami_id)  setPlatformId(d.konami_id);
+      if (league.game === 'fc26'      && d.ea_id)      setPlatformId(d.ea_id);
+      if (league.game === 'mobile'    && d.konami_id)  setPlatformId(d.konami_id);
     });
-  }, [uid]);
+  }, [uid, league.game]);
 
-  const platformLabel = league.game === 'efootball' ? 'Konami ID' : 'EA ID / Gamertag';
+  const platformLabel =
+    league.game === 'efootball' ? 'Konami ID (eFootball)' :
+    league.game === 'mobile'    ? 'Konami ID (Mobile)' :
+    'EA ID / Gamertag (FC 26)';
+
+  const platformPlaceholder =
+    league.game === 'fc26' ? 'Ej: UserFC26' : 'Ej: 123-456-789';
 
   async function handleEnroll() {
     if (!teamName.trim() || !platformId.trim() || !whatsapp.trim()) {
@@ -54,8 +65,7 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
           team_name: teamName.trim(),
           logo_url: logo,
           platform_id: platformId.trim(),
-          whatsapp: whatsapp.trim(),
-        }),
+          whatsapp: whatsapp.trim(),          country: country.trim(),        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Error al inscribirse.'); return; }
@@ -133,33 +143,22 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
             {/* Form */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div>
-                <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>
-                  NOMBRE DE EQUIPO *
-                </label>
-                <input style={inp} value={teamName}
-                  onChange={e => setTeamName(e.target.value)}
-                  placeholder="Mi Equipo FC" maxLength={30}
-                />
+                <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>NOMBRE DE EQUIPO *</label>
+                <input style={inp} value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="Mi Equipo FC" maxLength={30} />
               </div>
               <div>
-                <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>
-                  {platformLabel.toUpperCase()} *
-                </label>
-                <input style={inp} value={platformId}
-                  onChange={e => setPlatformId(e.target.value)}
-                  placeholder={league.game === 'efootball' ? 'Ej: 123-456-789' : 'Ej: UserFC26'}
-                  maxLength={50}
-                />
+                <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>{platformLabel.toUpperCase()} *</label>
+                <input style={inp} value={platformId} onChange={e => setPlatformId(e.target.value)} placeholder={platformPlaceholder} maxLength={50} />
               </div>
-              <div>
-                <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>
-                  WHATSAPP (con código de país) *
-                </label>
-                <input style={inp} value={whatsapp} type="tel"
-                  onChange={e => setWhatsapp(e.target.value)}
-                  placeholder="+54 9 11 1234-5678"
-                  maxLength={20}
-                />
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div>
+                  <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>WHATSAPP (con cód. país) *</label>
+                  <input style={inp} value={whatsapp} type="tel" onChange={e => setWhatsapp(e.target.value)} placeholder="+54 9 11 1234-5678" maxLength={20} />
+                </div>
+                <div>
+                  <label style={{ fontSize:'0.72rem', color:'#8b949e', display:'block', marginBottom:5 }}>PAÍS</label>
+                  <input style={inp} value={country} onChange={e => setCountry(e.target.value)} placeholder="Ej: Argentina" maxLength={30} />
+                </div>
               </div>
             </div>
 

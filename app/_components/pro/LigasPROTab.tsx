@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { ProLeague } from '@/lib/types';
@@ -67,6 +67,7 @@ export default function LigasPROTab() {
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState('');
   const [genLoading, setGenLoading] = useState<string | null>(null);
+  const [playoffLoading, setPlayoffLoading] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<Array<Record<string, string | number | null>>>([]);
   const [resolveLoading, setResolveLoading] = useState<string | null>(null);
 
@@ -132,6 +133,22 @@ export default function LigasPROTab() {
       const err = e as { message?: string };
       setMsg(`❌ ${err.message ?? 'Error generando fixture.'}`);
     } finally { setGenLoading(null); }
+  }
+
+  async function startPlayoffs(leagueId: string, topN: number) {
+    setPlayoffLoading(leagueId);
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/pro/startPlayoffs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ league_id: leagueId, top_n: topN }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg(`❌ ${data.error}`); return; }
+      setMsg(`✅ Playoffs iniciados: ${data.matches} partidos — ${data.round}`);
+    } catch { setMsg('❌ Error iniciando playoffs.'); }
+    finally { setPlayoffLoading(null); }
   }
 
   async function resolveDispute(matchId: string, resolution: 'p1' | 'p2' | 'draw' | 'annul') {
@@ -265,6 +282,26 @@ export default function LigasPROTab() {
                     >
                       {genLoading === lg.id ? '⏳...' : '⚡ GENERAR FIXTURE'}
                     </button>
+                  )}
+                  {lg.status === 'activa' && (
+                    <>
+                      <button
+                        onClick={() => startPlayoffs(lg.id, 4)}
+                        disabled={playoffLoading === lg.id}
+                        style={btn(playoffLoading === lg.id ? '#30363d' : '#ffd70022', '#ffd700')}
+                        title="Top 4 clasificados — Semifinales"
+                      >
+                        {playoffLoading === lg.id ? '⏳...' : '🏆 PLAYOFFS TOP 4'}
+                      </button>
+                      <button
+                        onClick={() => startPlayoffs(lg.id, 8)}
+                        disabled={playoffLoading === lg.id}
+                        style={btn(playoffLoading === lg.id ? '#30363d' : '#ff6b0022', '#ff6b00')}
+                        title="Top 8 clasificados — Cuartos de final"
+                      >
+                        {playoffLoading === lg.id ? '⏳...' : '🏆 PLAYOFFS TOP 8'}
+                      </button>
+                    </>
                   )}
                   <a href={`/pro/liga/${lg.id}`} target="_blank" rel="noreferrer"
                     style={{ ...btn('#30363d', '#c9d1d9'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
