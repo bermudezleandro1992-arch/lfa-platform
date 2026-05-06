@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
           players: [],
           status: 'OPEN',
           spawned: true,
+          permanent: true,
           expires_at: expiresAt,
           created_at: FieldValue.serverTimestamp(),
         });

@@ -78,13 +78,25 @@ export default function IntroOverlay({ onSkip }: IntroOverlayProps) {
             VER CÓMO FUNCIONA
           </button>
 
-          {/* Saltar */}
+          {/* Saltar intro — botón visible inmediatamente */}
+          <button
+            onClick={handleSkip}
+            className="flex items-center gap-2 mx-auto mt-5 px-6 py-2.5 rounded-md font-bold
+                       title-orbitron text-sm tracking-wider cursor-pointer
+                       border border-white/20 text-white/70 bg-white/5
+                       hover:border-lfa-neon hover:text-lfa-neon hover:bg-lfa-neon/10
+                       transition-all duration-200"
+          >
+            ⏭ Saltar Intro
+          </button>
+
+          {/* Saltar — texto alternativo */}
           <span
             onClick={handleSkip}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleSkip()}
-            className="block mt-8 text-lfa-text underline text-sm cursor-pointer
+            className="block mt-4 text-lfa-text/50 text-xs cursor-pointer
                        hover:text-lfa-neon transition-colors duration-200"
           >
             Ya tengo cuenta, ir directo al Login &gt;&gt;

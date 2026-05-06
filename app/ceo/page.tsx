@@ -639,6 +639,7 @@ export default function CeoPage() {
       game:crGame, mode:crMode, region:crRegion, tier:crTier, free:isFree,
       entry_fee:fee, prize_pool:pool, prizes:mkPrizes(),
       capacity:cap, players:[], status:'OPEN', spawned:false, created_at:serverTimestamp(),
+      permanent: true,
       auto_respawn: crAutoRespawn,
       spawn_interval_hours: crAutoRespawn ? crSpawnInterval : null,
       ...(crCountry ? { country: crCountry } : {}),

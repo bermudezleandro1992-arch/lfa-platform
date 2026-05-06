@@ -1,10 +1,9 @@
-'use client';
+﻿'use client';
 
 /**
- * LoginBox — Migración exacta del index.html original.
- * Preserva el mismo flujo: login/registro combinado, Google, Facebook,
- * recuperación de contraseña, checkbox de términos, verificación de email,
- * solicitud de plataforma_id si es usuario nuevo.
+ * LoginBox — Login + Registro separados por pestañas.
+ * Registro requiere: confirmar contraseña, EA ID / Konami ID,
+ * consola, juego preferido y scroll obligatorio del reglamento.
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -26,15 +25,9 @@ import LfaModal, { type LfaModalHandle } from '@/app/_components/LfaModal';
 import type { Translations } from '@/app/_components/LangDropdown';
 import type { RegionDetectionResult } from '@/lib/types';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Providers (singleton)
-// ─────────────────────────────────────────────────────────────────────────────
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilidades
-// ─────────────────────────────────────────────────────────────────────────────
 function sanitizarInput(input: string) {
   return input.trim().replace(/[<>'"`;=\\]/g, '');
 }
@@ -49,33 +42,63 @@ async function analizarRed(): Promise<RegionDetectionResult> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Props
-// ─────────────────────────────────────────────────────────────────────────────
+const TOS_TEXT = `REGLAMENTO SOMOSLFA — RESUMEN
+
+📋 PARTICIPACIÓN
+• Cada jugador debe tener una sola cuenta activa.
+• Está prohibido compartir cuentas o usar IDs ajenos.
+• El EA ID / Konami ID registrado debe coincidir con el usado en partidos.
+
+⚽ PARTIDOS
+• Los resultados se reportan con una captura de la pantalla final del juego.
+• La IA valida el marcador automáticamente.
+• En caso de disputa, el Staff revisará la evidencia y decidirá.
+
+⏱️ TIEMPOS
+• Tenés 10 minutos para confirmar el resultado luego de que tu rival lo reporte.
+• Si no confirmás, el sistema cierra el partido automáticamente.
+
+⚖️ FAIR PLAY
+• Conducta antideportiva, insultos o manipulación pueden resultar en descuento de puntos o exclusión.
+• El incumplimiento reiterado puede derivar en ban permanente.
+
+🔒 PRIVACIDAD
+• Tu email es privado — nunca visible para otros jugadores.
+• Usamos estadísticas anónimas para análisis de rendimiento.
+
+💰 REEMBOLSOS
+• Inscripciones pagadas reembolsables solo si la liga no inicia en 7 días hábiles.
+• Una vez iniciada la liga, no hay reembolso por abandono voluntario.
+
+Al aceptar confirmás haber leído y comprendido el Reglamento completo en somoslfa.com/reglamento, los Términos de Servicio, la Política de Privacidad y la Política de Reembolsos.`;
+
 interface LoginBoxProps {
   t: Translations;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Componente
-// ─────────────────────────────────────────────────────────────────────────────
 export default function LoginBox({ t }: LoginBoxProps) {
-  const router    = useRouter();
-  const modalRef  = useRef<LfaModalHandle>(null);
+  const router   = useRouter();
+  const modalRef = useRef<LfaModalHandle>(null);
+
+  const [mode, setMode] = useState<'login' | 'register'>('login');
 
   const [email,       setEmail]       = useState('');
   const [pass,        setPass]        = useState('');
-  const [platId,      setPlatId]      = useState('');
   const [terms,       setTerms]       = useState(false);
   const [loading,     setLoading]     = useState(false);
   const [loadingGoog, setLoadingGoog] = useState(false);
 
-  // Estado modal recuperar contraseña
+  const [confirmPass,    setConfirmPass]    = useState('');
+  const [eaId,           setEaId]           = useState('');
+  const [konamiId,       setKonamiId]       = useState('');
+  const [consola,        setConsola]        = useState('');
+  const [juegoPreferido, setJuegoPreferido] = useState('');
+  const [tosScrolled,    setTosScrolled]    = useState(false);
+
   const [showRecuperar,   setShowRecuperar]   = useState(false);
   const [emailRecuperar,  setEmailRecuperar]  = useState('');
   const [statusRecuperar, setStatusRecuperar] = useState('');
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const alerta = useCallback(
     (titulo: string, mensaje: string, tipo: 'info' | 'error' | 'exito' = 'info') =>
       modalRef.current!.mostrarAlerta(titulo, mensaje, tipo),
@@ -87,213 +110,19 @@ export default function LoginBox({ t }: LoginBoxProps) {
     [],
   );
 
-  // ── INGRESAR (email+pass — login o registro automático) ───────────────────
-  const ingresar = useCallback(async () => {
-    if (!terms) {
-      await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento, Términos y Políticas marcando la casilla antes de entrar.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      await alerta('CORREO INVÁLIDO', '⛔ Seguridad LFA: El formato del correo electrónico no es válido.', 'error');
-      return;
-    }
-    if (pass.length < 6) {
-      await alerta('CONTRASEÑA CORTA', 'La contraseña debe tener al menos 6 caracteres.', 'error');
-      return;
-    }
+  function handleTosScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) setTosScrolled(true);
+  }
 
-    setLoading(true);
+  function switchMode(m: 'login' | 'register') {
+    setMode(m);
+    setPass('');
+    setConfirmPass('');
+    setTerms(false);
+    setTosScrolled(false);
+  }
 
-    const datosRed = await analizarRed();
-    if (datosRed.isVpn) {
-      setLoading(false);
-      await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
-      return;
-    }
-    if (datosRed.isBanned) {
-      setLoading(false);
-      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
-      return;
-    }
-
-    const hw = obtenerHardware();
-    const fingerprintId = await getVisitorId();
-
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, pass);
-
-      if (!cred.user.emailVerified) {
-        await alerta('CUENTA NO VERIFICADA', 'Tu correo aún no está verificado. Revisá tu bandeja de entrada o la carpeta de Spam.');
-        await signOut(auth);
-        setLoading(false);
-        return;
-      }
-
-      let updateData: Record<string, unknown> = {
-        ip_conexion: datosRed.country, hw_avanzado: hw,
-        ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
-        fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
-      };
-      if (platId.trim()) updateData.plataforma_id = sanitizarInput(platId);
-      await setDoc(doc(db, 'usuarios', cred.user.uid), updateData, { merge: true });
-
-      await verificarDivision(cred.user.uid);
-
-    } catch (err) {
-      const error = err as AuthError;
-
-      if (
-        error.code === 'auth/user-not-found' ||
-        error.code === 'auth/invalid-credential' ||
-        error.code === 'auth/invalid-login-credentials'
-      ) {
-        // Usuario no existe → intentar registrar
-        const regexFuerte = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-        if (!regexFuerte.test(pass)) {
-          setLoading(false);
-          await alerta(
-            'CONTRASEÑA DÉBIL',
-            '⛔ SEGURIDAD LFA: Para registrarte, tu contraseña debe tener mínimo 8 caracteres, incluir al menos 1 MAYÚSCULA, 1 número y 1 símbolo (ej: @, #, $).',
-            'error',
-          );
-          return;
-        }
-
-        let id = sanitizarInput(platId);
-        if (!id) {
-          const result = await pedirDato(
-            'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para crear una cuenta nueva:',
-          );
-          if (!result?.trim()) {
-            await alerta('REGISTRO CANCELADO', '❌ El ID es obligatorio para competir.', 'error');
-            setLoading(false);
-            return;
-          }
-          id = sanitizarInput(result);
-          setPlatId(id);
-        }
-
-        try {
-          const newCred = await createUserWithEmailAndPassword(auth, email, pass);
-          await sendEmailVerification(newCred.user);
-          await setDoc(doc(db, 'usuarios', newCred.user.uid), {
-            nombre:             email.split('@')[0],
-            email,
-            number:             0,
-            color_carta:        'black',
-            plataforma_id:      id,
-            titulos:            0,
-            ip_conexion:        datosRed.country,
-            ip:                 datosRed.ip ?? '',
-            hw_avanzado:        hw,
-            pais_codigo:        datosRed.country,
-            region:             datosRed.region,
-            terminos_aceptados: true,
-          });
-          await alerta(
-            '¡CUENTA CREADA!',
-            'Te enviamos un link a tu correo para verificarla. Hacé clic ahí antes de entrar.',
-            'exito',
-          );
-          await signOut(auth);
-        } catch (regErr) {
-          const re = regErr as AuthError;
-          if (re.code === 'auth/email-already-in-use') {
-            await alerta('ERROR DE LOGIN', '⛔ Esta cuenta ya existe, pero la contraseña es incorrecta.', 'error');
-          } else {
-            await alerta('ERROR DE REGISTRO', re.message, 'error');
-          }
-        }
-      } else {
-        await alerta('ERROR', error.message, 'error');
-      }
-    }
-
-    setLoading(false);
-  }, [email, pass, platId, terms, alerta, pedirDato]); // eslint-disable-line
-
-  // ── LOGIN GOOGLE ───────────────────────────────────────────────────────────
-  const loginGoogle = useCallback(async () => {
-    if (!terms) {
-      await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento, Términos y Políticas marcando la casilla antes de entrar.');
-      return;
-    }
-    setLoadingGoog(true);
-
-    const datosRed = await analizarRed();
-    if (datosRed.isVpn) {
-      setLoadingGoog(false);
-      await alerta('ESCUDO ANTI-VPN', '🚫 Hemos detectado el uso de una VPN o Proxy. Por favor, apagala para iniciar sesión.', 'error');
-      return;
-    }
-    if (datosRed.isBanned) {
-      setLoadingGoog(false);
-      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada por violaciones al reglamento LFA. Contactá soporte si crees que es un error.', 'error');
-      return;
-    }
-
-    const hw = obtenerHardware();
-    const fingerprintId = await getVisitorId();
-
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const userRef = doc(db, 'usuarios', result.user.uid);
-      const snap    = await getDoc(userRef);
-
-      if (!snap.exists()) {
-        let id = sanitizarInput(platId);
-        if (!id) {
-          const res = await pedirDato(
-            'ID OBLIGATORIO',
-            '⚠️ REGLAMENTO LFA: Es <b>OBLIGATORIO</b> ingresar tu <b>EA ID</b> (FC26) o <b>Konami ID</b> (eFootball) para completar el registro con Google:',
-          );
-          if (!res?.trim()) {
-            await signOut(auth);
-            await alerta('REGISTRO CANCELADO', '❌ El ID es obligatorio para competir.', 'error');
-            setLoadingGoog(false);
-            return;
-          }
-          id = sanitizarInput(res);
-        }
-        await setDoc(userRef, {
-          nombre:             sanitizarInput(result.user.displayName ?? 'Jugador'),
-          email:              result.user.email,
-          number:             0,
-          color_carta:        'black',
-          titulos:            0,
-          plataforma_id:      id,
-          ip_conexion:        datosRed.country,
-          ip:                 datosRed.ip ?? '',
-          hw_avanzado:        hw,
-          fingerprint_id:     fingerprintId,
-          pais_codigo:        datosRed.country,
-          region:             datosRed.region,
-          terminos_aceptados: true,
-          last_login:         new Date().toISOString(),
-        });
-      } else {
-        const upd: Record<string, unknown> = {
-          ip_conexion: datosRed.country, hw_avanzado: hw,
-          ip: datosRed.ip ?? '', pais_codigo: datosRed.country, terminos_aceptados: true,
-          fingerprint_id: fingerprintId, last_login: new Date().toISOString(),
-        };
-        if (platId.trim()) upd.plataforma_id = sanitizarInput(platId);
-        await setDoc(userRef, upd, { merge: true });
-      }
-
-      await verificarDivision(result.user.uid);
-    } catch (err) {
-      const e = err as AuthError;
-      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-        await alerta('ERROR', 'Error con Google: ' + e.message, 'error');
-      }
-    }
-
-    setLoadingGoog(false);
-  }, [terms, platId, alerta, pedirDato]); // eslint-disable-line
-
-  // ── Verificar división + redirigir ────────────────────────────────────────
   async function verificarDivision(uid: string) {
     try {
       const snap = await getDoc(doc(db, 'usuarios', uid));
@@ -307,7 +136,219 @@ export default function LoginBox({ t }: LoginBoxProps) {
     }
   }
 
-  // ── Recuperar contraseña ──────────────────────────────────────────────────
+  const loginUser = useCallback(async () => {
+    if (!terms) {
+      await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento marcando la casilla antes de entrar.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      await alerta('CORREO INVÁLIDO', '⛔ El formato del correo electrónico no es válido.', 'error');
+      return;
+    }
+    if (pass.length < 6) {
+      await alerta('CONTRASEÑA CORTA', 'La contraseña debe tener al menos 6 caracteres.', 'error');
+      return;
+    }
+    setLoading(true);
+    const datosRed = await analizarRed();
+    if (datosRed.isVpn) {
+      setLoading(false);
+      await alerta('ESCUDO ANTI-VPN', '🚫 VPN o Proxy detectada. Apagala para iniciar sesión.', 'error');
+      return;
+    }
+    if ((datosRed as Record<string, unknown>).isBanned) {
+      setLoading(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada. Contactá soporte.', 'error');
+      return;
+    }
+    const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      if (!cred.user.emailVerified) {
+        await alerta('CUENTA NO VERIFICADA', 'Tu correo aún no está verificado. Revisá tu bandeja de entrada o Spam.');
+        await signOut(auth);
+        setLoading(false);
+        return;
+      }
+      await setDoc(doc(db, 'usuarios', cred.user.uid), {
+        ip_conexion: datosRed.country, hw_avanzado: hw,
+        ip: (datosRed as Record<string, unknown>).ip ?? '', pais_codigo: datosRed.country,
+        terminos_aceptados: true, fingerprint_id: fingerprintId,
+        last_login: new Date().toISOString(),
+      }, { merge: true });
+      await verificarDivision(cred.user.uid);
+    } catch (err) {
+      const error = err as AuthError;
+      if (
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/invalid-login-credentials'
+      ) {
+        await alerta('CREDENCIALES INCORRECTAS', '⛔ Email o contraseña incorrectos. ¿Primera vez? Usá la pestaña REGISTRARSE.', 'error');
+      } else {
+        await alerta('ERROR', error.message, 'error');
+      }
+    }
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, pass, terms, alerta]);
+
+  const registerUser = useCallback(async () => {
+    if (!terms) {
+      await alerta('ATENCIÓN', 'Es obligatorio leer y aceptar el Reglamento antes de registrarte.');
+      return;
+    }
+    if (!tosScrolled) {
+      await alerta('REGLAMENTO NO LEÍDO', 'Debés hacer scroll hasta el final del Reglamento para habilitarlo.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      await alerta('CORREO INVÁLIDO', '⛔ El formato del correo electrónico no es válido.', 'error');
+      return;
+    }
+    const regexFuerte = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!regexFuerte.test(pass)) {
+      await alerta('CONTRASEÑA DÉBIL', '⛔ Mínimo 8 caracteres, 1 MAYÚSCULA, 1 número y 1 símbolo (ej: @, #, $).', 'error');
+      return;
+    }
+    if (pass !== confirmPass) {
+      await alerta('CONTRASEÑAS NO COINCIDEN', '⛔ La contraseña y su confirmación no son iguales.', 'error');
+      return;
+    }
+    if (!eaId.trim() && !konamiId.trim()) {
+      await alerta('ID REQUERIDO', '⚠️ Debés ingresar al menos tu EA ID (FC 26) o Konami ID (eFootball).', 'error');
+      return;
+    }
+    if (!consola) {
+      await alerta('CONSOLA REQUERIDA', '⚠️ Seleccioná tu plataforma de juego.', 'error');
+      return;
+    }
+    if (!juegoPreferido) {
+      await alerta('JUEGO REQUERIDO', '⚠️ Seleccioná tu juego preferido.', 'error');
+      return;
+    }
+    setLoading(true);
+    const datosRed = await analizarRed();
+    if (datosRed.isVpn) {
+      setLoading(false);
+      await alerta('ESCUDO ANTI-VPN', '🚫 VPN detectada. Apagala para registrarte.', 'error');
+      return;
+    }
+    if ((datosRed as Record<string, unknown>).isBanned) {
+      setLoading(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP está bloqueada.', 'error');
+      return;
+    }
+    const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
+    try {
+      const newCred = await createUserWithEmailAndPassword(auth, email, pass);
+      await sendEmailVerification(newCred.user);
+      const platId = sanitizarInput(eaId.trim() || konamiId.trim());
+      await setDoc(doc(db, 'usuarios', newCred.user.uid), {
+        nombre:             email.split('@')[0],
+        email,
+        number:             0,
+        color_carta:        'black',
+        plataforma_id:      platId,
+        ea_id:              sanitizarInput(eaId),
+        konami_id:          sanitizarInput(konamiId),
+        consola,
+        juego_preferido:    juegoPreferido,
+        titulos:            0,
+        ip_conexion:        datosRed.country,
+        ip:                 (datosRed as Record<string, unknown>).ip ?? '',
+        hw_avanzado:        hw,
+        fingerprint_id:     fingerprintId,
+        pais_codigo:        datosRed.country,
+        region:             datosRed.region,
+        terminos_aceptados: true,
+      });
+      await alerta('¡CUENTA CREADA!', 'Te enviamos un link de verificación a tu correo. Hacé clic en él antes de iniciar sesión.', 'exito');
+      await signOut(auth);
+      switchMode('login');
+    } catch (err) {
+      const re = err as AuthError;
+      if (re.code === 'auth/email-already-in-use') {
+        await alerta('EMAIL YA REGISTRADO', '⛔ Este email ya tiene cuenta. Usá la pestaña INICIAR SESIÓN.', 'error');
+      } else {
+        await alerta('ERROR DE REGISTRO', re.message, 'error');
+      }
+    }
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, pass, confirmPass, eaId, konamiId, consola, juegoPreferido, terms, tosScrolled, alerta]);
+
+  const loginGoogle = useCallback(async () => {
+    if (!terms) {
+      await alerta('ATENCIÓN', 'Es obligatorio aceptar el Reglamento marcando la casilla antes de continuar.');
+      return;
+    }
+    setLoadingGoog(true);
+    const datosRed = await analizarRed();
+    if (datosRed.isVpn) {
+      setLoadingGoog(false);
+      await alerta('ESCUDO ANTI-VPN', '🚫 VPN detectada. Apagala para continuar.', 'error');
+      return;
+    }
+    if ((datosRed as Record<string, unknown>).isBanned) {
+      setLoadingGoog(false);
+      await alerta('ACCESO DENEGADO', '🚫 Tu IP está bloqueada.', 'error');
+      return;
+    }
+    const hw = obtenerHardware();
+    const fingerprintId = await getVisitorId();
+    try {
+      const result  = await signInWithPopup(auth, googleProvider);
+      const userRef = doc(db, 'usuarios', result.user.uid);
+      const snap    = await getDoc(userRef);
+      if (!snap.exists()) {
+        const id = await pedirDato(
+          'ID OBLIGATORIO',
+          '⚠️ REGLAMENTO LFA: Es OBLIGATORIO ingresar tu EA ID (FC26) o Konami ID (eFootball):',
+        );
+        if (!id?.trim()) {
+          await signOut(auth);
+          await alerta('REGISTRO CANCELADO', '❌ El ID es obligatorio para competir.', 'error');
+          setLoadingGoog(false);
+          return;
+        }
+        await setDoc(userRef, {
+          nombre:             sanitizarInput(result.user.displayName ?? 'Jugador'),
+          email:              result.user.email,
+          number:             0,
+          color_carta:        'black',
+          titulos:            0,
+          plataforma_id:      sanitizarInput(id),
+          ip_conexion:        datosRed.country,
+          ip:                 (datosRed as Record<string, unknown>).ip ?? '',
+          hw_avanzado:        hw,
+          fingerprint_id:     fingerprintId,
+          pais_codigo:        datosRed.country,
+          region:             datosRed.region,
+          terminos_aceptados: true,
+          last_login:         new Date().toISOString(),
+        });
+      } else {
+        await setDoc(userRef, {
+          ip_conexion: datosRed.country, hw_avanzado: hw,
+          ip: (datosRed as Record<string, unknown>).ip ?? '', pais_codigo: datosRed.country,
+          terminos_aceptados: true, fingerprint_id: fingerprintId,
+          last_login: new Date().toISOString(),
+        }, { merge: true });
+      }
+      await verificarDivision(result.user.uid);
+    } catch (err) {
+      const e = err as AuthError;
+      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        await alerta('ERROR', 'Error con Google: ' + e.message, 'error');
+      }
+    }
+    setLoadingGoog(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terms, alerta, pedirDato]);
+
   const enviarEnlace = async () => {
     const emailSan = sanitizarInput(emailRecuperar);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailSan)) {
@@ -317,66 +358,61 @@ export default function LoginBox({ t }: LoginBoxProps) {
     setStatusRecuperar('⏳ Enviando solicitud...');
     try {
       await sendPasswordResetEmail(auth, emailSan);
-      setStatusRecuperar('✅ ¡Enlace enviado! Revisá tu correo y tu carpeta de Spam.');
+      setStatusRecuperar('✅ ¡Enlace enviado! Revisá tu correo y Spam.');
       setEmailRecuperar('');
     } catch (err) {
       const e = err as AuthError;
-      if (e.code === 'auth/user-not-found') {
-        setStatusRecuperar('❌ Ese correo no está registrado en LFA.');
-      } else {
-        setStatusRecuperar('❌ Error interno. Reintentá en unos minutos.');
-      }
+      setStatusRecuperar(
+        e.code === 'auth/user-not-found'
+          ? '❌ Ese correo no está registrado en LFA.'
+          : '❌ Error interno. Reintentá en unos minutos.',
+      );
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '11px 14px',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(0,255,136,0.2)',
+    borderRadius: 10, color: '#fff',
+    fontSize: '0.86rem', outline: 'none',
+    boxSizing: 'border-box', marginBottom: 9,
+  };
+  const sel: React.CSSProperties = { ...inp, cursor: 'pointer' };
+  const passMatch    = confirmPass.length > 0 && pass === confirmPass;
+  const passMismatch = confirmPass.length > 0 && pass !== confirmPass;
+
   return (
     <>
       <LfaModal ref={modalRef} />
 
-      {/* ── Modal recuperar contraseña ─────────────────────── */}
       {showRecuperar && (
         <div
           className="fixed inset-0 z-[10000] flex justify-center items-center p-5"
           style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(5px)' }}
           onClick={(e) => { if (e.target === e.currentTarget) { setShowRecuperar(false); setStatusRecuperar(''); } }}
         >
-          <div
-            className="relative bg-lfa-card rounded-2xl p-6 text-center w-full max-w-sm animate-fade-in"
-            style={{ border: '1px solid #00ff88' }}
-          >
+          <div className="relative bg-lfa-card rounded-2xl p-6 text-center w-full max-w-sm animate-fade-in" style={{ border: '1px solid #00ff88' }}>
             <button
               onClick={() => { setShowRecuperar(false); setStatusRecuperar(''); }}
               className="absolute top-4 right-5 text-lfa-text hover:text-white text-2xl leading-none bg-transparent border-none cursor-pointer transition-colors"
               aria-label="Cerrar"
-            >
-              &times;
-            </button>
+            >&times;</button>
             <div style={{ color: '#00ff88', fontSize: '3rem', marginBottom: '12px' }}>🔓</div>
-            <h3 className="title-orbitron text-white font-bold text-lg mb-2.5 mt-0 tracking-wide">
-              RECUPERAR CONTRASEÑA
-            </h3>
+            <h3 className="title-orbitron text-white font-bold text-lg mb-2.5 mt-0 tracking-wide">RECUPERAR CONTRASEÑA</h3>
             <p className="text-[#ccc] text-sm leading-relaxed mb-5">
-              Ingresá tu correo electrónico. Te enviaremos un enlace oficial de Firebase para crear una nueva clave.
+              Ingresá tu correo. Te enviaremos un enlace para crear una nueva contraseña.
             </p>
             <input
-              type="email"
-              value={emailRecuperar}
+              type="email" value={emailRecuperar}
               onChange={(e) => setEmailRecuperar(e.target.value)}
               className="input-lfa text-center mb-4"
               placeholder="Ej: juancito@email.com"
               onKeyDown={(e) => { if (e.key === 'Enter') enviarEnlace(); }}
             />
-            <button
-              onClick={enviarEnlace}
-              className="btn-lfa-primary"
-            >
-              ✉ ENVIAR ENLACE
-            </button>
+            <button onClick={enviarEnlace} className="btn-lfa-primary">✉ ENVIAR ENLACE</button>
             {statusRecuperar && (
-              <div
-                className={`mt-4 text-sm font-bold ${statusRecuperar.startsWith('✅') ? 'text-lfa-neon' : 'text-lfa-danger'}`}
-              >
+              <div className={`mt-4 text-sm font-bold ${statusRecuperar.startsWith('✅') ? 'text-lfa-neon' : 'text-lfa-danger'}`}>
                 {statusRecuperar}
               </div>
             )}
@@ -384,93 +420,129 @@ export default function LoginBox({ t }: LoginBoxProps) {
         </div>
       )}
 
-      {/* ── Login box (320px — mismo ancho del HTML original) ─ */}
-      <div className="login-box w-full" style={{ maxWidth: '320px' }}>
+      <div className="login-box w-full" style={{ maxWidth: '360px' }}>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', marginBottom: 18, background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 4 }}>
+          {(['login', 'register'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              style={{
+                flex: 1, padding: '9px 6px', border: 'none', borderRadius: 9, cursor: 'pointer',
+                background: mode === m ? 'linear-gradient(135deg,#00ff88,#00cc6a)' : 'transparent',
+                color: mode === m ? '#000' : '#8b949e',
+                fontFamily: "'Orbitron',sans-serif", fontWeight: 700,
+                fontSize: '0.68rem', letterSpacing: 1, transition: 'all 0.2s',
+              }}
+            >
+              {m === 'login' ? '🔑 INICIAR SESIÓN' : '✨ REGISTRARSE'}
+            </button>
+          ))}
+        </div>
 
         {/* Email */}
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="caja-texto"
-          placeholder={t.email}
-          required
-          disabled={loading}
-        />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inp} placeholder="Correo electrónico" disabled={loading} />
 
         {/* Password */}
         <input
-          type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          className="caja-texto"
-          placeholder={t.pass}
-          required
-          disabled={loading}
+          type="password" value={pass} onChange={(e) => setPass(e.target.value)} style={inp} disabled={loading}
+          placeholder={mode === 'register' ? 'Contraseña (mín. 8 chars, MAYÚSC, número, símbolo)' : 'Contraseña'}
         />
 
-        {/* Plataforma ID */}
-        {t.obligatorio && (
-          <div style={{ fontSize: '0.7rem', color: '#ffd700', marginBottom: '5px' }}>
-            {t.obligatorio}
-          </div>
+        {mode === 'register' && (
+          <>
+            {/* Confirm password */}
+            <input
+              type="password" value={confirmPass}
+              onChange={(e) => setConfirmPass(e.target.value)}
+              style={{ ...inp, borderColor: passMismatch ? '#ff4757' : passMatch ? '#00ff88' : 'rgba(0,255,136,0.2)' }}
+              placeholder="Confirmar contraseña" disabled={loading}
+            />
+            {passMismatch && <div style={{ color: '#ff4757', fontSize: '0.7rem', marginTop: -7, marginBottom: 8 }}>⛔ Las contraseñas no coinciden</div>}
+            {passMatch    && <div style={{ color: '#00ff88', fontSize: '0.7rem', marginTop: -7, marginBottom: 8 }}>✅ Contraseñas coinciden</div>}
+
+            {/* Game IDs */}
+            <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 10, padding: '12px 14px', marginBottom: 9 }}>
+              <div style={{ color: '#ffd700', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 8 }}>
+                ⚠️ ID DE JUGADOR — obligatorio al menos uno
+              </div>
+              <input type="text" value={eaId} onChange={(e) => setEaId(e.target.value)} style={{ ...inp, marginBottom: 6 }} placeholder="🟠 EA ID — para FC 26" disabled={loading} />
+              <input type="text" value={konamiId} onChange={(e) => setKonamiId(e.target.value)} style={{ ...inp, marginBottom: 0 }} placeholder="🔵 Konami ID — para eFootball" disabled={loading} />
+            </div>
+
+            {/* Console */}
+            <select value={consola} onChange={(e) => setConsola(e.target.value)} style={sel} disabled={loading}>
+              <option value="">🎮 Seleccioná tu consola / plataforma</option>
+              <option value="PS5">🎮 PlayStation 5 (PS5)</option>
+              <option value="PS4">🎮 PlayStation 4 (PS4)</option>
+              <option value="Xbox">🟢 Xbox (Series X/S / One)</option>
+              <option value="PC">💻 PC</option>
+              <option value="Mobile">📱 Mobile</option>
+            </select>
+
+            {/* Preferred game */}
+            <select value={juegoPreferido} onChange={(e) => setJuegoPreferido(e.target.value)} style={sel} disabled={loading}>
+              <option value="">⚽ Juego preferido</option>
+              <option value="efootball">🔵 eFootball</option>
+              <option value="fc26">🟠 EA FC 26</option>
+              <option value="ambos">🎯 Ambos juegos</option>
+            </select>
+
+            {/* TOS scroll */}
+            <div style={{ marginBottom: 9 }}>
+              <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 5, fontFamily: "'Orbitron',sans-serif" }}>
+                📜 LEÉ EL REGLAMENTO — hacé scroll hasta el final para aceptar
+              </div>
+              <div
+                onScroll={handleTosScroll}
+                style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  border: `1px solid ${tosScrolled ? 'rgba(0,255,136,0.4)' : '#30363d'}`,
+                  borderRadius: 10, padding: '10px 12px',
+                  height: 130, overflowY: 'auto',
+                  fontSize: '0.66rem', color: '#8b949e', lineHeight: 1.7, whiteSpace: 'pre-line',
+                }}
+              >
+                {TOS_TEXT}
+              </div>
+              {!tosScrolled && <div style={{ color: '#ffd700', fontSize: '0.62rem', marginTop: 3, textAlign: 'center' }}>↓ Hacé scroll hasta abajo para habilitar la aceptación</div>}
+              {tosScrolled  && <div style={{ color: '#00ff88', fontSize: '0.62rem', marginTop: 3, textAlign: 'center' }}>✅ Reglamento leído — podés marcar la casilla</div>}
+            </div>
+          </>
         )}
-        <input
-          type="text"
-          value={platId}
-          onChange={(e) => setPlatId(e.target.value)}
-          className="caja-texto"
-          placeholder={t.id_jugador}
-          disabled={loading}
-        />
 
-        {/* ¿Olvidaste contraseña? */}
-        <span
-          className="forgot-pass"
-          onClick={() => {
-            setEmailRecuperar(email);
-            setStatusRecuperar('');
-            setShowRecuperar(true);
-          }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && setShowRecuperar(true)}
-        >
-          {t.olvide_pass}
-        </span>
+        {/* Forgot password (login only) */}
+        {mode === 'login' && (
+          <span
+            className="forgot-pass"
+            onClick={() => { setEmailRecuperar(email); setStatusRecuperar(''); setShowRecuperar(true); }}
+            role="button" tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setShowRecuperar(true)}
+          >
+            {t.olvide_pass}
+          </span>
+        )}
 
-        {/* Botón principal */}
-        <button
-          className="btn-main"
-          onClick={ingresar}
-          disabled={loading}
-        >
-          {loading ? '🛡️ ESCANEANDO RED...' : t.btn_entrar}
+        {/* Main button */}
+        <button className="btn-main" onClick={mode === 'login' ? loginUser : registerUser} disabled={loading}>
+          {loading ? '🛡️ ESCANEANDO RED...' : mode === 'login' ? t.btn_entrar : '✨ CREAR CUENTA'}
         </button>
 
         {/* Divider */}
         <div className="divider">{t.o_accede}</div>
 
         {/* Google */}
-        <button
-          className="btn-main btn-google"
-          onClick={loginGoogle}
-          disabled={loadingGoog}
-        >
+        <button className="btn-main btn-google" onClick={loginGoogle} disabled={loadingGoog}>
           <GoogleSvg />
           <span>{loadingGoog ? '🛡️ ESCANEANDO RED...' : t.btn_google}</span>
         </button>
 
-        {/* Checkbox términos */}
+        {/* Terms */}
         <div className="terms">
-          <input
-            type="checkbox"
-            id="chkTerms"
-            checked={terms}
-            onChange={(e) => setTerms(e.target.checked)}
-          />
-          <label htmlFor="chkTerms">
-            Acepto el{' '}
+          <input type="checkbox" id="chkTerms" checked={terms} onChange={(e) => setTerms(e.target.checked)} disabled={mode === 'register' && !tosScrolled} />
+          <label htmlFor="chkTerms" style={{ opacity: mode === 'register' && !tosScrolled ? 0.45 : 1 }}>
+            He leído y acepto el{' '}
             <a href="/reglamento" target="_blank" rel="noopener noreferrer" className="link-reg">Reglamento</a>,{' '}
             <a href="/terminos"   target="_blank" rel="noopener noreferrer" className="link-reg">Términos</a>,{' '}
             <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="link-reg">Privacidad</a>{' '}
@@ -478,14 +550,28 @@ export default function LoginBox({ t }: LoginBoxProps) {
             <a href="/reembolsos" target="_blank" rel="noopener noreferrer" className="link-reg">Reembolsos</a>.
           </label>
         </div>
+
+        {/* Switch mode hint */}
+        {mode === 'login' ? (
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.73rem', color: '#8b949e' }}>
+            ¿Primera vez?{' '}
+            <button onClick={() => switchMode('register')} style={{ background: 'none', border: 'none', color: '#00ff88', cursor: 'pointer', fontWeight: 700, fontSize: '0.73rem', padding: 0 }}>
+              Registrate aquí
+            </button>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.73rem', color: '#8b949e' }}>
+            ¿Ya tenés cuenta?{' '}
+            <button onClick={() => switchMode('login')} style={{ background: 'none', border: 'none', color: '#00ff88', cursor: 'pointer', fontWeight: 700, fontSize: '0.73rem', padding: 0 }}>
+              Iniciá sesión aquí
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hardware fingerprint (equivalente al original)
-// ─────────────────────────────────────────────────────────────────────────────
 function obtenerHardware() {
   if (typeof window === 'undefined') return {};
   return {
@@ -498,9 +584,6 @@ function obtenerHardware() {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iconos SVG (igual que el original, sin dependencias)
-// ─────────────────────────────────────────────────────────────────────────────
 function GoogleSvg() {
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -511,5 +594,3 @@ function GoogleSvg() {
     />
   );
 }
-
-

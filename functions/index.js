@@ -1704,6 +1704,7 @@ exports.reponerSalaArena = onDocumentUpdated("tournaments/{id}", async (event) =
                 players:    [],
                 status:     "OPEN",
                 spawned:    false,
+                permanent:  true,
                 auto_respawn: true,
                 spawn_interval_hours: intervalHours,
                 ...(despues.country ? { country: despues.country } : {}),
@@ -1948,6 +1949,10 @@ exports.checkWaitingRooms = onSchedule({
 
     snap.forEach(docSnap => {
         const t       = docSnap.data();
+
+        // Skip CEO-managed permanent rooms and auto-respawn rooms — these never expire
+        if (t.permanent === true || t.auto_respawn === true) return;
+
         const created = t.created_at?.toMillis?.() ?? 0;
         const players = Array.isArray(t.players) ? t.players : [];
         const isFree  = (t.entry_fee ?? 0) === 0;
