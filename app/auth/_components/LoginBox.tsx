@@ -156,7 +156,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       await alerta('ESCUDO ANTI-VPN', '🚫 VPN o Proxy detectada. Apagala para iniciar sesión.', 'error');
       return;
     }
-    if ((datosRed as Record<string, unknown>).isBanned) {
+    if (datosRed.isBanned) {
       setLoading(false);
       await alerta('ACCESO DENEGADO', '🚫 Tu IP ha sido bloqueada. Contactá soporte.', 'error');
       return;
@@ -173,7 +173,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       }
       await setDoc(doc(db, 'usuarios', cred.user.uid), {
         ip_conexion: datosRed.country, hw_avanzado: hw,
-        ip: (datosRed as Record<string, unknown>).ip ?? '', pais_codigo: datosRed.country,
+        ip: datosRed.ip ?? '', pais_codigo: datosRed.country,
         terminos_aceptados: true, fingerprint_id: fingerprintId,
         last_login: new Date().toISOString(),
       }, { merge: true });
@@ -235,7 +235,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       await alerta('ESCUDO ANTI-VPN', '🚫 VPN detectada. Apagala para registrarte.', 'error');
       return;
     }
-    if ((datosRed as Record<string, unknown>).isBanned) {
+    if (datosRed.isBanned) {
       setLoading(false);
       await alerta('ACCESO DENEGADO', '🚫 Tu IP está bloqueada.', 'error');
       return;
@@ -258,7 +258,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
         juego_preferido:    juegoPreferido,
         titulos:            0,
         ip_conexion:        datosRed.country,
-        ip:                 (datosRed as Record<string, unknown>).ip ?? '',
+        ip:                 datosRed.ip ?? '',
         hw_avanzado:        hw,
         fingerprint_id:     fingerprintId,
         pais_codigo:        datosRed.country,
@@ -292,7 +292,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       await alerta('ESCUDO ANTI-VPN', '🚫 VPN detectada. Apagala para continuar.', 'error');
       return;
     }
-    if ((datosRed as Record<string, unknown>).isBanned) {
+    if (datosRed.isBanned) {
       setLoadingGoog(false);
       await alerta('ACCESO DENEGADO', '🚫 Tu IP está bloqueada.', 'error');
       return;
@@ -322,7 +322,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
           titulos:            0,
           plataforma_id:      sanitizarInput(id),
           ip_conexion:        datosRed.country,
-          ip:                 (datosRed as Record<string, unknown>).ip ?? '',
+          ip:                 datosRed.ip ?? '',
           hw_avanzado:        hw,
           fingerprint_id:     fingerprintId,
           pais_codigo:        datosRed.country,
@@ -333,7 +333,7 @@ export default function LoginBox({ t }: LoginBoxProps) {
       } else {
         await setDoc(userRef, {
           ip_conexion: datosRed.country, hw_avanzado: hw,
-          ip: (datosRed as Record<string, unknown>).ip ?? '', pais_codigo: datosRed.country,
+          ip: datosRed.ip ?? '', pais_codigo: datosRed.country,
           terminos_aceptados: true, fingerprint_id: fingerprintId,
           last_login: new Date().toISOString(),
         }, { merge: true });
