@@ -140,6 +140,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'URL de screenshot no válida.' }, { status: 400 });
     }
 
+    /* ── Anti-fraude: hash de imagen ────────────────────────
+     * Extraemos la ruta única del storage (después del bucket) y la usamos como huella.
+     * Si esa misma imagen ya fue enviada en otro match → SUSPICIOUS.
+     */
+    const { createHash } = await import('crypto');
+    const imageHash = createHash('sha256').update(screenshotUrl).digest('hex');
+
+    const dupCheck = await adminDb.collection('vision_logs')
+      .where('imageHash', '==', imageHash)
+      .limit(1)
+      .get();
+    if (!dupCheck.empty && dupCheck.docs[0].data().matchId !== matchId) {
+      return NextResponse.json({
+        verdict: 'SUSPICIOUS',
+        confidence: 0,
+        details: '🚨 Esta imagen ya fue usada en otro partido. Subí una captura nueva.',
+        game: null,
+        scoreFound: null,
+      });
+    }
+
     /* Obtener match */
     const matchSnap = await adminDb.collection('matches').doc(matchId).get();
     if (!matchSnap.exists)
@@ -362,7 +383,7 @@ export async function POST(req: NextRequest) {
     await adminDb.collection('matches').doc(matchId).update(matchUpdate);
 
     /* ── Log para beta test ─────────────────────────────── */
-    await logVisionResult(matchId, screenshotUrl, uid, rawText, result, match);
+    await logVisionResult(matchId, screenshotUrl, uid, rawText, result, match, imageHash);
 
     /* ── Publicar en match_chat como BOT (NO en cantina global) ── */
     const confPct = Math.round(confidence * 100);
@@ -418,11 +439,13 @@ async function logVisionResult(
   rawText: string,
   result: { verdict: string; confidence: number; details: string; game: string | null; scoreFound: string | null },
   match: FirebaseFirestore.DocumentData,
+  imageHash?: string,
 ) {
   try {
     await adminDb.collection('vision_logs').add({
       matchId,
       screenshotUrl,
+      imageHash:    imageHash ?? null,
       uid,
       game:         result.game,
       verdict:      result.verdict,

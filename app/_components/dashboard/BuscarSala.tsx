@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { collection, query,
          where, getDocs, onSnapshot,
-         limit }             from "firebase/firestore";
-import { db }                from "@/lib/firebase";
+         limit, doc, getDoc }  from "firebase/firestore";
+import { onAuthStateChanged }  from "firebase/auth";
+import { db, auth }            from "@/lib/firebase";
 import { GAMES, REGIONS }    from "@/lib/constants";
 import OrgTournamentCard     from "./OrgTournamentCard";
 import type { Game,
@@ -61,8 +62,49 @@ export default function BuscarSala() {
   const [results, setResults] = useState<Tournament[] | null>(null);
   const [searched, setSearched] = useState(false);
   const [showAllRooms, setShowAllRooms] = useState(false);
+  const [userCountry, setUserCountry] = useState<string>("");
+  const [countryRooms, setCountryRooms] = useState<Tournament[]>([]);
 
   const selectedGame = GAMES.find((g) => g.value === game)!;
+
+  // ── Detect user country for country-specific rooms ────────
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const snap = await getDoc(doc(db, "usuarios", user.uid));
+        if (snap.exists()) {
+          const pais = snap.data().pais_codigo || snap.data().country || "";
+          setUserCountry(pais);
+        }
+      } catch { /* silencioso */ }
+    });
+    return unsub;
+  }, []);
+
+  // ── Country-specific rooms ────────────────────────────────
+  useEffect(() => {
+    if (!userCountry) return;
+    // Map ISO code → Spanish name stored in tournament.country
+    const ISO_TO_NAME: Record<string, string> = {
+      AR: "Argentina", MX: "México", CO: "Colombia", CL: "Chile",
+      PE: "Perú", VE: "Venezuela", EC: "Ecuador", BO: "Bolivia",
+      PY: "Paraguay", UY: "Uruguay", BR: "Brasil", ES: "España",
+    };
+    const countryName = ISO_TO_NAME[userCountry.toUpperCase()] ?? userCountry;
+    const qCountry = query(
+      collection(db, "tournaments"),
+      where("country", "==", countryName),
+      where("status",  "==", "OPEN"),
+      limit(20)
+    );
+    const unsub = onSnapshot(qCountry, snap => {
+      const rooms = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+      rooms.sort((a, b) => (b.players.length / b.capacity) - (a.players.length / a.capacity));
+      setCountryRooms(rooms);
+    });
+    return unsub;
+  }, [userCountry]);
 
   // ── Live organized tournaments ────────────────────────────
   useEffect(() => {
@@ -364,6 +406,32 @@ export default function BuscarSala() {
                 )}
               </>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ── TORNEOS DE TU PAÍS ─────────────────────────────────── */}
+      {countryRooms.length > 0 && (() => {
+        const ISO_FLAG: Record<string, string> = {
+          AR:"🇦🇷", MX:"🇲🇽", CO:"🇨🇴", CL:"🇨🇱", PE:"🇵🇪", VE:"🇻🇪",
+          EC:"🇪🇨", BO:"🇧🇴", PY:"🇵🇾", UY:"🇺🇾", BR:"🇧🇷", ES:"🇪🇸",
+        };
+        const flag = ISO_FLAG[userCountry.toUpperCase()] ?? "🌎";
+        return (
+          <div className="max-w-2xl mx-auto px-4 pt-5 pb-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ffd70030, transparent)" }} />
+              <span className="text-[10px] font-black tracking-[3px] uppercase"
+                    style={{ color: "#ffd700", fontFamily: "'Orbitron',sans-serif" }}>
+                {flag} TORNEOS DE TU PAÍS
+              </span>
+              <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ffd70030, transparent)" }} />
+            </div>
+            <div className="flex flex-col gap-2">
+              {countryRooms.map(room => (
+                <TournamentCard key={room.id} t={room} />
+              ))}
+            </div>
           </div>
         );
       })()}

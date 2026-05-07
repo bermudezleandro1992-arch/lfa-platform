@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged }  from 'firebase/auth';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db }            from '@/lib/firebase';
 import BuscarSala              from '@/app/_components/dashboard/BuscarSala';
@@ -140,6 +141,7 @@ function DashboardContent() {
         <>
           {uid && <MiSalaActiva uid={uid} />}
           <BuscarSala />
+          <MiniRankingArena />
           <DashboardFooter />
         </>
       )}
@@ -199,4 +201,102 @@ function DashboardFooter() {
   );
 }
 
+/* ─── Mini Ranking (arena tab) ───────────────────────────── */
+interface MiniPlayer {
+  id: string; nombre?: string; avatar_url?: string;
+  titulos?: number; pais_codigo?: string;
+}
+function getTierMini(t: number) {
+  if (t >= 50) return { label: 'LEYENDA', color: '#ff4757', icon: '👑' };
+  if (t >= 20) return { label: 'ELITE',   color: '#ffd700', icon: '🔥' };
+  if (t >= 10) return { label: 'ORO',     color: '#f0c040', icon: '⭐' };
+  if (t >= 5)  return { label: 'PLATA',   color: '#a8b2c0', icon: '🥈' };
+  if (t >= 1)  return { label: 'BRONCE',  color: '#cd7f32', icon: '🥉' };
+  return         { label: 'NOVATO',  color: '#8b949e', icon: '🆕' };
+}
+function MiniRankingArena() {
+  const [top5, setTop5] = useState<MiniPlayer[]>([]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'usuarios'), limit(200)));
+        const list: MiniPlayer[] = snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as MiniPlayer))
+          .filter(u => !((u as any).baneado))
+          .sort((a, b) => (b.titulos ?? 0) - (a.titulos ?? 0))
+          .slice(0, 5);
+        setTop5(list);
+      } catch { /* silencioso */ }
+    })();
+  }, []);
+
+  if (!top5.length) return null;
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 pt-6 pb-2">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="h-px flex-1" style={{ background: 'linear-gradient(90deg,#ffd70040,transparent)' }} />
+        <span className="text-[10px] font-black tracking-[3px] uppercase"
+              style={{ color: '#ffd700', fontFamily: "'Orbitron',sans-serif" }}>
+          🏆 TOP 5 GLOBAL
+        </span>
+        <div className="h-px flex-1" style={{ background: 'linear-gradient(270deg,#ffd70040,transparent)' }} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {top5.map((p, i) => {
+          const tier = getTierMini(p.titulos ?? 0);
+          const medal = ['🥇','🥈','🥉','4️⃣','5️⃣'][i];
+          return (
+            <a key={p.id} href={`/jugador/${p.id}`}
+               className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline transition-all"
+               style={{ background: '#161b22', border: '1px solid #30363d', color: '#c9d1d9', textDecoration: 'none' }}
+               onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#ffd70060'; }}
+               onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#30363d'; }}>
+              {/* Position */}
+              <span className="text-lg w-7 text-center flex-shrink-0">{medal}</span>
+              {/* Avatar */}
+              {p.avatar_url
+                ? <img src={p.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0 border-2"
+                       style={{ borderColor: tier.color }} />
+                : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base"
+                       style={{ background: '#21262d', border: `2px solid ${tier.color}` }}>🎮</div>
+              }
+              {/* Name + flag */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 truncate">
+                  {p.pais_codigo && (
+                    <img src={`https://flagcdn.com/20x15/${p.pais_codigo.toLowerCase()}.png`}
+                         alt={p.pais_codigo} width={16} height={12} className="rounded-sm flex-shrink-0"
+                         onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                  )}
+                  <span className="font-bold text-sm truncate">{p.nombre ?? 'Jugador'}</span>
+                </div>
+                <div className="text-[10px] font-semibold mt-0.5" style={{ color: tier.color }}>
+                  {tier.icon} {tier.label}
+                </div>
+              </div>
+              {/* Titles */}
+              <div className="flex-shrink-0 text-right">
+                <div className="font-black text-lg" style={{ color: '#ffd700', fontFamily: "'Orbitron',sans-serif" }}>
+                  {p.titulos ?? 0}
+                </div>
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#8b949e' }}>títulos</div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+
+      {/* Link to full ranking */}
+      <div className="text-center mt-3">
+        <a href="/ranking" className="text-[11px] no-underline"
+           style={{ color: '#8b949e', textDecoration: 'none' }}>
+          Ver ranking completo →
+        </a>
+      </div>
+    </div>
+  );
+}
