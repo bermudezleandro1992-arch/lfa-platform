@@ -71,3 +71,17 @@ env:
 
   - variable: LFA_TREASURY_NETWORK
     secret: LFA_TREASURY_NETWORK
+  # ── SMTP para emails OTP (retiros ≥$50 USDT) ──────────────────────────────
+  # Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587
+  # Configurar con: firebase apphosting:secrets:set SMTP_HOST/USER/PASS
+  - variable: SMTP_HOST
+    secret: SMTP_HOST
+
+  - variable: SMTP_PORT
+    secret: SMTP_PORT
+
+  - variable: SMTP_USER
+    secret: SMTP_USER
+
+  - variable: SMTP_PASS
+    secret: SMTP_PASS
