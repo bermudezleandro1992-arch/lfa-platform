@@ -12,7 +12,7 @@ interface Jugador {
   id: string; nombre?: string; avatar_url?: string; region?: string;
   number?: number; fair_play?: number; titulos?: number;
   partidos_jugados?: number; victorias?: number; derrotas?: number;
-  baneado?: boolean; rol?: string; country?: string;
+  baneado?: boolean; rol?: string; country?: string; main_game?: string;
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
@@ -65,6 +65,14 @@ const REGIONS = [
   { value: 'EUROPA',      label: '🇪🇺 Europa'        },
 ];
 
+const GAME_FILTER_OPTS = [
+  { value: '',                 label: '🌐 Todos'       },
+  { value: 'FC26',             label: '⚽ FC 26'        },
+  { value: 'EFOOTBALL',        label: '🟡 eFootball'    },
+  { value: 'EFOOTBALL_MOBILE', label: '📱 eFB Mobile'  },
+  { value: 'FC_MOBILE',        label: '📱 FC Mobile'   },
+];
+
 /* ── Posición decorativa ─────────────────────────────── */
 function PosIcon({ pos }: { pos: number }) {
   if (pos === 1) return <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 8px #ffd700)' }}>🥇</span>;
@@ -80,6 +88,7 @@ export default function RankingPage() {
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [sortKey,   setSortKey]   = useState<SortKey>('titulos');
   const [region,    setRegion]    = useState('');
+  const [gameFilter, setGameFilter] = useState('');
   const [ready,     setReady]     = useState(false);
 
   /* ── Auth ─────────────────────────────────────────── */
@@ -123,8 +132,7 @@ export default function RankingPage() {
 
   /* ── Filtrar y ordenar ────────────────────────────── */
   const filtrados = jugadores
-    .filter(j => !region || j.region === region)
-    .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0));
+    .filter(j => !region || j.region === region)    .filter(j => !gameFilter || j.main_game === gameFilter)    .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0));
 
   const top3  = filtrados.slice(0, 3);
   const resto = filtrados.slice(3);
@@ -187,6 +195,18 @@ export default function RankingPage() {
                 fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 700,
                 transition: '0.15s',
               }}>{r.label}</button>
+            ))}
+            <span style={{ color: '#30363d' }}>|</span>
+            <span style={{ color: '#8b949e', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif" }}>JUEGO:</span>
+            {GAME_FILTER_OPTS.map(g => (
+              <button key={g.value} className="filt" onClick={() => setGameFilter(g.value)} style={{
+                background: gameFilter === g.value ? 'rgba(0,195,255,0.1)' : 'transparent',
+                border: `1px solid ${gameFilter === g.value ? '#00c3ff' : '#30363d'}`,
+                color: gameFilter === g.value ? '#00c3ff' : '#8b949e',
+                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
+                fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 700,
+                transition: '0.15s',
+              }}>{g.label}</button>
             ))}
           </div>
 

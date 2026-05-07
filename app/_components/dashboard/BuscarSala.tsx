@@ -66,6 +66,7 @@ export default function BuscarSala() {
   const [results, setResults] = useState<Tournament[] | null>(null);
   const [searched, setSearched] = useState(false);
   const [showAllRooms, setShowAllRooms] = useState(false);
+  const [showCountryRooms, setShowCountryRooms] = useState(false);
   const [userCountry, setUserCountry] = useState<string>("");
   const [countryRooms, setCountryRooms] = useState<Tournament[]>([]);
 
@@ -256,6 +257,10 @@ export default function BuscarSala() {
               style={{ background: "rgba(0,255,136,0.08)", borderColor: "rgba(0,255,136,0.35)", color: "#00ff88" }}>
               ✓ CROSSPLAY
             </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border"
+              style={{ background: "rgba(156,95,255,0.08)", borderColor: "rgba(156,95,255,0.35)", color: "#9c5fff" }}>
+              📱 MOBILE
+            </div>
           </div>
         </div>
       </div>
@@ -414,31 +419,7 @@ export default function BuscarSala() {
         );
       })()}
 
-      {/* ── TORNEOS DE TU PAÍS ─────────────────────────────────── */}
-      {countryRooms.length > 0 && (() => {
-        const ISO_FLAG: Record<string, string> = {
-          AR:"🇦🇷", MX:"🇲🇽", CO:"🇨🇴", CL:"🇨🇱", PE:"🇵🇪", VE:"🇻🇪",
-          EC:"🇪🇨", BO:"🇧🇴", PY:"🇵🇾", UY:"🇺🇾", BR:"🇧🇷", ES:"🇪🇸",
-        };
-        const flag = ISO_FLAG[userCountry.toUpperCase()] ?? "🌎";
-        return (
-          <div className="max-w-2xl mx-auto px-4 pt-5 pb-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, #ffd70030, transparent)" }} />
-              <span className="text-[10px] font-black tracking-[3px] uppercase"
-                    style={{ color: "#ffd700", fontFamily: "'Orbitron',sans-serif" }}>
-                {flag} TORNEOS DE TU PAÍS
-              </span>
-              <div className="h-px flex-1" style={{ background: "linear-gradient(270deg, #ffd70030, transparent)" }} />
-            </div>
-            <div className="flex flex-col gap-2">
-              {countryRooms.map(room => (
-                <TournamentCard key={room.id} tournament={room} />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+
 
       {/* ── TORNEOS ORGANIZADOS / STREAMERS ───────────────────── */}
       {orgTournaments.length > 0 && (
@@ -472,22 +453,22 @@ export default function BuscarSala() {
           {/* ── JUEGO ── */}
           <div className="p-5 border-b" style={{ borderColor: "#1c2028" }}>
             <p className="text-[10px] font-black uppercase tracking-[3px] mb-3" style={{ color: "#6e7681" }}>{t.bs_label_game}</p>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {GAMES.map((g) => {
                 const active = game === g.value;
                 return (
                   <button key={g.value}
                     onClick={() => { setGame(g.value as Game); setMode(""); }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-bold flex-1 justify-center transition-all"
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold justify-center transition-all"
                     style={{
                       background:   active ? "#00ff88" : "#0b0e14",
                       borderColor:  active ? "#00ff88" : "#30363d",
                       color:        active ? "#0b0e14" : "#8b949e",
                       boxShadow:    active ? "0 0 16px rgba(0,255,136,0.2)" : "none",
                     }}>
-                    <Image src={g.logo} alt={g.label} width={20} height={20} className="rounded"
+                    <Image src={g.logo} alt={g.label} width={16} height={16} className="rounded flex-shrink-0"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    {g.value}
+                    <span className="truncate">{GAME_LABELS[g.value] ?? g.value}</span>
                   </button>
                 );
               })}
@@ -638,6 +619,43 @@ export default function BuscarSala() {
           </div>
         )}
       </div>
+
+      {/* ── TORNEOS DE TU PAÍS (acordeón al fondo) ─────────────── */}
+      {countryRooms.length > 0 && (() => {
+        const ISO_FLAG: Record<string, string> = {
+          AR:"🇦🇷", MX:"🇲🇽", CO:"🇨🇴", CL:"🇨🇱", PE:"🇵🇪", VE:"🇻🇪",
+          EC:"🇪🇨", BO:"🇧🇴", PY:"🇵🇾", UY:"🇺🇾", BR:"🇧🇷", ES:"🇪🇸",
+        };
+        const flag = ISO_FLAG[userCountry.toUpperCase()] ?? "🌎";
+        return (
+          <div className="max-w-2xl mx-auto px-4 pt-4 pb-6">
+            <button
+              onClick={() => setShowCountryRooms(v => !v)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl mb-2 transition-all text-[11px] font-bold"
+              style={{
+                background: "rgba(255,215,0,0.05)",
+                border: "1px solid rgba(255,215,0,0.25)",
+                color: "#ffd700",
+              }}>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.62rem", letterSpacing: 1 }}>
+                {showCountryRooms ? "▲ OCULTAR" : `▼ TORNEOS DE TU PAÍS`}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
+                style={{ background: "rgba(255,215,0,0.15)", border: "1px solid rgba(255,215,0,0.35)", color: "#ffd700" }}>
+                {countryRooms.length}
+              </span>
+              <span className="text-base">{flag}</span>
+            </button>
+            {showCountryRooms && (
+              <div className="flex flex-col gap-3">
+                {countryRooms.map(room => (
+                  <TournamentCard key={room.id} tournament={room} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
