@@ -429,7 +429,7 @@ export default function BuscarSala() {
             </div>
             <div className="flex flex-col gap-2">
               {countryRooms.map(room => (
-                <TournamentCard key={room.id} t={room} />
+                <TournamentCard key={room.id} tournament={room} />
               ))}
             </div>
           </div>
