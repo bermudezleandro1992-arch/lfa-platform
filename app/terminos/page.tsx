@@ -30,7 +30,7 @@ export default function TerminosPage() {
 
       <h2 className="legal-h2">5. RETIROS DE FONDOS</h2>
       <ul className="legal-ul">
-        <li>El <strong>monto mínimo de retiro</strong> es de <strong>10,000 LFA Coins (equivalente a $10 USDT)</strong>.</li>
+        <li>El <strong>monto mínimo de retiro</strong> es de <strong>20,000 LFA Coins (equivalente a $20 USDT)</strong>.</li>
         <li>El <strong>límite máximo de retiro automático</strong> es de <strong>$200 USDT por transacción</strong> y <strong>$500 USDT por día calendario</strong>. Montos superiores a $200 USDT requieren aprobación manual del equipo LFA en un plazo de 24 a 72 horas.</li>
         <li>Se permite <strong>un único retiro cada 24 horas</strong> por cuenta de usuario, como medida de seguridad antifraude.</li>
         <li>Los retiros automáticos se procesan <strong>instantáneamente</strong> a la dirección Binance USDT (TRC20/BEP20) registrada por el usuario, una vez superadas todas las validaciones de seguridad.</li>
