@@ -6,6 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
+import LogoImg from '@/app/_components/pro/LogoImg';
 
 interface PlayerRank {
   uid: string;
@@ -207,8 +208,8 @@ export default function ProRankingPage() {
                       order, height: heights[idx === 0 ? 0 : idx === 1 ? 1 : 2],
                       display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                     }}>
-                      <div style={{ fontSize:`${2.5 * sizes[idx === 0 ? 0 : idx === 1 ? 1 : 2]}rem` }}>
-                        {p.logo_url || '⚽'}
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', marginBottom:4 }}>
+                        <LogoImg logo={p.logo_url} size={Math.round(40 * sizes[idx === 0 ? 0 : idx === 1 ? 1 : 2])} />
                       </div>
                       <div style={{ fontSize:'1.4rem', margin:'4px 0' }}>{medals[idx === 0 ? 0 : idx === 1 ? 1 : 2]}</div>
                       <div style={{ fontWeight:700, color:'#e6edf3', fontSize:'0.78rem', maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -251,7 +252,7 @@ export default function ProRankingPage() {
                       {medal ?? (i + 1)}
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <span style={{ fontSize:'1.4rem' }}>{p.logo_url || '⚽'}</span>
+                      <LogoImg logo={p.logo_url} size={32} />
                       <div>
                         <div style={{ fontWeight:700, color: isMe ? '#00ff88' : '#e6edf3', fontSize:'0.82rem' }}>
                           {p.team_name || p.display_name}

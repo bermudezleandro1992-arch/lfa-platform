@@ -1,6 +1,7 @@
 'use client';
 
 import type { LeagueParticipant } from '@/lib/types';
+import LogoImg from './LogoImg';
 
 interface Props {
   participants: LeagueParticipant[];
@@ -66,7 +67,7 @@ export default function LeagueStandings({ participants, myUid }: Props) {
                 {/* Equipo */}
                 <td style={{ padding:'12px 10px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:'1.3rem' }}>{p.logo_url || '⚽'}</span>
+                    <LogoImg logo={p.logo_url} size={32} />
                     <div>
                       <div style={{
                         fontWeight:600, fontSize:'0.82rem',

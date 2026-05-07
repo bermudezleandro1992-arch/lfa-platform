@@ -11,6 +11,7 @@ import { auth, db } from '@/lib/firebase';
 import type { ProLeague, LeagueParticipant, LeagueMatch } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import LogoImg from '@/app/_components/pro/LogoImg';
 
 const ProMatchCard   = dynamic(() => import('@/app/_components/pro/ProMatchCard'),   { ssr:false });
 const LeagueStandings= dynamic(() => import('@/app/_components/pro/LeagueStandings'),{ ssr:false });
@@ -160,7 +161,7 @@ export default function LeagueDetailPage({ params }: { params: { id: string } })
               background:'#161b22', borderRadius:10, padding:'10px 14px',
               border:'1px solid #00ff8833',
             }}>
-              <span style={{ fontSize:'1.6rem' }}>{myParticipant.logo_url || '⚽'}</span>
+              <LogoImg logo={myParticipant.logo_url} size={40} />
               <div style={{ flex:1 }}>
                 <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.8rem', color:'#e6edf3' }}>
                   {myParticipant.team_name}

@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '@/lib/firebase';
 import Link from 'next/link';
+import LogoImg, { flagEmojiToCode } from '@/app/_components/pro/LogoImg';
+import { COUNTRIES_AMERICA_EUROPE } from '@/lib/constants';
 
-// ── Logo options (same as EnrollModal) ────────────────────────────────────────────
+// ── Logo options ──────────────────────────────────────────────────────────────
 const LOGOS_ESCUDOS = ['⚽','🦁','🦅','🐉','🌟','⭐','🔥','💎','🛡️','⚡','🌊','🏔️','🐺','🦊','🐯','🌙','☀️','🌈','🎯','💥','🏆','👑','🔱','⚜️','🎠','🌍','🛸','🐬','🦄','🐴'];
-const LOGOS_FLAGS   = ['🇪🇸','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
-const LOGOS_CLUBS   = ['🔵','🔴','🟡','🟢','⚪','🟠','🟣','⚫','🔷','🔶','🔺','🔻','💠','♦️','🖘','🎱','🌐','🏵️','🏅','🥇'];
-type LogoTab = 'escudos' | 'banderas' | 'colores' | 'url';
+const LOGOS_FLAGS   = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
+const LOGOS_CLUBS   = ['🔵','🔴','🟡','🟢','⚪','🟠','🟣','⚫','🔷','🔶','🔺','🔻','💠','♦️','🎱','🌐','🏵️','🏅','🥇'];
+type LogoTab = 'escudos' | 'banderas' | 'colores' | 'url' | 'upload';
 
 interface GlobalStats {
   display_name: string;
@@ -250,9 +253,9 @@ export default function ProPerfilPage() {
                   <div style={{
                     width:80, height:80, borderRadius:20, background:'#00ff8820',
                     border:'2px solid #00ff8844', display:'flex', alignItems:'center',
-                    justifyContent:'center', fontSize:'2.8rem', flexShrink:0,
+                    justifyContent:'center', flexShrink:0,
                   }}>
-                    {globalStats.logo_url || '\u26bd'}
+                    <LogoImg logo={globalStats.logo_url} size={52} />
                   </div>
                 )}
                 <div style={{ flex:1 }}>
@@ -262,12 +265,24 @@ export default function ProPerfilPage() {
                   <div style={{ color:'#8b949e', fontSize:'0.8rem', marginTop:4 }}>
                     {globalStats.display_name} \u00b7 {globalStats.leagues_played} liga{globalStats.leagues_played !== 1 ? 's' : ''} jugada{globalStats.leagues_played !== 1 ? 's' : ''}
                   </div>
-                  {userInfo?.pais && (
-                    <div style={{ color:'#555', fontSize:'0.72rem', marginTop:3 }}>
-                      \ud83c\udf0d {userInfo.pais}{userInfo.provincia ? ` \u00b7 ${userInfo.provincia}` : ''}
-                      {userInfo.consola ? ` \u00b7 ${userInfo.consola}` : ''}
-                    </div>
-                  )}
+                  {userInfo?.pais && (() => {
+                    const code = COUNTRIES_AMERICA_EUROPE.find(c => c.name === userInfo.pais)?.code;
+                    return (
+                      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4 }}>
+                        {code && (
+                          <img
+                            src={`https://flagcdn.com/24x18/${code.toLowerCase()}.png`}
+                            alt={userInfo.pais}
+                            style={{ width:24, height:18, borderRadius:2, flexShrink:0 }}
+                            onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+                          />
+                        )}
+                        <span style={{ color:'#555', fontSize:'0.72rem' }}>
+                          {userInfo.pais}{userInfo.provincia ? ` · ${userInfo.provincia}` : ''}{userInfo.consola ? ` · ${userInfo.consola}` : ''}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   <button onClick={() => setEditing(e => !e)} style={{
@@ -457,21 +472,46 @@ function EditPanel({
   userInfo: UserInfo | null;
   onSaved: (u: Partial<GlobalStats & UserInfo>) => void;
 }) {
-  const [logoTab,   setLogoTab]   = useState<LogoTab>('escudos');
-  const [logo,      setLogo]      = useState(globalStats.logo_url || '⚽');
-  const [customUrl, setCustomUrl] = useState(globalStats.logo_url?.startsWith('http') ? globalStats.logo_url : '');
-  const [teamName,  setTeamName]  = useState(globalStats.team_name || '');
-  const [konamiId,  setKonamiId]  = useState(userInfo?.konami_id || '');
-  const [eaId,      setEaId]      = useState(userInfo?.ea_id || '');
-  const [whatsapp,  setWhatsapp]  = useState(userInfo?.whatsapp || '');
-  const [pais,      setPais]      = useState(userInfo?.pais || '');
-  const [provincia, setProvincia] = useState(userInfo?.provincia || '');
-  const [consola,   setConsola]   = useState(userInfo?.consola || '');
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [logoTab,    setLogoTab]    = useState<LogoTab>('escudos');
+  const [logo,       setLogo]       = useState(globalStats.logo_url || '⚽');
+  const [customUrl,  setCustomUrl]  = useState(globalStats.logo_url?.startsWith('http') ? globalStats.logo_url : '');
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadMsg,  setUploadMsg]  = useState('');
+  const [teamName,   setTeamName]   = useState(globalStats.team_name || '');
+  const [konamiId,   setKonamiId]   = useState(userInfo?.konami_id || '');
+  const [eaId,       setEaId]       = useState(userInfo?.ea_id || '');
+  const [whatsapp,   setWhatsapp]   = useState(userInfo?.whatsapp || '');
+  const [pais,       setPais]       = useState(userInfo?.pais || '');
+  const [provincia,  setProvincia]  = useState(userInfo?.provincia || '');
+  const [consola,    setConsola]    = useState(userInfo?.consola || '');
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState('');
 
-  const displayLogo = logoTab === 'url' && customUrl.trim() ? customUrl.trim() : logo;
-  const curList = logoTab === 'escudos' ? LOGOS_ESCUDOS : logoTab === 'banderas' ? LOGOS_FLAGS : LOGOS_CLUBS;
+  const displayLogo = (logoTab === 'url' || logoTab === 'upload') && customUrl.trim()
+    ? customUrl.trim()
+    : logo;
+  const curList = logoTab === 'escudos' ? LOGOS_ESCUDOS
+    : logoTab === 'banderas' ? LOGOS_FLAGS
+    : LOGOS_CLUBS;
+
+  // ── Upload custom logo image ────────────────────────────────
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setUploadMsg('❌ Máx 2MB'); return; }
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { setUploadMsg('❌ Solo JPEG, PNG o WEBP'); return; }
+    setUploading(true); setUploadMsg('⏳ Subiendo...');
+    try {
+      const r = storageRef(storage, `team_logos/${uid}`);
+      await uploadBytes(r, file);
+      const url = await getDownloadURL(r);
+      setCustomUrl(url);
+      setLogoTab('upload');
+      setUploadMsg('✅ Logo subido');
+    } catch { setUploadMsg('❌ Error al subir'); }
+    finally { setUploading(false); }
+  }
 
   async function save() {
     setSaving(true); setError('');
@@ -492,6 +532,8 @@ function EditPanel({
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'#0b0e14', border:'1px solid #30363d', borderRadius:8, color:'#e6edf3', fontSize:'0.82rem', outline:'none', boxSizing:'border-box' };
   const lbl: React.CSSProperties = { color:'#555', fontSize:'0.62rem', letterSpacing:1, display:'block', marginBottom:5, fontFamily:"'Orbitron',sans-serif", fontWeight:700 };
 
+  const selectedCountryCode = COUNTRIES_AMERICA_EUROPE.find(c => c.name === pais)?.code;
+
   return (
     <div style={{ background:'#0d1117', borderRadius:14, border:'1px solid #00ff8833', padding:'20px', marginTop:16 }}>
       <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.7rem', color:'#00ff88', letterSpacing:2, marginBottom:20 }}>
@@ -501,18 +543,20 @@ function EditPanel({
       {/* Logo picker */}
       <div style={{ marginBottom:18 }}>
         <span style={lbl}>ESCUDO DEL EQUIPO</span>
+        {/* Preview */}
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
-          {displayLogo?.startsWith('http') ? (
-            <img src={displayLogo} alt="logo" style={{ width:52, height:52, borderRadius:10, objectFit:'cover', border:'2px solid #00ff8844' }} />
-          ) : (
-            <div style={{ width:52, height:52, borderRadius:10, background:'#161b22', border:'2px solid #00ff8844', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem' }}>
-              {logo}
-            </div>
-          )}
-          <span style={{ color:'#8b949e', fontSize:'0.75rem' }}>Logo actual</span>
+          <div style={{ width:60, height:60, borderRadius:12, background:'#161b22', border:'2px solid #00ff8844', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+            <LogoImg logo={displayLogo} size={48} />
+          </div>
+          <div>
+            <div style={{ color:'#8b949e', fontSize:'0.72rem' }}>Logo actual</div>
+            {uploadMsg && <div style={{ fontSize:'0.68rem', color: uploadMsg.startsWith('✅') ? '#00ff88' : '#ff4757', marginTop:3 }}>{uploadMsg}</div>}
+          </div>
         </div>
+
+        {/* Tab selector */}
         <div style={{ display:'flex', gap:4, marginBottom:8, flexWrap:'wrap' }}>
-          {(['escudos','banderas','colores','url'] as LogoTab[]).map(t => (
+          {(['escudos','banderas','colores','upload','url'] as LogoTab[]).map(t => (
             <button key={t} onClick={() => setLogoTab(t)} style={{
               padding:'4px 10px', borderRadius:6, cursor:'pointer',
               background: logoTab===t ? '#00ff8822' : '#21262d',
@@ -520,20 +564,67 @@ function EditPanel({
               color: logoTab===t ? '#00ff88' : '#8b949e',
               fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif", fontWeight:700,
             } as React.CSSProperties}>
-              {t === 'escudos' ? '🛡️ ESC.' : t === 'banderas' ? '🌎 BAND.' : t === 'colores' ? '🎨 COL.' : '🔗 URL'}
+              {t === 'escudos' ? '🛡️ ESC.' : t === 'banderas' ? '🌎 BAND.' : t === 'colores' ? '🎨 COL.' : t === 'upload' ? '📷 FOTO' : '🔗 URL'}
             </button>
           ))}
         </div>
-        {logoTab !== 'url' ? (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:100, overflowY:'auto' }}>
+
+        {/* Emoji pickers */}
+        {(logoTab === 'escudos' || logoTab === 'colores') && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:110, overflowY:'auto' }}>
             {curList.map(l => (
-              <button key={l} onClick={() => setLogo(l)} style={{
-                padding:'4px 6px', borderRadius:6, border:`2px solid ${logo===l ? '#00ff88' : 'transparent'}`,
-                background: logo===l ? '#00ff8820' : '#21262d', cursor:'pointer', fontSize:'1.3rem',
+              <button key={l} onClick={() => { setLogo(l); setCustomUrl(''); }} style={{
+                padding:'4px 6px', borderRadius:6, border:`2px solid ${logo===l && !customUrl ? '#00ff88' : 'transparent'}`,
+                background: (logo===l && !customUrl) ? '#00ff8820' : '#21262d', cursor:'pointer', fontSize:'1.3rem',
               }}>{l}</button>
             ))}
           </div>
-        ) : (
+        )}
+
+        {/* Banderas — shown as real flag images */}
+        {logoTab === 'banderas' && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:110, overflowY:'auto' }}>
+            {LOGOS_FLAGS.map(emoji => {
+              const code = flagEmojiToCode(emoji);
+              const isSelected = logo === emoji && !customUrl;
+              return (
+                <button key={emoji} onClick={() => { setLogo(emoji); setCustomUrl(''); }} style={{
+                  padding:'4px 5px', borderRadius:6,
+                  border:`2px solid ${isSelected ? '#00ff88' : 'transparent'}`,
+                  background: isSelected ? '#00ff8820' : '#21262d', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  {code
+                    ? <img src={`https://flagcdn.com/32x24/${code}.png`} alt={code.toUpperCase()} style={{ width:32, height:24, borderRadius:2, display:'block' }} />
+                    : <span style={{ fontSize:'1.3rem' }}>{emoji}</span>
+                  }
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Upload image */}
+        {logoTab === 'upload' && (
+          <div>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }} onChange={handleLogoUpload} />
+            <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
+              padding:'10px 18px', borderRadius:8, border:'1px dashed #30363d', background:'#161b22',
+              color:'#8b949e', cursor:'pointer', fontSize:'0.78rem', width:'100%', transition:'0.15s',
+            }}>
+              {uploading ? '⏳ Subiendo...' : '📷 SUBIR IMAGEN DE LOGO (JPG/PNG, máx 2MB)'}
+            </button>
+            {customUrl && (
+              <div style={{ marginTop:8 }}>
+                <img src={customUrl} alt="preview" style={{ width:72, height:72, borderRadius:10, objectFit:'cover', border:'2px solid #00ff8844' }}
+                  onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Custom URL */}
+        {logoTab === 'url' && (
           <div>
             <input value={customUrl} onChange={e => setCustomUrl(e.target.value)}
               placeholder="https://... URL de tu logo (jpg/png)" style={{ ...inp, marginBottom:6 }} />
@@ -554,7 +645,28 @@ function EditPanel({
         <div><span style={lbl}>KONAMI ID</span><input value={konamiId} onChange={e => setKonamiId(e.target.value)} maxLength={30} placeholder="Tu ID de Konami" style={inp} /></div>
         <div><span style={lbl}>EA ID (FC 26)</span><input value={eaId} onChange={e => setEaId(e.target.value)} maxLength={30} placeholder="Tu EA ID" style={inp} /></div>
         <div><span style={lbl}>WHATSAPP 💬</span><input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} maxLength={20} placeholder="+54 9 11 xxxx" style={inp} /></div>
-        <div><span style={lbl}>PAÍS 🌍</span><input value={pais} onChange={e => setPais(e.target.value)} maxLength={40} placeholder="Argentina..." style={inp} /></div>
+
+        {/* País con bandera */}
+        <div>
+          <span style={lbl}>PAÍS 🌍</span>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {selectedCountryCode && (
+              <img
+                src={`https://flagcdn.com/28x21/${selectedCountryCode.toLowerCase()}.png`}
+                alt={pais}
+                style={{ width:28, height:21, borderRadius:3, flexShrink:0, border:'1px solid #30363d' }}
+                onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+              />
+            )}
+            <select value={pais} onChange={e => setPais(e.target.value)} style={{ ...inp, cursor:'pointer', flex:1 }}>
+              <option value="">— Seleccioná tu país —</option>
+              {COUNTRIES_AMERICA_EUROPE.map(({ code, name }) => (
+                <option key={code} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div><span style={lbl}>PROVINCIA / CIUDAD</span><input value={provincia} onChange={e => setProvincia(e.target.value)} maxLength={40} placeholder="Buenos Aires..." style={inp} /></div>
         <div><span style={lbl}>CONSOLA / PC</span><input value={consola} onChange={e => setConsola(e.target.value)} maxLength={30} placeholder="PS5, Xbox, PC..." style={inp} /></div>
       </div>

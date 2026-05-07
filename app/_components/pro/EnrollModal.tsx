@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { ProLeague } from '@/lib/types';
+import { flagEmojiToCode } from './LogoImg';
 
 const LOGOS_ESCUDOS = ['⚽','🦁','🐺','🦅','🔥','⚡','💎','🛡️','🗡️','🏴‍☠️','🐉','🦊','🐯','🦈','🚀','💀','🏆','⭐','🌊','🎯','🏹','⚔️','🌟','💫','🔱','🦋','🐍','🦂','🦏','🐻'];
 const LOGOS_FLAGS   = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
@@ -150,19 +151,26 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
 
               {logoTab !== 'url' && (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:120, overflowY:'auto', padding:'4px 0' }}>
-                  {(logoTab === 'escudos' ? LOGOS_ESCUDOS : logoTab === 'banderas' ? LOGOS_FLAGS : LOGOS_CLUBS).map(l => (
-                    <button key={l} onClick={() => setLogo(l)}
-                      style={{
-                        width:38, height:38, borderRadius:8, fontSize:'1.3rem',
-                        background: logo===l ? '#00ff8822' : '#21262d',
-                        border: logo===l ? '2px solid #00ff88' : '1px solid #30363d',
-                        cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-                        transition:'all 0.12s', flexShrink:0,
-                      }}
-                    >
-                      {l}
-                    </button>
-                  ))}
+                  {(logoTab === 'escudos' ? LOGOS_ESCUDOS : logoTab === 'banderas' ? LOGOS_FLAGS : LOGOS_CLUBS).map(l => {
+                    const flagCode = logoTab === 'banderas' ? flagEmojiToCode(l) : null;
+                    return (
+                      <button key={l} onClick={() => setLogo(l)}
+                        style={{
+                          width:38, height:38, borderRadius:8,
+                          fontSize: flagCode ? 'unset' : '1.3rem',
+                          background: logo===l ? '#00ff8822' : '#21262d',
+                          border: logo===l ? '2px solid #00ff88' : '1px solid #30363d',
+                          cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                          transition:'all 0.12s', flexShrink:0, padding:0, overflow:'hidden',
+                        }}
+                      >
+                        {flagCode
+                          ? <img src={`https://flagcdn.com/40x30/${flagCode}.png`} alt={flagCode.toUpperCase()} style={{ width:34, height:'auto', display:'block' }} />
+                          : l
+                        }
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -188,13 +196,13 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
               )}
 
               <div style={{ textAlign:'center', fontSize:'2.5rem', marginTop:10 }}>
-                {logoTab === 'url' && customUrl.trim()
-                  ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={customUrl.trim()} alt="logo"
-                      style={{ width:50, height:50, borderRadius:10, objectFit:'cover', display:'inline-block' }}
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  : logo
-                }
+                {(() => {
+                  const src = logoTab === 'url' && customUrl.trim() ? customUrl.trim() : null;
+                  if (src) return <img src={src} alt="logo" style={{ width:50, height:50, borderRadius:10, objectFit:'cover', display:'inline-block' }} onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />;
+                  const code = flagEmojiToCode(logo);
+                  if (code) return <img src={`https://flagcdn.com/48x36/${code}.png`} alt={code.toUpperCase()} style={{ borderRadius:4, display:'inline-block' }} />;
+                  return logo;
+                })()}
               </div>
             </div>
 

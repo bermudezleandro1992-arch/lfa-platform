@@ -117,13 +117,14 @@ export default function LfaTV({ uid }: { uid: string }) {
         if (data.p1) { uids.add(data.p1); matchByUid[data.p1] = { matchId: d.id, game }; }
         if (data.p2) { uids.add(data.p2); matchByUid[data.p2] = { matchId: d.id, game }; }
       });
-      // Filtrar solo los que tienen canales configurados
+      // Filtrar solo los que tienen canales configurados (excluir bots/cuentas de prueba)
       const results: LivePlayer[] = [];
       for (const uid of Array.from(uids)) {
         try {
           const snap2 = await getDoc(doc(db, 'usuarios', uid));
           if (!snap2.exists()) continue;
           const data = snap2.data();
+          if (data.is_bot) continue;
           if (data.twitch_canal || data.kick_canal || data.youtube_canal) {
             results.push({
               uid,
@@ -439,10 +440,11 @@ export default function LfaTV({ uid }: { uid: string }) {
           {/* ── JUGANDO EN VIVO (players en partida con canal) ──── */}
           {livePlayers.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.82rem', fontWeight: 900, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.82rem', fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4757', display: 'inline-block', boxShadow: '0 0 8px #ff4757', animation: 'pulse 1.5s infinite' }} />
                 JUGANDO EN VIVO AHORA
               </div>
+              <div style={{ color: '#8b949e', fontSize: '0.68rem', marginBottom: 12 }}>Jugadores en partida activa con canal de streaming configurado</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,240px),1fr))', gap: 12 }}>
                 {livePlayers
                   .filter(p => gameTab === 'todos' || p.game === gameTab || !p.game)
