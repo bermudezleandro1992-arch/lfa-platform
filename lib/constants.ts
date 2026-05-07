@@ -143,6 +143,24 @@ export const GAMES = [
       { value: "GENUINOS",   label: "Genuinos",   icon: "🏅" },
     ],
   },
+  {
+    value: "EFOOTBALL_MOBILE",
+    label: "eFootball Mobile",
+    logo: "/logos/efootball.png",
+    modes: [
+      { value: "DREAM_TEAM", label: "Dream Team",     icon: "⭐" },
+      { value: "GENUINOS",   label: "Equipos Comunes", icon: "🏅" },
+    ],
+  },
+  {
+    value: "FC_MOBILE",
+    label: "FC Mobile",
+    logo: "/logos/fc26.png",
+    modes: [
+      { value: "ULTIMATE", label: "Ultimate Team",  icon: "🃏" },
+      { value: "GENUINOS", label: "Equipos Comunes", icon: "🏅" },
+    ],
+  },
 ] as const;
 
 export type Game     = (typeof GAMES)[number]["value"];

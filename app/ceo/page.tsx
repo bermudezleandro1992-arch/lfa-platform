@@ -92,8 +92,10 @@ const SPAWN_SLOT_PAIRS: [number, number][] = [
   [2,20000],[4,20000],[6,20000],[8,20000],[12,20000],[16,20000],
 ];
 const SPAWN_GAMES_CFG = [
-  { game:'FC26',      modes:['GENERAL_95','ULTIMATE']  },
-  { game:'EFOOTBALL', modes:['DREAM_TEAM','GENUINOS']  },
+  { game:'FC26',             modes:['GENERAL_95','ULTIMATE']  },
+  { game:'EFOOTBALL',        modes:['DREAM_TEAM','GENUINOS']  },
+  { game:'EFOOTBALL_MOBILE', modes:['DREAM_TEAM','GENUINOS']  },
+  { game:'FC_MOBILE',        modes:['ULTIMATE','GENUINOS']    },
 ];
 // Auto-generado: todos los 78 slots × 4 modos = 312 claves
 const DEFAULT_SLOTS: string[] = SPAWN_GAMES_CFG.flatMap(g =>
@@ -1024,17 +1026,22 @@ export default function CeoPage() {
               <div style={{ ...card, borderTop:'3px solid #00ff88' }}>
                 <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:'0 0 12px', fontSize:'0.85rem' }}>➕ CREAR SALA MANUAL</h3>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                  <select style={inp} value={crGame} onChange={e => { setCrGame(e.target.value); setCrMode(e.target.value==='FC26'?'GENERAL_95':'DREAM_TEAM'); }}>
-                    <option value="FC26">FC 26</option>
-                    <option value="EFOOTBALL">eFootball</option>
+                  <select style={inp} value={crGame} onChange={e => { const g=e.target.value; setCrGame(g); setCrMode(g==='FC26'?'GENERAL_95':g==='FC_MOBILE'?'ULTIMATE':'DREAM_TEAM'); }}>
+                    <option value="FC26">⚽ FC 26</option>
+                    <option value="EFOOTBALL">🟡 eFootball</option>
+                    <option value="EFOOTBALL_MOBILE">📱 eFootball Mobile</option>
+                    <option value="FC_MOBILE">📱 FC Mobile</option>
                   </select>
                   <select style={inp} value={crMode} onChange={e => setCrMode(e.target.value)}>
                     {crGame==='FC26' ? <>
                       <option value="GENERAL_95">95 General</option>
                       <option value="ULTIMATE">Ultimate Team</option>
+                    </> : crGame==='FC_MOBILE' ? <>
+                      <option value="ULTIMATE">Ultimate Team</option>
+                      <option value="GENUINOS">Equipos Comunes</option>
                     </> : <>
                       <option value="DREAM_TEAM">Dream Team</option>
-                      <option value="GENUINOS">Genuinos</option>
+                      <option value="GENUINOS">Genuinos / Equipos</option>
                     </>}
                   </select>
                   <select style={inp} value={crRegion} onChange={e => setCrRegion(e.target.value)}>
@@ -1177,17 +1184,22 @@ export default function CeoPage() {
               <div style={{ background:'#0d1117', border:'1px solid #30363d', borderRadius:12, padding:16, marginBottom:20 }}>
                 <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#a371f7', fontSize:'0.72rem', marginBottom:12 }}>➕ NUEVO SLOT</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8 }}>
-                  <select style={inp} value={slotGame} onChange={e => { setSlotGame(e.target.value); setSlotMode(e.target.value==='FC26'?'GENERAL_95':'DREAM_TEAM'); }}>
-                    <option value="FC26">FC 26</option>
-                    <option value="EFOOTBALL">eFootball</option>
+                  <select style={inp} value={slotGame} onChange={e => { const g=e.target.value; setSlotGame(g); setSlotMode(g==='FC26'?'GENERAL_95':g==='FC_MOBILE'?'ULTIMATE':'DREAM_TEAM'); }}>
+                    <option value="FC26">⚽ FC 26</option>
+                    <option value="EFOOTBALL">🟡 eFootball</option>
+                    <option value="EFOOTBALL_MOBILE">📱 eFootball Mobile</option>
+                    <option value="FC_MOBILE">📱 FC Mobile</option>
                   </select>
                   <select style={inp} value={slotMode} onChange={e => setSlotMode(e.target.value)}>
                     {slotGame==='FC26' ? <>
                       <option value="GENERAL_95">95 General</option>
                       <option value="ULTIMATE">Ultimate Team</option>
+                    </> : slotGame==='FC_MOBILE' ? <>
+                      <option value="ULTIMATE">Ultimate Team</option>
+                      <option value="GENUINOS">Equipos Comunes</option>
                     </> : <>
                       <option value="DREAM_TEAM">Dream Team</option>
-                      <option value="GENUINOS">Genuinos</option>
+                      <option value="GENUINOS">Genuinos / Equipos</option>
                     </>}
                   </select>
                   <select style={inp} value={slotRegion} onChange={e => setSlotRegion(e.target.value)}>

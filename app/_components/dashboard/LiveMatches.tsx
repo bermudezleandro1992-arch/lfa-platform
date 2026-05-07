@@ -27,8 +27,10 @@ const TIER_COLOR: Record<string, string> = {
 };
 
 const GAME_LABEL: Record<string, string> = {
-  FC26:      '⚽ FC 26',
-  EFOOTBALL: '🟡 eFootball',
+  FC26:             '⚽ FC 26',
+  EFOOTBALL:        '🟡 eFootball',
+  EFOOTBALL_MOBILE: '📱 eFB Mobile',
+  FC_MOBILE:        '📱 FC Mobile',
 };
 
 const MODE_LABEL: Record<string, string> = {

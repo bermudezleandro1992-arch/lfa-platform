@@ -40,7 +40,11 @@ function fillColor(players: number, capacity: number): { border: string; bg: str
 
 const MODE_LABELS: Record<string, string> = {
   GENERAL_95: "95 General", ULTIMATE: "Ultimate Team",
-  DREAM_TEAM: "Dream Team", GENUINOS: "Genuinos",
+  DREAM_TEAM: "Dream Team", GENUINOS: "Genuinos / Equipos",
+};
+const GAME_LABELS: Record<string, string> = {
+  FC26: "FC 26", EFOOTBALL: "eFootball",
+  EFOOTBALL_MOBILE: "📱 eFB Mobile", FC_MOBILE: "📱 FC Mobile",
 };
 const REGION_LABELS: Record<string, string> = {
   LATAM_SUR: "LATAM Sur", LATAM_NORTE: "LATAM Norte",
@@ -296,7 +300,7 @@ export default function BuscarSala() {
                       <span className="text-[10px] font-semibold" style={{ color: tierDot[room.tier] ?? "#8b949e" }}>{room.tier}</span>
                       <span style={{ color: "#3c4450" }}>·</span>
                       <span className="text-[10px]" style={{ color: "#8b949e" }}>
-                        {room.game === "FC26" ? "FC 26" : "eFootball"}
+                        {GAME_LABELS[room.game] ?? room.game}
                         {MODE_LABELS[room.mode] ? ` · ${MODE_LABELS[room.mode]}` : ""}
                       </span>
                       <span style={{ color: "#3c4450" }}>·</span>
@@ -331,7 +335,7 @@ export default function BuscarSala() {
                       return (
                         <span key={room.id} className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                           style={{ background: clr.bg, border: `1px solid ${clr.border}`, color: clr.dot }}>
-                          {room.players.length}/{room.capacity} · {room.game === "FC26" ? "FC26" : "eFB"} · {REGION_LABELS[room.region]?.replace("LATAM ","") ?? room.region}
+                          {room.players.length}/{room.capacity} · {GAME_LABELS[room.game] ?? room.game} · {REGION_LABELS[room.region]?.replace("LATAM ","") ?? room.region}
                         </span>
                       );
                     })}
@@ -382,7 +386,7 @@ export default function BuscarSala() {
                             <span className="text-[10px] font-black uppercase" style={{ color: "#00d4ff", fontFamily: "'Orbitron',sans-serif" }}>🆓 GRATIS</span>
                             <span style={{ color: "#3c4450" }}>·</span>
                             <span className="text-[10px]" style={{ color: "#8b949e" }}>
-                              {room.game === "FC26" ? "FC 26" : "eFootball"}
+                              {GAME_LABELS[room.game] ?? room.game}
                               {MODE_LABELS[room.mode] ? ` · ${MODE_LABELS[room.mode]}` : ""}
                             </span>
                             <span style={{ color: "#3c4450" }}>·</span>

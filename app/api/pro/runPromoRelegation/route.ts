@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const summary = { promoted: [] as string[], relegated: [] as string[] };
 
     // Helper: find or create next-season league in a given division
-    async function findOrCreateNextLeague(targetDiv: string): Promise<string> {
+    const findOrCreateNextLeague = async (targetDiv: string): Promise<string> => {
       const allLeagues = await adminDb.collection('leagues')
         .where('game', '==', league.game)
         .where('platform', '==', league.platform)

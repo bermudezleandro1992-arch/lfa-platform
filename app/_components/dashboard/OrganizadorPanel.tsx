@@ -712,8 +712,10 @@ interface CreateModalProps {
 }
 
 const GAME_MODES: Record<string, string[]> = {
-  FC26:      ["GENERAL_95", "ULTIMATE"],
-  EFOOTBALL: ["DREAM_TEAM", "GENUINOS"],
+  FC26:             ["GENERAL_95", "ULTIMATE"],
+  EFOOTBALL:        ["DREAM_TEAM", "GENUINOS"],
+  EFOOTBALL_MOBILE: ["DREAM_TEAM", "GENUINOS"],
+  FC_MOBILE:        ["ULTIMATE", "GENUINOS"],
 };
 
 function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
@@ -786,11 +788,11 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
         {/* Game */}
         <Field label="JUEGO">
           <div style={{ display: "flex", gap: 8 }}>
-            {["FC26", "EFOOTBALL"].map(g => (
+            {["FC26", "EFOOTBALL", "EFOOTBALL_MOBILE", "FC_MOBILE"].map(g => (
               <button key={g}
                 onClick={() => { set("game", g); set("mode", GAME_MODES[g][0]); }}
                 style={pill(form.game === g)}>
-                {g}
+                {g === "FC26" ? "⚽ FC 26" : g === "EFOOTBALL" ? "🟡 eFootball" : g === "EFOOTBALL_MOBILE" ? "📱 eFB Mobile" : "📱 FC Mobile"}
               </button>
             ))}
           </div>
