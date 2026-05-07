@@ -518,6 +518,7 @@ export default function LigasPROTab() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
