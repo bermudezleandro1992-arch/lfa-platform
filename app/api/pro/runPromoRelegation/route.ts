@@ -31,14 +31,17 @@ export async function POST(req: NextRequest) {
 
     // Fetch and sort participants by standing
     const partSnap = await adminDb.collection('leagues').doc(league_id).collection('participants').get();
-    const participants = partSnap.docs
-      .map(d => ({ uid: d.id, ...d.data() }))
-      .sort((a: Record<string,number>, b: Record<string,number>) => {
-        if (b.pts !== a.pts) return b.pts - a.pts;
-        const dgA = (a.gf || 0) - (a.gc || 0);
-        const dgB = (b.gf || 0) - (b.gc || 0);
+    interface Participant { uid: string; pts?: number; gf?: number; gc?: number; [key: string]: unknown; }
+    const participants = (partSnap.docs
+      .map(d => ({ uid: d.id, ...d.data() })) as Participant[])
+      .sort((a, b) => {
+        const aPts = (a.pts as number) || 0;
+        const bPts = (b.pts as number) || 0;
+        if (bPts !== aPts) return bPts - aPts;
+        const dgA = ((a.gf as number) || 0) - ((a.gc as number) || 0);
+        const dgB = ((b.gf as number) || 0) - ((b.gc as number) || 0);
         if (dgB !== dgA) return dgB - dgA;
-        return (b.gf || 0) - (a.gf || 0);
+        return ((b.gf as number) || 0) - ((a.gf as number) || 0);
       });
 
     const total = participants.length;
