@@ -15,6 +15,13 @@ const REGION_COMPAT: Record<string, string[]> = {
   GLOBAL:      ['LATAM_SUR',   'LATAM_NORTE', 'AMERICA', 'GLOBAL'],
 };
 
+// Maps full Spanish country names (stored in tournament.country) → ISO alpha-2
+const PAIS_NAME_TO_ISO: Record<string, string> = {
+  'Argentina': 'AR', 'México': 'MX', 'Colombia': 'CO', 'Chile': 'CL',
+  'Perú': 'PE', 'Venezuela': 'VE', 'Ecuador': 'EC', 'Bolivia': 'BO',
+  'Paraguay': 'PY', 'Uruguay': 'UY', 'Brasil': 'BR', 'España': 'ES',
+};
+
 const RESERVA_TTL_MS = 15 * 60 * 1000; // 15 minutos para completar el depósito
 
 export async function POST(req: NextRequest) {
@@ -168,6 +175,19 @@ export async function POST(req: NextRequest) {
       const userRegion = u.region as string | undefined;
       if (userRegion && !REGION_COMPAT[userRegion]?.includes(t.region)) {
         throw new Error(`Tu región (${userRegion}) no puede entrar a este torneo (${t.region}).`);
+      }
+
+      // Country restriction — tournament.country stores full Spanish name OR ISO code
+      if (t.country && t.country !== '') {
+        const userPais = (u.pais_codigo || 'XX') as string;
+        // Normalize tournament country to ISO (handle full name or already ISO)
+        const tIso = t.country.length === 2
+          ? (t.country as string).toUpperCase()
+          : (PAIS_NAME_TO_ISO[t.country as string] ?? t.country);
+        if (userPais.toUpperCase() !== tIso) {
+          const displayCountry = t.country as string;
+          throw new Error(`Esta sala es exclusiva para jugadores de ${displayCountry}. Tu país registrado es ${userPais}.`);
+        }
       }
 
       const txCoins = (u.number ?? u.coins ?? 0) as number;

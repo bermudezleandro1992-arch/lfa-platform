@@ -42,9 +42,10 @@ const STATUS_INFO: Record<string, { color: string; text: string }> = {
 
 export default function MiSalaActiva({ uid }: { uid: string }) {
   const router = useRouter();
-  const [torneo,  setTorneo]  = useState<TorneoActivo | null>(null);
-  const [match,   setMatch]   = useState<MatchActivo  | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [torneo,    setTorneo]   = useState<TorneoActivo | null>(null);
+  const [match,     setMatch]    = useState<MatchActivo  | null>(null);
+  const [loading,   setLoading]  = useState(true);
+  const [dismissed, setDismissed] = useState<string | null>(null); // ID dismissed by user
 
   /* Buscar torneo activo del usuario */
   useEffect(() => {
@@ -62,10 +63,13 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
     return unsub;
   }, [uid]);
 
-  /* Buscar match activo del usuario */
+  /* Buscar match activo del usuario — tracks both p1 and p2 subscriptions */
   useEffect(() => {
     if (!uid) return;
-    // Buscar donde es p1
+    let m1: MatchActivo | null = null;
+    let m2: MatchActivo | null = null;
+    const merge = () => setMatch(m1 ?? m2);
+
     const q1 = query(
       collection(db, "matches"),
       where("p1", "==", uid),
@@ -73,9 +77,8 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
       limit(1),
     );
     const unsub1 = onSnapshot(q1, snap => {
-      if (!snap.empty) {
-        setMatch({ id: snap.docs[0].id, ...snap.docs[0].data() } as MatchActivo);
-      }
+      m1 = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() } as MatchActivo;
+      merge();
     });
     // Buscar donde es p2
     const q2 = query(
@@ -85,14 +88,17 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
       limit(1),
     );
     const unsub2 = onSnapshot(q2, snap => {
-      if (!snap.empty) {
-        setMatch({ id: snap.docs[0].id, ...snap.docs[0].data() } as MatchActivo);
-      }
+      m2 = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() } as MatchActivo;
+      merge();
     });
     return () => { unsub1(); unsub2(); };
   }, [uid]);
 
   if (loading || (!torneo && !match)) return null;
+
+  // If user manually dismissed this specific torneo/match banner, hide it
+  const currentId = match?.id ?? torneo?.id;
+  if (dismissed && dismissed === currentId) return null;
 
   /* Si hay match activo → mostrar sala del match */
   if (match) {
@@ -140,6 +146,11 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
           <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 900, background: "#ffd700", color: "#000", padding: "5px 14px", borderRadius: 20 }}>
             IR A LA SALA →
           </span>
+          <button
+            onClick={e => { e.stopPropagation(); setDismissed(match.id); }}
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", color: "#8b949e", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: "0.72rem", lineHeight: 1 }}
+            title="Ocultar banner"
+          >✕</button>
         </div>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
       </div>
@@ -183,6 +194,11 @@ export default function MiSalaActiva({ uid }: { uid: string }) {
         <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "0.68rem", fontWeight: 900, background: "rgba(0,255,136,0.12)", color: "#00ff88", padding: "5px 14px", borderRadius: 20, border: "1px solid rgba(0,255,136,0.3)" }}>
           ⏳ ESPERANDO JUGADORES
         </span>
+        <button
+          onClick={() => setDismissed(torneo!.id)}
+          style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", color: "#8b949e", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: "0.72rem", lineHeight: 1 }}
+          title="Ocultar banner"
+        >✕</button>
       </div>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
     </div>

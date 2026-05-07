@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
         const mode: string     = (tpl.mode as string) ?? 'GENERAL_95';
 
         const ref = adminDb.collection('tournaments').doc();
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min para llenarse
         batch.set(ref, {
           game,
           mode,
@@ -146,7 +145,7 @@ export async function POST(req: NextRequest) {
           status: 'OPEN',
           spawned: true,
           permanent: true,
-          expires_at: expiresAt,
+          auto_respawn: true, // Cloud Functions skip expiry for permanent/auto_respawn rooms
           created_at: FieldValue.serverTimestamp(),
         });
         created++;

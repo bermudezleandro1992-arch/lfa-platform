@@ -231,6 +231,7 @@ export default function CeoPage() {
   const [crRegion, setCrRegion] = useState('LATAM_SUR');
   const [crTier,   setCrTier]   = useState('FREE');
   const [crCap,    setCrCap]    = useState('8');
+  const [crCustomFee, setCrCustomFee] = useState('500'); // LFA coins custom por tier
   const [crCountry, setCrCountry] = useState('');
   const [crAutoRespawn, setCrAutoRespawn] = useState(false);
   const [crSpawnInterval, setCrSpawnInterval] = useState(1); // horas
@@ -619,9 +620,8 @@ export default function CeoPage() {
     setMegaProgress(0);
   }
   async function crearSalaManual() {
-    const FEES: Record<string, number> = { FREE:0, RECREATIVO:500, COMPETITIVO:2000, ELITE:10000 };
     const cap      = parseInt(crCap);
-    const fee      = FEES[crTier] ?? 0;
+    const fee      = crTier === 'FREE' ? 0 : (parseInt(crCustomFee) || 500);
     const pool     = cap * fee * 0.9;
     const isFree   = fee === 0;
     function mkPrizes() {
@@ -962,10 +962,10 @@ export default function CeoPage() {
                         </td>
                         <td style={{ ...td, minWidth:160 }}>
                           <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                            {!j.baneado
-                              ? <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => setBanModal({ uid:j.id, nombre:j.nombre||j.id, horas:24, ip: j.ip||j.ip_conexion })}>🚫 BAN</button>
-                              : <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => desbanear(j.id, j.nombre||j.id)}>✅ DESBANEAR</button>
-                            }
+                            <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => setBanModal({ uid:j.id, nombre:j.nombre||j.id, horas:24, ip: j.ip||j.ip_conexion })}>🚫 BAN</button>
+                            {j.baneado && (
+                              <button className="cact" style={sm('rgba(0,255,136,0.2)','#00ff88')} onClick={() => desbanear(j.id, j.nombre||j.id)}>✅ DESBAN</button>
+                            )}
                             <button className="cact" style={sm('rgba(255,215,0,0.15)','#ffd700')} onClick={() => setCoinsM({ uid:j.id, nombre:j.nombre||j.id, actual:j.number||0, nuevo:String(j.number||0) })}>🪙</button>
                             <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => setExpM(j)}>🕵️</button>
                             <button className="cact" style={sm(j.lfa_tv ? 'rgba(161,113,247,0.2)' : 'rgba(161,113,247,0.07)', j.lfa_tv ? '#a371f7' : '#555')} onClick={() => toggleLfaTV(j.id, j.nombre||j.id, !!j.lfa_tv)} title={j.lfa_tv ? 'Quitar LFA TV' : 'Habilitar LFA TV'}>📺{j.lfa_tv ? ' ✓' : ''}</button>
@@ -1042,12 +1042,23 @@ export default function CeoPage() {
                     <option value="AMERICA">América</option>
                     <option value="GLOBAL">Global</option>
                   </select>
-                  <select style={inp} value={crTier} onChange={e => setCrTier(e.target.value)}>
+                  <select style={inp} value={crTier} onChange={e => { setCrTier(e.target.value); const def={FREE:'0',RECREATIVO:'500',COMPETITIVO:'2000',ELITE:'10000'}; setCrCustomFee(def[e.target.value as keyof typeof def]||'500'); }}>
                     <option value="FREE">GRATIS</option>
-                    <option value="RECREATIVO">RECREATIVO (500)</option>
-                    <option value="COMPETITIVO">COMPETITIVO (1.000)</option>
-                    <option value="ELITE">ELITE (10.000)</option>
+                    <option value="RECREATIVO">RECREATIVO</option>
+                    <option value="COMPETITIVO">COMPETITIVO</option>
+                    <option value="ELITE">ELITE</option>
                   </select>
+                  {crTier !== 'FREE' && (
+                    <div style={{ gridColumn:'1/-1' }}>
+                      <div style={{ color:'#8b949e', fontSize:'0.68rem', marginBottom:4 }}>💰 LFA COINS de entrada ({crTier})</div>
+                      <input style={inp} type="number" min={100} step={100} value={crCustomFee} onChange={e => setCrCustomFee(e.target.value)} placeholder="Ej: 500, 1000, 5000..." />
+                      {parseInt(crCustomFee) > 0 && parseInt(crCap) > 0 && (
+                        <div style={{ color:'#00ff88', fontSize:'0.7rem', marginTop:-6, marginBottom:6 }}>
+                          Pool: 🪙{(parseInt(crCap)*parseInt(crCustomFee)*0.9).toLocaleString()} (90% de {parseInt(crCap)}×{parseInt(crCustomFee).toLocaleString()})
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <select style={{ ...inp, gridColumn:'1/-1' }} value={crCap} onChange={e => setCrCap(e.target.value)}>
                     <option value="2">2 cupos (1 premio)</option>
                     <option value="4">4 cupos (1 premio)</option>
