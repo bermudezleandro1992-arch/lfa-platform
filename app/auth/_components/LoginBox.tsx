@@ -42,27 +42,48 @@ async function analizarRed(): Promise<RegionDetectionResult> {
   }
 }
 
-const TOS_TEXT = `REGLAMENTO SOMOSLFA — RESUMEN
+const TOS_TEXT = `📋 REGLAMENTO OFICIAL SOMOSLFA
 
-📋 PARTICIPACIÓN
 • Cada jugador debe tener una sola cuenta activa.
 • Está prohibido compartir cuentas o usar IDs ajenos.
 • El EA ID / Konami ID registrado debe coincidir con el usado en partidos.
-
-⚽ PARTIDOS
-• Los resultados se reportan con una captura de la pantalla final del juego.
-• La IA valida el marcador automáticamente.
-• En caso de disputa, el Staff revisará la evidencia y decidirá.
-
-⏱️ TIEMPOS
+• Solo jugadores mayores de 13 años pueden participar.
+• Los resultados se reportan con captura de pantalla del marcador final.
+• La IA valida el marcador automáticamente; en disputas decide el Staff.
 • Tenés 10 minutos para confirmar el resultado luego de que tu rival lo reporte.
-• Si no confirmás, el sistema cierra el partido automáticamente.
-
-⚖️ FAIR PLAY
-• Conducta antideportiva, insultos o manipulación pueden resultar en descuento de puntos o exclusión.
+• No presentarse sin aviso genera descuento de puntos.
+• Conducta antideportiva, insultos o manipulación → descuento o exclusión.
 • El incumplimiento reiterado puede derivar en ban permanente.
+• Se prohíbe el uso de glitches, bugs o cualquier ventaja no permitida.
 
-🔒 PRIVACIDAD
+━━━━━━━━━━━━━━━━━━━━━━━━
+📄 TÉRMINOS Y CONDICIONES
+
+• Al registrarte aceptás cumplir con todas las reglas de SOMOSLFA.
+• SOMOSLFA se reserva el derecho de modificar el reglamento con previo aviso.
+• Las cuentas pueden suspenderse por incumplimiento de los términos.
+• SOMOSLFA no es responsable por problemas de conexión durante los partidos.
+• El servicio puede interrumpirse temporalmente por mantenimiento.
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+🔒 POLÍTICA DE PRIVACIDAD
+
+• Tu email es privado — nunca visible para otros jugadores.
+• Recopilamos: email, ID de plataforma, país, estadísticas de partidos.
+• Tus datos se usan exclusivamente para operar el servicio.
+• No vendemos ni compartimos datos personales con terceros.
+• Podés solicitar la eliminación de tu cuenta contactando al soporte.
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+💰 POLÍTICA DE REEMBOLSOS
+
+• Inscripciones pagadas son reembolsables si la liga no inicia en 7 días hábiles desde la fecha anunciada.
+• Si el torneo se cancela por causas internas, se reembolsa el 100%.
+• No hay reembolso por abandono voluntario una vez iniciada la liga.
+• No se reembolsa si el jugador es sancionado por incumplimiento del reglamento.
+• Las monedas LFA (LFC) no son reembolsables en dinero real.
+
+Al marcar la casilla confirmás haber leído y comprendido todo lo anterior.`;
 • Tu email es privado — nunca visible para otros jugadores.
 • Usamos estadísticas anónimas para análisis de rendimiento.
 
@@ -464,50 +485,114 @@ export default function LoginBox({ t }: LoginBoxProps) {
 
             {/* Game IDs */}
             <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 10, padding: '12px 14px', marginBottom: 9 }}>
-              <div style={{ color: '#ffd700', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 8 }}>
+              <div style={{ color: '#ffd700', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 10 }}>
                 ⚠️ ID DE JUGADOR — obligatorio al menos uno
               </div>
-              <input type="text" value={eaId} onChange={(e) => setEaId(e.target.value)} style={{ ...inp, marginBottom: 6 }} placeholder="🟠 EA ID — para FC 26" disabled={loading} />
-              <input type="text" value={konamiId} onChange={(e) => setKonamiId(e.target.value)} style={{ ...inp, marginBottom: 0 }} placeholder="🔵 Konami ID — para eFootball" disabled={loading} />
+              {/* FC26 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 9, flexShrink: 0,
+                  background: 'linear-gradient(135deg, #e85800, #ff9a00)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Arial Black', sans-serif", fontWeight: 900, color: '#fff', lineHeight: 1.1,
+                  fontSize: '0.52rem', userSelect: 'none',
+                }}><span>EA</span><span style={{ fontSize: '0.65rem' }}>FC</span></div>
+                <input type="text" value={eaId} onChange={(e) => setEaId(e.target.value)}
+                  style={{ ...inp, marginBottom: 0, flex: 1 }}
+                  placeholder="EA ID — para EA FC 26" disabled={loading} />
+              </div>
+              {/* eFootball */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 9, flexShrink: 0,
+                  background: 'linear-gradient(135deg, #003a8c, #0077d4)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Arial Black', sans-serif", fontWeight: 900, color: '#fff', lineHeight: 1.1,
+                  fontSize: '0.42rem', userSelect: 'none',
+                }}><span>e</span><span style={{ fontSize: '0.55rem' }}>Foot</span></div>
+                <input type="text" value={konamiId} onChange={(e) => setKonamiId(e.target.value)}
+                  style={{ ...inp, marginBottom: 0, flex: 1 }}
+                  placeholder="Konami ID — para eFootball" disabled={loading} />
+              </div>
             </div>
 
             {/* Console */}
-            <select value={consola} onChange={(e) => setConsola(e.target.value)} style={sel} disabled={loading}>
-              <option value="">🎮 Seleccioná tu consola / plataforma</option>
-              <option value="PS5">🎮 PlayStation 5 (PS5)</option>
-              <option value="PS4">🎮 PlayStation 4 (PS4)</option>
-              <option value="Xbox">🟢 Xbox (Series X/S / One)</option>
-              <option value="PC">💻 PC</option>
-              <option value="Mobile">📱 Mobile</option>
-            </select>
+            <div style={{ marginBottom: 9 }}>
+              <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 7, fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>🎮 CONSOLA / PLATAFORMA *</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {([
+                  { v: 'PS5',    l: '🎮 PS5',    c: '#003087' },
+                  { v: 'PS4',    l: '🎮 PS4',    c: '#003087' },
+                  { v: 'Xbox',   l: '🟢 Xbox',   c: '#107c10' },
+                  { v: 'PC',     l: '💻 PC',     c: '#4a4a6a' },
+                  { v: 'Mobile', l: '📱 Mobile', c: '#6e3fa3' },
+                ] as { v: string; l: string; c: string }[]).map(({ v, l, c }) => (
+                  <button key={v} type="button" onClick={() => !loading && setConsola(v)}
+                    style={{
+                      padding: '8px 13px', borderRadius: 20, cursor: 'pointer', outline: 'none',
+                      border: `2px solid ${consola === v ? c : '#30363d'}`,
+                      background: consola === v ? `${c}44` : 'rgba(255,255,255,0.04)',
+                      color: consola === v ? '#fff' : '#8b949e',
+                      fontSize: '0.74rem', fontWeight: 700, transition: 'all 0.15s',
+                    }}
+                  >{l}</button>
+                ))}
+              </div>
+            </div>
 
             {/* Preferred game */}
-            <select value={juegoPreferido} onChange={(e) => setJuegoPreferido(e.target.value)} style={sel} disabled={loading}>
-              <option value="">⚽ Juego preferido</option>
-              <option value="efootball">🔵 eFootball</option>
-              <option value="fc26">🟠 EA FC 26</option>
-              <option value="ambos">🎯 Ambos juegos</option>
-            </select>
+            <div style={{ marginBottom: 9 }}>
+              <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 7, fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>⚽ JUEGO PREFERIDO *</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([
+                  { v: 'efootball', l: 'eFootball', c: '#0077d4', bg1: '#003a8c', bg2: '#0077d4', ico: 'eF' },
+                  { v: 'fc26',      l: 'EA FC 26',  c: '#ff8c00', bg1: '#e85800', bg2: '#ff9a00', ico: 'FC' },
+                  { v: 'ambos',     l: 'Ambos',     c: '#00ff88', bg1: '#006633', bg2: '#00cc66', ico: '★' },
+                ] as { v: string; l: string; c: string; bg1: string; bg2: string; ico: string }[]).map(({ v, l, c, bg1, bg2, ico }) => (
+                  <button key={v} type="button" onClick={() => !loading && setJuegoPreferido(v)}
+                    style={{
+                      flex: 1, padding: '10px 4px', borderRadius: 12, cursor: 'pointer', outline: 'none',
+                      border: `2px solid ${juegoPreferido === v ? c : '#30363d'}`,
+                      background: juegoPreferido === v ? `${c}22` : 'rgba(255,255,255,0.04)',
+                      color: juegoPreferido === v ? c : '#8b949e',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{
+                      width: 34, height: 34, borderRadius: 8,
+                      background: juegoPreferido === v ? `linear-gradient(135deg,${bg1},${bg2})` : 'rgba(255,255,255,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: "'Arial Black', sans-serif", fontSize: '0.7rem', fontWeight: 900,
+                      color: juegoPreferido === v ? '#fff' : '#555',
+                    }}>{ico}</span>
+                    <span style={{ fontSize: '0.63rem', fontWeight: 700 }}>{l}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* TOS scroll */}
             <div style={{ marginBottom: 9 }}>
-              <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 5, fontFamily: "'Orbitron',sans-serif" }}>
-                📜 LEÉ EL REGLAMENTO — hacé scroll hasta el final para aceptar
+              <div style={{ color: '#8b949e', fontSize: '0.65rem', marginBottom: 5, fontFamily: "'Orbitron',sans-serif", fontWeight: 700 }}>
+                📜 REGLAMENTO · TÉRMINOS · PRIVACIDAD · REEMBOLSOS
+              </div>
+              <div style={{ fontSize: '0.6rem', color: '#ffd700', marginBottom: 5, textAlign: 'center' }}>
+                ↓ Hacé scroll hasta el final para habilitar la aceptación
               </div>
               <div
                 onScroll={handleTosScroll}
                 style={{
-                  background: 'rgba(0,0,0,0.5)',
-                  border: `1px solid ${tosScrolled ? 'rgba(0,255,136,0.4)' : '#30363d'}`,
-                  borderRadius: 10, padding: '10px 12px',
-                  height: 130, overflowY: 'auto',
-                  fontSize: '0.66rem', color: '#8b949e', lineHeight: 1.7, whiteSpace: 'pre-line',
+                  background: '#0b0e14',
+                  border: `1px solid ${tosScrolled ? '#00ff88' : '#30363d'}`,
+                  borderRadius: 10, padding: '12px 14px',
+                  height: 160, overflowY: 'auto',
+                  fontSize: '0.67rem', color: '#c9d1d9', lineHeight: 1.8, whiteSpace: 'pre-line',
                 }}
               >
                 {TOS_TEXT}
               </div>
-              {!tosScrolled && <div style={{ color: '#ffd700', fontSize: '0.62rem', marginTop: 3, textAlign: 'center' }}>↓ Hacé scroll hasta abajo para habilitar la aceptación</div>}
-              {tosScrolled  && <div style={{ color: '#00ff88', fontSize: '0.62rem', marginTop: 3, textAlign: 'center' }}>✅ Reglamento leído — podés marcar la casilla</div>}
+              {tosScrolled && <div style={{ color: '#00ff88', fontSize: '0.62rem', marginTop: 4, textAlign: 'center', fontWeight: 700 }}>✅ Leído — podés marcar la casilla</div>}
             </div>
           </>
         )}
