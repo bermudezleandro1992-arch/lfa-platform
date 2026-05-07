@@ -370,6 +370,11 @@ service cloud.firestore {
       allow create, delete: if false; // solo el servidor Cloud Function crea
     }
 
+    // ── Códigos OTP para retiros — solo Admin SDK puede leer/escribir ──
+    match /otp_retiro/{uid} {
+      allow read, write: if false; // solo el servidor vía Admin SDK
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

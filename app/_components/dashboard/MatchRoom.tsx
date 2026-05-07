@@ -32,6 +32,11 @@ interface Match {
   tournamentId:     string;
   game?:            string;
   bot_verification?: BotVerification;
+  /* Check-in */
+  p1_ready?:        boolean;
+  p2_ready?:        boolean;
+  p1_ready_at?:     { toMillis: () => number };
+  p2_ready_at?:     { toMillis: () => number };
 }
 
 interface ChatMsg {
@@ -78,6 +83,7 @@ export default function MatchRoom({ matchId }: Props) {
   const [showConfetti,   setShowConfetti]   = useState(false);
   const [prevWinner,     setPrevWinner]     = useState<string | null>(null);
   const [ceoForcing,     setCeoForcing]     = useState(false);
+  const [checkingIn,     setCheckingIn]     = useState(false);
   const chatBottomRef  = useRef<HTMLDivElement>(null);
 
   const uid      = auth.currentUser?.uid;
@@ -255,6 +261,19 @@ export default function MatchRoom({ matchId }: Props) {
     finally { setSendingChat(false); }
   };
 
+  const handleCheckin = async () => {
+    if (!match) return;
+    setCheckingIn(true); setMessage("");
+    try {
+      const data = await callApi("/api/checkin", { matchId });
+      setMessage(data.message ?? "✓ Check-in registrado.");
+    } catch (err: unknown) {
+      setMessage(`❌ ${err instanceof Error ? err.message : "Error al hacer check-in"}`);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   const handleCeoForce = async (side: "p1" | "p2") => {
     if (!match || !isCeo) return;
     const label = side === "p1" ? (match.p1_username || "P1") : (match.p2_username || "P2");
@@ -293,7 +312,9 @@ export default function MatchRoom({ matchId }: Props) {
   const isEfootball = ((match.game ?? "") as string).toUpperCase().includes("EFOOTBALL") ||
                       ((match.game ?? "") as string).toUpperCase().includes("E-FOOTBALL");
   const idLabel     = isEfootball ? "Konami ID" : "EA ID";
-  const canReport   = isPlayer && match.status === "WAITING";
+  const bothReady  = match.p1_ready === true && match.p2_ready === true;
+  const myReady     = (isP1 && match.p1_ready) || (isP2 && match.p2_ready);
+  const canReport   = isPlayer && match.status === "WAITING" && (isCeo || bothReady);
   const canConfirm  = isPlayer && match.status === "PENDING_RESULT" && match.reported_by !== uid;
   const canDispute  = canConfirm && timeLeft > 0;
   const bv          = match.bot_verification;
@@ -569,6 +590,48 @@ export default function MatchRoom({ matchId }: Props) {
                 style={{ ...btnStyle("rgba(0,158,227,0.1)", isEfootball ? "#00c896" : "#009ee3"), marginTop: 14, border: `1px solid ${isEfootball ? "rgba(0,200,150,0.3)" : "rgba(0,158,227,0.3)"}`, fontSize: "0.75rem" }}>
                 {copied ? "✅ ¡Copiado!" : `📋 COPIAR ${idLabel.toUpperCase()} DEL RIVAL`}
               </button>
+            )}
+          </div>
+        )}
+
+        {/* ── CHECK-IN OBLIGATORIO ── */}
+        {match.status === "WAITING" && isPlayer && !isCeo && !bothReady && (
+          <div style={{ ...card, borderColor: myReady ? "rgba(0,255,136,0.4)" : "rgba(255,215,0,0.4)", background: myReady ? "rgba(0,255,136,0.04)" : "rgba(255,215,0,0.04)" }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: myReady ? "#00ff88" : "#ffd700", fontSize: "0.82rem", fontWeight: 700, marginBottom: 10 }}>
+              {myReady ? "\u2705 TU CHECK-IN REGISTRADO" : "⏰ CHECK-IN OBLIGATORIO"}
+            </div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", margin: "0 0 14px", lineHeight: 1.5 }}>
+              {myReady
+                ? "Ya confirmaste tu presencia. Esperando que tu rival haga check-in para empezar el partido."
+                : "Confirmá tu presencia para habilitar el reporte de resultados. Sin check-in de ambos jugadores el partido no puede iniciarse."}
+            </p>
+            {/* Estado de ambos jugadores */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+              <div style={{ background: "#0b0e14", borderRadius: 10, padding: "10px 12px", border: `1px solid ${match.p1_ready ? "rgba(0,255,136,0.4)" : "rgba(255,215,0,0.2)"}` }}>
+                <div style={{ fontSize: "0.6rem", color: "#8b949e", fontFamily: "'Orbitron',sans-serif", marginBottom: 4 }}>JUGADOR 1</div>
+                <div style={{ fontWeight: 700, fontSize: "0.78rem", wordBreak: "break-word" as const, marginBottom: 4 }}>{match.p1_username ?? "P1"}</div>
+                <div style={{ fontSize: "0.72rem", color: match.p1_ready ? "#00ff88" : "#ff4757", fontWeight: 700 }}>
+                  {match.p1_ready ? "✅ LISTO" : "❌ PENDIENTE"}
+                </div>
+              </div>
+              <div style={{ background: "#0b0e14", borderRadius: 10, padding: "10px 12px", border: `1px solid ${match.p2_ready ? "rgba(0,255,136,0.4)" : "rgba(255,215,0,0.2)"}` }}>
+                <div style={{ fontSize: "0.6rem", color: "#8b949e", fontFamily: "'Orbitron',sans-serif", marginBottom: 4 }}>JUGADOR 2</div>
+                <div style={{ fontWeight: 700, fontSize: "0.78rem", wordBreak: "break-word" as const, marginBottom: 4 }}>{match.p2_username ?? "P2"}</div>
+                <div style={{ fontSize: "0.72rem", color: match.p2_ready ? "#00ff88" : "#ff4757", fontWeight: 700 }}>
+                  {match.p2_ready ? "✅ LISTO" : "❌ PENDIENTE"}
+                </div>
+              </div>
+            </div>
+            {!myReady && (
+              <button onClick={handleCheckin} disabled={checkingIn}
+                style={{ width: "100%", padding: "14px", background: checkingIn ? "#30363d" : "#ffd700", color: checkingIn ? "#555" : "#0b0e14", border: "none", borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: "0.88rem", cursor: checkingIn ? "not-allowed" : "pointer", transition: "0.2s", opacity: checkingIn ? 0.6 : 1 }}>
+                {checkingIn ? "⏳ REGISTRANDO..." : "✔ CONFIRMAR PRESENCIA — ESTOY LISTO"}
+              </button>
+            )}
+            {myReady && (
+              <div style={{ textAlign: "center", padding: "12px", background: "rgba(0,255,136,0.07)", borderRadius: 10, border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: "0.78rem", fontWeight: 700 }}>
+                ⏳ Esperando check-in del rival...
+              </div>
             )}
           </div>
         )}

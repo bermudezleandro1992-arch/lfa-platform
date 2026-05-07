@@ -4,14 +4,16 @@
  *
  * Flujo:
  *  1. Verifica Firebase JWT del usuario
- *  2. Valida monto, saldo, Fair Play, cooldown y duplicados
- *  3. Descuenta coins del usuario en una transacción atómica de Firestore
- *  4. Llama a la API de Binance para enviar USDT
- *  5. Si Binance falla → reembolsa coins automáticamente
- *  6. Registra todo en Firestore para auditoría
+ *  2. Para retiros ≥ $50 USDT: valida OTP de email (2FA)
+ *  3. Valida monto, saldo, Fair Play, cooldown y duplicados
+ *  4. Descuenta coins del usuario en una transacción atómica de Firestore
+ *  5. Llama a la API de Binance para enviar USDT
+ *  6. Si Binance falla → reembolsa coins automáticamente
+ *  7. Registra todo en Firestore para auditoría
  *
  * Seguridad:
  *  - Solo acepta JWT válido de Firebase Auth
+ *  - 2FA por OTP de email para retiros ≥ $50 USDT (KYC_THRESHOLD_USDT)
  *  - Rate limit: 1 retiro cada 24 h por usuario
  *  - Máximo 1 retiro pendiente por usuario
  *  - Monto máximo por request: 200 USDT (arriba necesita aprobación manual)
@@ -28,13 +30,13 @@ import type { BinanceNetwork }       from '@/lib/binance';
 import { writeLedgerEntry, updateLedgerStatus } from '@/lib/ledger';
 
 /* ─── Constantes ──────────────────────────────────── */
-const RATE            = 1_000;      // 1000 LFA Coins = 1 USDT
-const MIN_COINS       = 20_000;     // Mínimo de retiro: 20 USDT
-const MAX_USDT_AUTO   = 200;        // Arriba de 200 USDT → aprobación manual CEO
-const DAILY_LIMIT_USDT = 500;       // Máximo 500 USDT por usuario por día
-const COOLDOWN_MS     = 24 * 60 * 60 * 1000; // 1 retiro cada 24 h
-const FP_MINIMO       = 15;         // Fair Play mínimo para retirar
-const CEO_UID         = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
+const RATE               = 1_000;      // 1000 LFA Coins = 1 USDT
+const MIN_COINS          = 20_000;     // Mínimo de retiro: 20 USDT
+const MAX_USDT_AUTO      = 200;        // Arriba de 200 USDT → aprobación manual CEO
+const DAILY_LIMIT_USDT   = 500;        // Máximo 500 USDT por usuario por día
+const COOLDOWN_MS        = 24 * 60 * 60 * 1000; // 1 retiro cada 24 h
+const FP_MINIMO          = 15;         // Fair Play mínimo para retirar
+const KYC_THRESHOLD_USDT = 50;         // A partir de $50 USDT se requiere OTP (2FA)
 
 /* ─── Redes permitidas ────────────────────────────── */
 const REDES_PERMITIDAS: BinanceNetwork[] = ['TRX', 'BSC'];
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
   }
 
   /* 2 ── Leer y validar body ────────────────────── */
-  let body: { montoCoins?: unknown; wallet?: unknown; network?: unknown };
+  let body: { montoCoins?: unknown; wallet?: unknown; network?: unknown; otp?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
   const montoCoins = Number(body.montoCoins);
   const wallet     = typeof body.wallet  === 'string' ? body.wallet.trim()  : '';
   const network    = typeof body.network === 'string' ? body.network.toUpperCase() : '';
+  const otpInput   = typeof body.otp     === 'string' ? body.otp.trim()     : '';;
 
   if (!montoCoins || !wallet || !network) {
     return NextResponse.json({ error: 'montoCoins, wallet y network son requeridos.' }, { status: 400 });
@@ -81,6 +84,44 @@ export async function POST(req: NextRequest) {
   }
 
   const montoUSDT = montoCoins / RATE;
+
+  /* 2.5 ── 2FA OTP para retiros ≥ $50 USDT ─────── */
+  if (montoUSDT >= KYC_THRESHOLD_USDT) {
+    // Si no se envió OTP en el body, solicitar que pida código primero
+    if (!otpInput) {
+      return NextResponse.json({
+        requiresOtp: true,
+        message:     `Este retiro supera $${KYC_THRESHOLD_USDT} USDT. Necesitás verificar tu identidad con un código enviado a tu email.`,
+      }, { status: 200 });
+    }
+
+    // Validar OTP
+    const otpRef  = adminDb.collection('otp_retiro').doc(uid);
+    const otpSnap = await otpRef.get();
+    if (!otpSnap.exists) {
+      return NextResponse.json({ error: 'No hay código activo. Pedilo de nuevo.' }, { status: 400 });
+    }
+    const otpData = otpSnap.data()!;
+    if (otpData.used) {
+      return NextResponse.json({ error: 'El código ya fue utilizado. Pedí uno nuevo.' }, { status: 400 });
+    }
+    const expires = (otpData.expires_at as FirebaseFirestore.Timestamp)?.toDate?.();
+    if (!expires || Date.now() > expires.getTime()) {
+      return NextResponse.json({ error: 'El código expiró. Pedí uno nuevo.' }, { status: 400 });
+    }
+    const attempts = (otpData.attempts as number) ?? 0;
+    if (attempts >= 3) {
+      return NextResponse.json({ error: 'Demasiados intentos fallidos. Pedí un nuevo código.' }, { status: 400 });
+    }
+    if (otpInput !== otpData.otp_hash) {
+      // Incrementar intentos
+      await otpRef.update({ attempts: attempts + 1 });
+      const restantes = 2 - attempts;
+      return NextResponse.json({ error: `Código incorrecto. ${restantes > 0 ? `Te queda${restantes === 1 ? '' : 'n'} ${restantes} intento${restantes === 1 ? '' : 's'}.` : 'Pedí un código nuevo.'}` }, { status: 400 });
+    }
+    // OTP válido → marcarlo como usado
+    await otpRef.update({ used: true });
+  }
   const uRef = adminDb.collection('usuarios').doc(uid);
 
   // Capturar IP del solicitante para trazabilidad de auditoría

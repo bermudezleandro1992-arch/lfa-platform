@@ -10,13 +10,14 @@ import {
 import { auth, db } from '@/lib/firebase';
 import { LfaCoin } from '@/app/_components/LfaCoin';
 
-/* ─── Constantes ────────────────────────────────────── */
+/* ─── Constantes ──────────────────────────────────── */
 // 1000 LFA Coins = 1 USDT
-const RATE        = 1000;         // coins por 1 USDT
-const MIN_DEPOSIT = 500;          // coins mínimo para depositar
-const MIN_RETIRO  = 20000;        // coins mínimo para retirar (20 USDT)
-const FP_BLOQUEO  = 15;           // Fair Play mínimo para retirar (solo jugadores con muchos reportes)
-const BINANCE_ID  = 'somoslfa';   // ← Alias Binance Pay oficial LFA
+const RATE          = 1000;         // coins por 1 USDT
+const MIN_DEPOSIT   = 500;          // coins mínimo para depositar
+const MIN_RETIRO    = 20000;        // coins mínimo para retirar (20 USDT)
+const FP_BLOQUEO    = 15;           // Fair Play mínimo para retirar
+const BINANCE_ID    = 'somoslfa';   // ← Alias Binance Pay oficial LFA
+const OTP_THRESHOLD = 50000;        // A partir de 50,000 coins ($50 USDT) se requiere OTP
 
 /* ─── Tipos ─────────────────────────────────────────── */
 interface Tx {
@@ -113,6 +114,13 @@ export default function BilleteraPage() {
   const [retCoins,  setRetCoins]  = useState('');
   const [wallet,    setWallet]    = useState('');
   const [redWallet, setRedWallet] = useState<'TRC20' | 'BEP20'>('TRC20');
+  const [metodoRetiro, setMetodoRetiro] = useState<'binance' | null>(null);
+
+  /* 2FA OTP */
+  const [otpStep,    setOtpStep]    = useState(false);   // true: esperando que ingrese el OTP
+  const [otpCode,    setOtpCode]    = useState('');       // valor ingresado por el usuario
+  const [otpEmail,   setOtpEmail]   = useState('');       // email ofuscado devuelto por la API
+  const [sendingOtp, setSendingOtp] = useState(false);    // spinner de envío del OTP
 
   const coins     = userData?.number  ?? 0;
   const fairPlay  = userData?.fair_play ?? 100;
@@ -206,6 +214,28 @@ export default function BilleteraPage() {
     setSending(false);
   }, [uid, userData, depNum, depUsd, txHash, senderWallet]);
 
+  /* ── Enviar OTP ──────────────────────── */
+  const pedirOtp = useCallback(async () => {
+    setMsg('');
+    setSendingOtp(true);
+    try {
+      const token = await import('firebase/auth').then(m => m.getIdToken(m.getAuth().currentUser!));
+      const res   = await fetch('/api/retiro/sendOtp', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data  = await res.json() as { ok?: boolean; email?: string; message?: string; error?: string };
+      if (!res.ok || data.error) {
+        setMsg(`❌ ${data.error ?? 'Error al enviar el código.'}`);
+        return;
+      }
+      setOtpEmail(data.email ?? '');
+      setOtpStep(true);
+      setMsg(`📧 Código enviado a ${data.email}`);
+    } catch { setMsg('❌ Error de conexión.'); }
+    finally { setSendingOtp(false); }
+  }, []);
+
   /* ── Enviar retiro (automático vía Binance API) ──── */
   const enviarRetiro = useCallback(async () => {
     setMsg('');
@@ -216,18 +246,28 @@ export default function BilleteraPage() {
     setSending(true);
     try {
       const token = await import('firebase/auth').then(m => m.getIdToken(m.getAuth().currentUser!));
+      const body: Record<string, unknown> = { montoCoins: retNum, wallet: wallet.trim(), network: redWallet === 'TRC20' ? 'TRX' : 'BSC' };
+      if (otpStep) body.otp = otpCode.trim();
       const res = await fetch('/api/retiro', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body:    JSON.stringify({ montoCoins: retNum, wallet: wallet.trim(), network: redWallet === 'TRC20' ? 'TRX' : 'BSC' }),
+        body:    JSON.stringify(body),
       });
-      const data = await res.json() as { ok?: boolean; auto?: boolean; message?: string; error?: string };
+      const data = await res.json() as { ok?: boolean; auto?: boolean; message?: string; error?: string; requiresOtp?: boolean };
+      if (data.requiresOtp) {
+        // Servidor pide OTP — solicitar automáticamente
+        await pedirOtp();
+        setSending(false);
+        return;
+      }
       if (!res.ok || data.error) {
         setMsg(`❌ ${data.error ?? 'Error al procesar el retiro.'}`);
       } else {
         setMsg(data.message ?? '✅ Retiro procesado.');
         setRetCoins('');
         setWallet('');
+        setOtpStep(false);
+        setOtpCode('');
       }
     } catch { setMsg('❌ Error de conexión. Intentá de nuevo.'); }
     setSending(false);
@@ -426,62 +466,134 @@ export default function BilleteraPage() {
           {tab === 'retirar' && (
             <div style={{ animation: 'fadeUp .3s ease' }}>
 
-              {/* Info retiro */}
-              <div style={{ background: 'linear-gradient(135deg,#161b22,rgba(255,71,87,0.03))', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 16, padding: 'clamp(16px,3vw,22px)', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', fontSize: '0.82rem', fontWeight: 900, marginBottom: 10 }}>💸 CÓMO FUNCIONA EL RETIRO</div>
-                {[
-                  { n: '1', t: `Mínimo ${MIN_RETIRO.toLocaleString()} coins`, d: `Equivale a $${(MIN_RETIRO/RATE).toFixed(0)} USDT. Los retiros solo se bloquean si tu Fair Play baja del ${FP_BLOQUEO}% por múltiples reportes.` },
-                  { n: '2', t: 'Completá el formulario', d: 'Ingresá la cantidad de coins y tu dirección Binance (TRC20 o BEP20).' },
-                  { n: '3', t: 'Revisión manual CEO — hasta 24 hs', d: 'El equipo LFA verifica tu cuenta, historial y saldo antes de aprobar. Recibirás el USDT al aprobar.' },
-                  { n: '4', t: 'Las coins se reservan al confirmar', d: 'Al enviar la solicitud, las coins se descuentan de tu saldo y quedan retenidas hasta la resolución.' },
-                ].map(s => (
-                  <div key={s.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1c2028' }}>
-                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#ff4757', fontSize: '0.7rem', flexShrink: 0 }}>{s.n}</div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{s.t}</div>
-                      <div style={{ color: '#8b949e', fontSize: '0.72rem', marginTop: 2 }}>{s.d}</div>
+              {/* ── CENTRO DE RETIROS — Métodos disponibles ── */}
+              <div style={{ background: 'linear-gradient(135deg,#161b22,#0d1117)', border: '1px solid rgba(255,215,0,0.25)', borderRadius: 16, padding: 'clamp(16px,3vw,22px)', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.82rem', fontWeight: 900, marginBottom: 4 }}>
+                  💸 CENTRO DE RETIROS SOMOSLFA
+                </div>
+                <div style={{ color: '#8b949e', fontSize: '0.72rem', marginBottom: 16 }}>
+                  Tus victorias, tu dinero. Elegí cómo recibir tus premios de forma segura.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
+                  {/* Binance Pay — ACTIVO */}
+                  <button onClick={() => setMetodoRetiro('binance')}
+                    style={{ background: metodoRetiro === 'binance' ? 'rgba(243,186,47,0.15)' : '#0b0e14', border: `2px solid ${metodoRetiro === 'binance' ? '#f3ba2f' : '#30363d'}`, borderRadius: 14, padding: '14px 12px', cursor: 'pointer', textAlign: 'left', transition: '0.2s' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>₿</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#f3ba2f', fontSize: '0.72rem', fontWeight: 900 }}>BINANCE PAY</div>
+                    <div style={{ color: '#00ff88', fontSize: '0.65rem', fontWeight: 700, margin: '4px 0' }}>⚡ Instantáneo</div>
+                    <div style={{ color: '#8b949e', fontSize: '0.62rem', lineHeight: 1.3 }}>0% fee<br/>Mín. $20 USDT</div>
+                    <div style={{ marginTop: 6, padding: '3px 8px', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', borderRadius: 6, color: '#00ff88', fontSize: '0.6rem', fontWeight: 700, display: 'inline-block' }}>ACTIVO</div>
+                  </button>
+                  {/* Global66 — PRÓXIMAMENTE */}
+                  <div style={{ background: '#0b0e14', border: '2px solid #1c2028', borderRadius: 14, padding: '14px 12px', opacity: 0.55 }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>🌎</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#8b949e', fontSize: '0.72rem', fontWeight: 900 }}>GLOBAL66</div>
+                    <div style={{ color: '#8b949e', fontSize: '0.65rem', margin: '4px 0' }}>24 – 48 hs</div>
+                    <div style={{ color: '#8b949e', fontSize: '0.62rem', lineHeight: 1.3 }}>Transf. bancaria LATAM<br/>Mín. $20 USDT</div>
+                    <div style={{ marginTop: 6, padding: '3px 8px', background: 'rgba(139,148,158,0.1)', border: '1px solid #30363d', borderRadius: 6, color: '#8b949e', fontSize: '0.6rem', fontWeight: 700, display: 'inline-block' }}>PRÓXIMAMENTE</div>
+                  </div>
+                  {/* AirTM — PRÓXIMAMENTE */}
+                  <div style={{ background: '#0b0e14', border: '2px solid #1c2028', borderRadius: 14, padding: '14px 12px', opacity: 0.55 }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>🏦</div>
+                    <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#8b949e', fontSize: '0.72rem', fontWeight: 900 }}>AIRTM</div>
+                    <div style={{ color: '#8b949e', fontSize: '0.65rem', margin: '4px 0' }}>24 hs hábiles · 1%</div>
+                    <div style={{ color: '#8b949e', fontSize: '0.62rem', lineHeight: 1.3 }}>ARS / COP / PEN / MXN<br/>Mín. $15 USDT</div>
+                    <div style={{ marginTop: 6, padding: '3px 8px', background: 'rgba(139,148,158,0.1)', border: '1px solid #30363d', borderRadius: 6, color: '#8b949e', fontSize: '0.6rem', fontWeight: 700, display: 'inline-block' }}>PRÓXIMAMENTE</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── FORMULARIO BINANCE (solo si seleccionó Binance) ── */}
+              {metodoRetiro === 'binance' && (
+                <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,22px)' }}>
+                  <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#f3ba2f', fontSize: '0.8rem', fontWeight: 900, marginBottom: 16 }}>
+                    ₿ RETIRO VÍA BINANCE PAY
+                  </div>
+
+                  {/* Proceso auditoría */}
+                  <div style={{ background: '#0b0e14', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.72rem', color: '#8b949e', lineHeight: 1.6 }}>
+                    <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 4 }}>🔍 Proceso de Auditoría VAR</div>
+                    1. Auditoría de Game Fair Play (automática)
+                    &nbsp;&nbsp;2. Validación de saldo y comportamiento
+                    &nbsp;&nbsp;3. Aprobación CEO (hasta 24-72 hs para montos &gt; $200)
+                    &nbsp;&nbsp;4. Envío USDT a tu wallet Binance
+                    {retNum >= OTP_THRESHOLD && (
+                      <div style={{ marginTop: 6, color: '#ffd700', fontWeight: 700 }}>
+                        🔐 Este retiro supera ${OTP_THRESHOLD / RATE} USDT y requiere verificación de identidad por email (código OTP).
+                      </div>
+                    )}
+                  </div>
+
+                  <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>CANTIDAD DE LFA COINS</label>
+                  <input style={inp} type="number" min={MIN_RETIRO} max={coins} step={100}
+                    placeholder={`Mínimo ${MIN_RETIRO.toLocaleString()} — Saldo: ${coins.toLocaleString()}`}
+                    value={retCoins} onChange={e => { setRetCoins(e.target.value); setOtpStep(false); setOtpCode(''); }} />
+                  {retNum >= MIN_RETIRO && retNum <= coins && (
+                    <div style={{ color: '#00ff88', fontSize: '0.75rem', marginBottom: 12 }}>
+                      Recibirás: <strong>{retUsd} USDT</strong>
+                      {retNum >= OTP_THRESHOLD && <span style={{ color: '#ffd700', marginLeft: 8 }}>🔐 Requiere OTP</span>}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
 
-              {/* Formulario retiro */}
-              <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 16, padding: 'clamp(16px,3vw,22px)' }}>
-                <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.8rem', fontWeight: 900, marginBottom: 16 }}>📝 SOLICITAR RETIRO — REVISIÓN CEO</div>
-
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>CANTIDAD DE LFA COINS A RETIRAR</label>
-                <input style={inp} type="number" min={MIN_RETIRO} max={coins} step={100} placeholder={`Mínimo ${MIN_RETIRO} coins — Saldo: ${coins.toLocaleString()}`} value={retCoins} onChange={e => setRetCoins(e.target.value)} />
-                {retNum >= MIN_RETIRO && retNum <= coins && (
-                  <div style={{ color: '#00ff88', fontSize: '0.75rem', marginTop: -8, marginBottom: 12 }}>
-                    Recibirás: <strong>{retUsd} USDT</strong>
+                  <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700, marginTop: 10 }}>RED DE BINANCE</label>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                    {(['TRC20', 'BEP20'] as const).map(r => (
+                      <button key={r} onClick={() => setRedWallet(r)}
+                        style={{ flex: 1, padding: '10px', background: redWallet === r ? 'rgba(243,186,47,0.1)' : '#0b0e14', border: `1px solid ${redWallet === r ? '#f3ba2f' : '#30363d'}`, color: redWallet === r ? '#f3ba2f' : '#8b949e', borderRadius: 10, cursor: 'pointer', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, transition: '0.15s' }}>
+                        {r}
+                      </button>
+                    ))}
                   </div>
-                )}
-                {retNum > coins && (
-                  <div style={{ color: '#ff4757', fontSize: '0.75rem', marginTop: -8, marginBottom: 12 }}>
-                    ❌ Saldo insuficiente
-                  </div>
-                )}
 
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700, marginTop: 10 }}>RED DE BINANCE</label>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  {(['TRC20', 'BEP20'] as const).map(r => (
-                    <button key={r} onClick={() => setRedWallet(r)} style={{ flex: 1, padding: '10px', background: redWallet === r ? 'rgba(243,186,47,0.1)' : '#0b0e14', border: `1px solid ${redWallet === r ? '#f3ba2f' : '#30363d'}`, color: redWallet === r ? '#f3ba2f' : '#8b949e', borderRadius: 10, cursor: 'pointer', fontFamily: "'Orbitron',sans-serif", fontSize: '0.72rem', fontWeight: 900, transition: '0.15s' }}>
-                      {r}
-                    </button>
-                  ))}
+                  <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>TU DIRECCIÓN BINANCE ({redWallet})</label>
+                  <input style={inp} type="text" placeholder={`Tu wallet ${redWallet}...`} value={wallet} onChange={e => setWallet(e.target.value)} />
+
+                  {/* ── PASO 2FA: ingreso del OTP ── */}
+                  {otpStep && (
+                    <div style={{ marginTop: 18, background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 12, padding: '16px' }}>
+                      <div style={{ fontFamily: "'Orbitron',sans-serif", color: '#ffd700', fontSize: '0.78rem', fontWeight: 900, marginBottom: 8 }}>
+                        🔐 VERIFICACIÓN DE IDENTIDAD
+                      </div>
+                      <p style={{ color: '#8b949e', fontSize: '0.75rem', margin: '0 0 12px', lineHeight: 1.5 }}>
+                        Ingresá el código de 6 dígitos enviado a <strong style={{ color: 'white' }}>{otpEmail}</strong>.
+                        Expira en 10 minutos. Revisá también la carpeta de spam.
+                      </p>
+                      <input
+                        style={{ ...inp, fontFamily: 'monospace', fontSize: '1.4rem', letterSpacing: '6px', textAlign: 'center', color: '#ffd700', border: '2px solid rgba(255,215,0,0.4)' }}
+                        type="text" inputMode="numeric" maxLength={6}
+                        placeholder="000000"
+                        value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      />
+                      <button onClick={pedirOtp} disabled={sendingOtp}
+                        style={{ marginTop: 10, background: 'none', border: 'none', color: '#8b949e', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                        {sendingOtp ? '⏳ Enviando...' : '↩ Reenviar código'}
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ background: '#0b0e14', border: '1px solid #30363d', borderRadius: 10, padding: '10px 14px', marginTop: 14, fontSize: '0.72rem', color: '#ff4757' }}>
+                    ⚠️ Solo enviá USDT. Red incorrecta = fondos irrecuperables.
+                  </div>
+
+                  <button className="subbtn" onClick={enviarRetiro}
+                    disabled={sending || sendingOtp || fairPlay < FP_BLOQUEO || (otpStep && otpCode.length !== 6)}
+                    style={{ marginTop: 18, width: '100%', padding: '14px', background: (sending || sendingOtp || fairPlay < FP_BLOQUEO) ? '#30363d' : '#ff4757', color: 'white', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.82rem', cursor: 'pointer', transition: '0.2s', opacity: (sending || sendingOtp || fairPlay < FP_BLOQUEO) ? 0.6 : 1 }}>
+                    {sending ? '⏳ PROCESANDO...'
+                      : sendingOtp ? '📧 ENVIANDO CÓDIGO...'
+                      : fairPlay < FP_BLOQUEO ? '🔒 FAIR PLAY MUY BAJO'
+                      : otpStep ? '🔐 CONFIRMAR CON CÓDIGO OTP'
+                      : retNum >= OTP_THRESHOLD ? '📧 VERIFICAR IDENTIDAD Y RETIRAR'
+                      : '💸 SOLICITAR RETIRO'}
+                  </button>
                 </div>
+              )}
 
-                <label style={{ display: 'block', color: '#8b949e', fontSize: '0.72rem', marginBottom: 6, fontWeight: 700 }}>TU DIRECCIÓN BINANCE ({redWallet})</label>
-                <input style={inp} type="text" placeholder={`Tu wallet ${redWallet}...`} value={wallet} onChange={e => setWallet(e.target.value)} />
-
-                <div style={{ background: '#0b0e14', border: '1px solid #30363d', borderRadius: 10, padding: '10px 14px', marginTop: 14, fontSize: '0.72rem', color: '#8b949e' }}>
-                  ℹ️ Asegurate de ingresar la dirección correcta para la red <strong style={{ color: '#f3ba2f' }}>{redWallet}</strong>. Las transacciones enviadas a redes incorrectas no se recuperan.
+              {/* ── Aviso si no seleccionó método ── */}
+              {!metodoRetiro && (
+                <div style={{ textAlign: 'center', padding: '24px', color: '#8b949e', fontSize: '0.82rem' }}>
+                  ⬆️ Seleccioná un método de retiro para continuar.
                 </div>
-
-                <button className="subbtn" onClick={enviarRetiro} disabled={sending || fairPlay < FP_BLOQUEO} style={{ marginTop: 18, width: '100%', padding: '14px', background: (sending || fairPlay < FP_BLOQUEO) ? '#30363d' : '#ff4757', color: 'white', border: 'none', borderRadius: 12, fontFamily: "'Orbitron',sans-serif", fontWeight: 900, fontSize: '0.82rem', cursor: (sending || fairPlay < FP_BLOQUEO) ? 'not-allowed' : 'pointer', transition: '0.2s', opacity: (sending || fairPlay < FP_BLOQUEO) ? 0.6 : 1 }}>
-                  {sending ? '⏳ ENVIANDO...' : fairPlay < FP_BLOQUEO ? '🔒 FAIR PLAY MUY BAJO' : '💸 SOLICITAR RETIRO'}
-                </button>
-              </div>
+              )}
             </div>
           )}
 
