@@ -84,14 +84,7 @@ const TOS_TEXT = `📋 REGLAMENTO OFICIAL SOMOSLFA
 • Las monedas LFA (LFC) no son reembolsables en dinero real.
 
 Al marcar la casilla confirmás haber leído y comprendido todo lo anterior.`;
-• Tu email es privado — nunca visible para otros jugadores.
-• Usamos estadísticas anónimas para análisis de rendimiento.
 
-💰 REEMBOLSOS
-• Inscripciones pagadas reembolsables solo si la liga no inicia en 7 días hábiles.
-• Una vez iniciada la liga, no hay reembolso por abandono voluntario.
-
-Al aceptar confirmás haber leído y comprendido el Reglamento completo en somoslfa.com/reglamento, los Términos de Servicio, la Política de Privacidad y la Política de Reembolsos.`;
 
 interface LoginBoxProps {
   t: Translations;
