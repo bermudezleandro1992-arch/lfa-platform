@@ -209,6 +209,29 @@ export default function LeagueDetailPage({ params }: { params: { id: string } })
       {/* ── CONTENT ────────────────────────────────────────────────── */}
       <div style={{ maxWidth:900, margin:'0 auto', padding:'24px 20px' }}>
 
+        {/* League info strip */}
+        <div style={{
+          display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',
+          gap:10, marginBottom:20,
+        }}>
+          {[
+            { icon:'👥', label:'INSCRITOS',  val:`${league.current_players} / ${league.max_players}` },
+            { icon:'📅', label:'JORNADA',    val: league.total_rounds ? `${league.current_round} / ${league.total_rounds}` : '—' },
+            { icon:'🌎', label:'REGIÓN',     val: league.region.replace('_',' ') },
+            { icon:'🖥️', label:'PLATAFORMA', val: league.platform },
+            ...(league.division && league.division !== 'GLOBAL' ? [{ icon:'🏅', label:'DIVISIÓN', val:`DIV ${league.division}` }] : []),
+            ...(league.entry_fee ? [{ icon:'💰', label:'ENTRADA', val:`${league.entry_fee} LFC` }] : [{ icon:'🆓', label:'ENTRADA', val:'GRATIS' }]),
+          ].map(s => (
+            <div key={s.label} style={{ background:'#161b22', borderRadius:10, border:'1px solid #21262d', padding:'12px 14px', display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ fontSize:'1.2rem' }}>{s.icon}</span>
+              <div>
+                <div style={{ color:'#555', fontSize:'0.58rem', letterSpacing:1, fontFamily:"'Orbitron',sans-serif", fontWeight:700 }}>{s.label}</div>
+                <div style={{ color:'#e6edf3', fontSize:'0.8rem', fontWeight:600, marginTop:1 }}>{s.val}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* MIS PARTIDOS */}
         {tab === 'mis-partidos' && myParticipant && (
           <div>
@@ -276,7 +299,7 @@ export default function LeagueDetailPage({ params }: { params: { id: string } })
               <div style={{ textAlign:'center', padding:60, color:'#8b949e' }}>
                 <div style={{ fontSize:'3rem', marginBottom:12 }}>🏆</div>
                 <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700 }}>Playoffs no iniciados</div>
-                <div style={{ fontSize:'0.82rem', marginTop:8 }}>El CEO debe iniciar los playoffs desde el panel.</div>
+                <div style={{ fontSize:'0.82rem', marginTop:8, color:'#555' }}>Se generan automáticamente al terminar la última jornada.</div>
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
@@ -298,6 +321,31 @@ export default function LeagueDetailPage({ params }: { params: { id: string } })
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Participants roster (always visible below content) */}
+        {participants.length > 0 && (
+          <div style={{ marginTop:32 }}>
+            <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.65rem', color:'#555', letterSpacing:2, marginBottom:12 }}>
+              PARTICIPANTES ({participants.length})
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {participants.map(p => (
+                <div key={p.uid} style={{
+                  display:'flex', alignItems:'center', gap:8,
+                  background:'#161b22', borderRadius:10, padding:'8px 12px',
+                  border: p.uid === uid ? '1px solid #00ff8833' : '1px solid #21262d',
+                  minWidth:160, maxWidth:220,
+                }}>
+                  <LogoImg logo={p.logo_url} size={28} />
+                  <div style={{ overflow:'hidden' }}>
+                    <div style={{ color: p.uid === uid ? '#00ff88' : '#e6edf3', fontWeight:600, fontSize:'0.78rem', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.team_name || p.display_name}</div>
+                    <div style={{ color:'#555', fontSize:'0.62rem' }}>{p.pts} pts</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

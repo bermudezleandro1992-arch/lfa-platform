@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { ProLeague } from '@/lib/types';
+import { FOOTBALL_CLUBS, CLUB_REGIONS, type FootballClub } from '@/lib/clubs';
+import LogoImg, { flagEmojiToCode } from './LogoImg';
 
 const card: React.CSSProperties = {
   background: '#161b22', border: '1px solid #30363d', borderRadius: 14, padding: 18,
@@ -91,8 +93,10 @@ export default function LigasPROTab() {
   const [playoffLoading, setPlayoffLoading] = useState<string | null>(null);
   const [clearLoading, setClearLoading] = useState<string | null>(null);
   const [seedLoading, setSeedLoading] = useState<string | null>(null);
+  const [promoLoading, setPromoLoading] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<Array<Record<string, string | number | null>>>([]);
   const [resolveLoading, setResolveLoading] = useState<string | null>(null);
+  const [assignLogoLeague, setAssignLogoLeague] = useState<string | null>(null);
 
   // Load leagues in real-time
   useEffect(() => {
@@ -210,8 +214,24 @@ export default function LigasPROTab() {
     finally { setClearLoading(null); }
   }
 
-  async function resolveDispute(matchId: string, resolution: 'p1' | 'p2' | 'draw' | 'annul') {
-    setResolveLoading(matchId);
+  async function runPromoRelegation(leagueId: string, lgName: string) {
+    if (!confirm(`¿Ejecutar ascensos/descensos para "${lgName}"? Los top 4 suben y los últimos 4 bajan.`)) return;
+    setPromoLoading(leagueId);
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/pro/runPromoRelegation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ league_id: leagueId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg(`❌ ${data.error}`); return; }
+      setMsg(`✅ Ascensos: ${data.promoted.join(', ')} | Descensos: ${data.relegated.join(', ')}`);
+    } catch { setMsg('❌ Error ejecutando promoción.'); }
+    finally { setPromoLoading(null); }
+  }
+
+  async function resolveDispute(matchId: string, resolution: 'p1' | 'p2' | 'draw' | 'annul') {    setResolveLoading(matchId);
     try {
       const token = await auth.currentUser!.getIdToken();
       await fetch('/api/pro/resolveDispute', {
@@ -411,6 +431,23 @@ export default function LigasPROTab() {
                     👁️ VER
                   </a>
                   <button
+                    onClick={() => setAssignLogoLeague(assignLogoLeague === lg.id ? null : lg.id)}
+                    style={btn(assignLogoLeague === lg.id ? '#ffd70044' : '#ffd70022', '#ffd700')}
+                    title="Asignar escudos a los participantes"
+                  >
+                    🎨 ESCUDOS
+                  </button>
+                  {lg.division && lg.division !== 'GLOBAL' && (lg.status === 'finalizada' || lg.status === 'activa') && (
+                    <button
+                      onClick={() => runPromoRelegation(lg.id, lg.name)}
+                      disabled={promoLoading === lg.id}
+                      style={btn(promoLoading === lg.id ? '#30363d' : '#00c3ff22', '#00c3ff')}
+                      title="Ejecutar ascensos y descensos"
+                    >
+                      {promoLoading === lg.id ? '⏳...' : '⬆️⬇️ PROMO'}
+                    </button>
+                  )}
+                  <button
                     onClick={() => clearLeague(lg.id, lg.name)}
                     disabled={clearLoading === lg.id}
                     style={btn(clearLoading === lg.id ? '#30363d' : '#ff000022', '#ff6b6b')}
@@ -419,13 +456,13 @@ export default function LigasPROTab() {
                     {clearLoading === lg.id ? '⏳...' : '🗑️ BORRAR'}
                   </button>
                 </div>
+                {assignLogoLeague === lg.id && (
+                  <AssignLogosPanel leagueId={lg.id} onMsg={setMsg} />
+                )}
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* ── DISPUTAS ── */}
       {disputes.length > 0 && (
         <div style={{ ...card, borderColor: '#ff444444' }}>
           <h3 style={{ fontFamily: "'Orbitron',sans-serif", color: '#ff4757', margin: '0 0 14px', fontSize: '0.8rem' }}>
@@ -481,6 +518,107 @@ export default function LigasPROTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Sub-component: CEO assigns logos to participants ──────────────────────────
+interface Participant { uid: string; display_name: string; team_name: string; logo_url: string; }
+
+function AssignLogosPanel({ leagueId, onMsg }: { leagueId: string; onMsg: (m: string) => void }) {
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [loading,       setLoading]      = useState(true);
+  const [saving,        setSaving]       = useState<string | null>(null);
+  const [selectedLogo,  setSelectedLogo] = useState<Record<string, string>>({});
+  const [teamName,      setTeamName]     = useState<Record<string, string>>({});
+  const [escudoRegion,  setEscudoRegion] = useState<FootballClub['region'] | ''>('');
+  const [pickingFor,    setPickingFor]   = useState<string | null>(null);
+
+  useEffect(() => {
+    getDocs(collection(db, 'leagues', leagueId, 'participants')).then(snap => {
+      const list = snap.docs.map(d => ({ uid: d.id, ...d.data() } as Participant));
+      setParticipants(list);
+      const logos: Record<string,string> = {};
+      const names: Record<string,string> = {};
+      list.forEach(p => { logos[p.uid] = p.logo_url || '⚽'; names[p.uid] = p.team_name || p.display_name || ''; });
+      setSelectedLogo(logos);
+      setTeamName(names);
+      setLoading(false);
+    });
+  }, [leagueId]);
+
+  async function save(uid: string) {
+    setSaving(uid);
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/pro/assignLogo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ league_id: leagueId, participant_uid: uid, logo_url: selectedLogo[uid], team_name: teamName[uid] }),
+      });
+      const d = await res.json();
+      onMsg(res.ok ? `✅ Logo asignado a ${teamName[uid]}` : `❌ ${d.error}`);
+    } catch { onMsg('❌ Error de conexión.'); }
+    finally { setSaving(null); }
+  }
+
+  if (loading) return <div style={{ color:'#555', fontSize:'0.75rem', padding:'10px 0' }}>Cargando participantes...</div>;
+  if (participants.length === 0) return <div style={{ color:'#555', fontSize:'0.75rem', padding:'10px 0' }}>Sin participantes aún.</div>;
+
+  const smallInp: React.CSSProperties = { padding:'5px 8px', background:'#0b0e14', border:'1px solid #30363d', borderRadius:6, color:'#e6edf3', fontSize:'0.75rem', outline:'none', width:'100%', boxSizing:'border-box' };
+
+  return (
+    <div style={{ marginTop:14, background:'#0d1117', borderRadius:10, border:'1px solid #ffd70033', padding:'14px' }}>
+      <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:700, fontSize:'0.62rem', color:'#ffd700', letterSpacing:2, marginBottom:12 }}>
+        🎨 ASIGNAR ESCUDOS (CEO) — Los jugadores no podrán cambiarlo en esta liga
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {participants.map(p => (
+          <div key={p.uid} style={{ background:'#161b22', borderRadius:8, border:'1px solid #21262d', padding:'10px 12px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+              {/* Current logo preview */}
+              <div style={{ width:44, height:44, borderRadius:8, background:'#21262d', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #30363d', flexShrink:0, overflow:'hidden' }}>
+                {selectedLogo[p.uid]?.startsWith('http')
+                  ? <img src={selectedLogo[p.uid]} alt="" style={{ width:40, height:40, objectFit:'contain' }} onError={e => { (e.target as HTMLImageElement).style.opacity='0.1'; }} />
+                  : <LogoImg logo={selectedLogo[p.uid] || '⚽'} size={32} />}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ color:'#e6edf3', fontSize:'0.8rem', fontWeight:600 }}>{p.display_name}</div>
+                <input value={teamName[p.uid] || ''} onChange={e => setTeamName(t => ({ ...t, [p.uid]: e.target.value }))} placeholder="Nombre del equipo" style={{ ...smallInp, marginTop:4 }} />
+              </div>
+              <div style={{ display:'flex', gap:6 }}>
+                <button onClick={() => setPickingFor(pickingFor === p.uid ? null : p.uid)} style={{ padding:'5px 10px', borderRadius:6, border:`1px solid ${pickingFor===p.uid ? '#ffd700' : '#30363d'}`, background:'transparent', color:'#ffd700', cursor:'pointer', fontSize:'0.65rem' }}>
+                  {pickingFor === p.uid ? '↑ CERRAR' : '🛡️ ELEGIR'}
+                </button>
+                <button onClick={() => save(p.uid)} disabled={saving === p.uid} style={{ padding:'5px 12px', borderRadius:6, border:'none', background: saving===p.uid ? '#30363d' : '#00ff8822', color:'#00ff88', cursor:'pointer', fontSize:'0.65rem', fontWeight:700 }}>
+                  {saving === p.uid ? '...' : '✅'}
+                </button>
+              </div>
+            </div>
+
+            {/* Club picker for this participant */}
+            {pickingFor === p.uid && (
+              <div style={{ marginTop:10 }}>
+                {/* Region filter */}
+                <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:6 }}>
+                  <button onClick={() => setEscudoRegion('')} style={{ padding:'2px 7px', borderRadius:5, cursor:'pointer', fontSize:'0.58rem', background: escudoRegion==='' ? '#ffd70022' : '#21262d', border:`1px solid ${escudoRegion==='' ? '#ffd70044' : '#30363d'}`, color: escudoRegion==='' ? '#ffd700' : '#8b949e' }}>TODOS</button>
+                  {(Object.entries(CLUB_REGIONS) as [FootballClub['region'], string][]).map(([code, label]) => (
+                    <button key={code} onClick={() => setEscudoRegion(escudoRegion===code ? '' : code)} style={{ padding:'2px 7px', borderRadius:5, cursor:'pointer', fontSize:'0.58rem', background: escudoRegion===code ? '#ffd70022' : '#21262d', border:`1px solid ${escudoRegion===code ? '#ffd70044' : '#30363d'}`, color: escudoRegion===code ? '#ffd700' : '#8b949e' }}>{label}</button>
+                  ))}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:5, maxHeight:160, overflowY:'auto' }}>
+                  {FOOTBALL_CLUBS.filter(c => !escudoRegion || c.region === escudoRegion).map(club => (
+                    <button key={club.name} onClick={() => { setSelectedLogo(l => ({ ...l, [p.uid]: club.logo })); setPickingFor(null); }} style={{ display:'flex', flexDirection:'column', alignItems:'center', width:58, padding:'4px 2px', borderRadius:8, border:`2px solid ${selectedLogo[p.uid]===club.logo ? '#ffd700' : 'transparent'}`, background: selectedLogo[p.uid]===club.logo ? '#ffd70020' : '#21262d', cursor:'pointer' }}>
+                      <img src={club.logo} alt={club.name} style={{ width:36, height:36, objectFit:'contain' }} onError={e => { (e.target as HTMLImageElement).style.opacity='0.15'; }} />
+                      <span style={{ fontSize:'0.44rem', color:'#8b949e', marginTop:2, textAlign:'center', lineHeight:1.2, wordBreak:'break-word', maxWidth:54 }}>{club.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

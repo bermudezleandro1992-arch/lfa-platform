@@ -9,12 +9,11 @@ import { auth, db, storage } from '@/lib/firebase';
 import Link from 'next/link';
 import LogoImg, { flagEmojiToCode } from '@/app/_components/pro/LogoImg';
 import { COUNTRIES_AMERICA_EUROPE } from '@/lib/constants';
+import { FOOTBALL_CLUBS, CLUB_REGIONS, type FootballClub } from '@/lib/clubs';
 
 // ── Logo options ──────────────────────────────────────────────────────────────
-const LOGOS_ESCUDOS = ['⚽','🦁','🦅','🐉','🌟','⭐','🔥','💎','🛡️','⚡','🌊','🏔️','🐺','🦊','🐯','🌙','☀️','🌈','🎯','💥','🏆','👑','🔱','⚜️','🎠','🌍','🛸','🐬','🦄','🐴'];
-const LOGOS_FLAGS   = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
-const LOGOS_CLUBS   = ['🔵','🔴','🟡','🟢','⚪','🟠','🟣','⚫','🔷','🔶','🔺','🔻','💠','♦️','🎱','🌐','🏵️','🏅','🥇'];
-type LogoTab = 'escudos' | 'banderas' | 'colores' | 'url' | 'upload';
+const LOGOS_FLAGS = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
+type LogoTab = 'escudos' | 'banderas' | 'url' | 'upload';
 
 interface GlobalStats {
   display_name: string;
@@ -473,11 +472,12 @@ function EditPanel({
   onSaved: (u: Partial<GlobalStats & UserInfo>) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [logoTab,    setLogoTab]    = useState<LogoTab>('escudos');
-  const [logo,       setLogo]       = useState(globalStats.logo_url || '⚽');
-  const [customUrl,  setCustomUrl]  = useState(globalStats.logo_url?.startsWith('http') ? globalStats.logo_url : '');
-  const [uploading,  setUploading]  = useState(false);
-  const [uploadMsg,  setUploadMsg]  = useState('');
+  const [logoTab,      setLogoTab]      = useState<LogoTab>('escudos');
+  const [logo,         setLogo]         = useState(globalStats.logo_url || '⚽');
+  const [customUrl,    setCustomUrl]    = useState(globalStats.logo_url?.startsWith('http') ? globalStats.logo_url : '');
+  const [escudoRegion, setEscudoRegion] = useState<FootballClub['region'] | ''>('');
+  const [uploading,    setUploading]    = useState(false);
+  const [uploadMsg,    setUploadMsg]    = useState('');
   const [teamName,   setTeamName]   = useState(globalStats.team_name || '');
   const [konamiId,   setKonamiId]   = useState(userInfo?.konami_id || '');
   const [eaId,       setEaId]       = useState(userInfo?.ea_id || '');
@@ -491,9 +491,7 @@ function EditPanel({
   const displayLogo = (logoTab === 'url' || logoTab === 'upload') && customUrl.trim()
     ? customUrl.trim()
     : logo;
-  const curList = logoTab === 'escudos' ? LOGOS_ESCUDOS
-    : logoTab === 'banderas' ? LOGOS_FLAGS
-    : LOGOS_CLUBS;
+  const visibleClubs = FOOTBALL_CLUBS.filter(c => !escudoRegion || c.region === escudoRegion);
 
   // ── Upload custom logo image ────────────────────────────────
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -556,7 +554,7 @@ function EditPanel({
 
         {/* Tab selector */}
         <div style={{ display:'flex', gap:4, marginBottom:8, flexWrap:'wrap' }}>
-          {(['escudos','banderas','colores','upload','url'] as LogoTab[]).map(t => (
+          {(['escudos','banderas','upload','url'] as LogoTab[]).map(t => (
             <button key={t} onClick={() => setLogoTab(t)} style={{
               padding:'4px 10px', borderRadius:6, cursor:'pointer',
               background: logoTab===t ? '#00ff8822' : '#21262d',
@@ -564,20 +562,33 @@ function EditPanel({
               color: logoTab===t ? '#00ff88' : '#8b949e',
               fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif", fontWeight:700,
             } as React.CSSProperties}>
-              {t === 'escudos' ? '🛡️ ESC.' : t === 'banderas' ? '🌎 BAND.' : t === 'colores' ? '🎨 COL.' : t === 'upload' ? '📷 FOTO' : '🔗 URL'}
+              {t === 'escudos' ? '🛡️ ESC.' : t === 'banderas' ? '🌎 BAND.' : t === 'upload' ? '📷 FOTO' : '🔗 URL'}
             </button>
           ))}
         </div>
 
-        {/* Emoji pickers */}
-        {(logoTab === 'escudos' || logoTab === 'colores') && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:110, overflowY:'auto' }}>
-            {curList.map(l => (
-              <button key={l} onClick={() => { setLogo(l); setCustomUrl(''); }} style={{
-                padding:'4px 6px', borderRadius:6, border:`2px solid ${logo===l && !customUrl ? '#00ff88' : 'transparent'}`,
-                background: (logo===l && !customUrl) ? '#00ff8820' : '#21262d', cursor:'pointer', fontSize:'1.3rem',
-              }}>{l}</button>
-            ))}
+        {/* Club shields picker */}
+        {logoTab === 'escudos' && (
+          <div>
+            {/* Region filter */}
+            <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:8 }}>
+              <button onClick={() => setEscudoRegion('')} style={{ padding:'3px 8px', borderRadius:5, cursor:'pointer', fontSize:'0.6rem', background: escudoRegion==='' ? '#00ff8822' : '#21262d', border:`1px solid ${escudoRegion==='' ? '#00ff8844' : '#30363d'}`, color: escudoRegion==='' ? '#00ff88' : '#8b949e' }}>TODOS</button>
+              {(Object.entries(CLUB_REGIONS) as [FootballClub['region'], string][]).map(([code, label]) => (
+                <button key={code} onClick={() => setEscudoRegion(escudoRegion === code ? '' : code)} style={{ padding:'3px 8px', borderRadius:5, cursor:'pointer', fontSize:'0.6rem', background: escudoRegion===code ? '#00ff8822' : '#21262d', border:`1px solid ${escudoRegion===code ? '#00ff8844' : '#30363d'}`, color: escudoRegion===code ? '#00ff88' : '#8b949e' }}>{label}</button>
+              ))}
+            </div>
+            {/* Grid */}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:220, overflowY:'auto' }}>
+              {visibleClubs.map(club => {
+                const isSel = logo === club.logo && !customUrl;
+                return (
+                  <button key={club.name} onClick={() => { setLogo(club.logo); setCustomUrl(''); }} style={{ display:'flex', flexDirection:'column', alignItems:'center', width:62, padding:'5px 3px', borderRadius:8, border:`2px solid ${isSel ? '#00ff88' : 'transparent'}`, background: isSel ? '#00ff8820' : '#21262d', cursor:'pointer' }}>
+                    <img src={club.logo} alt={club.name} style={{ width:38, height:38, objectFit:'contain' }} onError={e => { (e.target as HTMLImageElement).style.opacity='0.15'; }} />
+                    <span style={{ fontSize:'0.46rem', color:'#8b949e', marginTop:3, textAlign:'center', lineHeight:1.2, wordBreak:'break-word', maxWidth:56 }}>{club.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -724,11 +735,12 @@ function SupportButton() {
       <button onClick={() => setOpen(o => !o)} style={{
         width:52, height:52, borderRadius:26, border:'2px solid #00ff8844',
         background:'linear-gradient(135deg,#00ff88,#00cc6a)',
-        color:'#000', fontSize:'1.3rem', cursor:'pointer',
+        color:'#000', fontSize:'1.5rem', cursor:'pointer',
         boxShadow:'0 4px 20px rgba(0,255,136,0.4)',
         display:'flex', alignItems:'center', justifyContent:'center',
+        fontWeight:900, lineHeight:1,
       }}>
-        {open ? '✕' : '?'}
+        {open ? '✕' : '💬'}
       </button>
     </div>
   );

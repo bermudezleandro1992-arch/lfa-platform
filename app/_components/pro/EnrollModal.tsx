@@ -5,12 +5,11 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { ProLeague } from '@/lib/types';
 import { flagEmojiToCode } from './LogoImg';
+import { FOOTBALL_CLUBS, CLUB_REGIONS, type FootballClub } from '@/lib/clubs';
 
-const LOGOS_ESCUDOS = ['⚽','🦁','🐺','🦅','🔥','⚡','💎','🛡️','🗡️','🏴‍☠️','🐉','🦊','🐯','🦈','🚀','💀','🏆','⭐','🌊','🎯','🏹','⚔️','🌟','💫','🔱','🦋','🐍','🦂','🦏','🐻'];
-const LOGOS_FLAGS   = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
-const LOGOS_CLUBS   = ['🔵','🔴','⚪','⚫','🟡','🟠','🟢','🟣','🟤','🔶','🔷','🔸','🔹','❤️','💙','💛','💚','🖤','🤍','💜'];
+const LOGOS_FLAGS = ['🇦🇷','🇧🇷','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇺🇾','🇵🇾','🇪🇨','🇧🇴','🇻🇪','🇪🇸','🇵🇹','🇺🇸','🇫🇷','🇮🇹','🇩🇪','🇯🇵','🇰🇷','🇸🇦','🇦🇺','🇳🇱','🇧🇪','🇵🇱','🇬🇧'];
 
-type LogoTab = 'escudos' | 'banderas' | 'colores' | 'url';
+type LogoTab = 'escudos' | 'banderas' | 'url';
 
 interface Props {
   league: ProLeague;
@@ -24,6 +23,7 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
   const [teamName,   setTeamName]   = useState('');
   const [logo,       setLogo]       = useState('⚽');
   const [logoTab,    setLogoTab]    = useState<LogoTab>('escudos');
+  const [escudoRegion, setEscudoRegion] = useState<FootballClub['region'] | ''>('');
   const [customUrl,  setCustomUrl]  = useState('');
   const [platformId, setPlatformId] = useState('');
   const [whatsapp,   setWhatsapp]   = useState('');
@@ -136,7 +136,7 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
 
               {/* Tab selector */}
               <div style={{ display:'flex', gap:4, marginBottom:10, flexWrap:'wrap' }}>
-                {(['escudos','banderas','colores','url'] as LogoTab[]).map(t => (
+                {(['escudos','banderas','url'] as LogoTab[]).map(t => (
                   <button key={t} onClick={() => setLogoTab(t)} style={{
                     padding:'4px 10px', borderRadius:6, cursor:'pointer',
                     background: logoTab===t ? '#00ff8822' : '#21262d',
@@ -144,33 +144,28 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
                     color: logoTab===t ? '#00ff88' : '#8b949e',
                     fontSize:'0.65rem', fontFamily:"'Orbitron',sans-serif", fontWeight:700, letterSpacing:0.5,
                   } as React.CSSProperties}>
-                    {t === 'escudos' ? '🛡️ ESCUDOS' : t === 'banderas' ? '🌎 BANDERAS' : t === 'colores' ? '🎨 COLORES' : '🔗 URL'}
+                    {t === 'escudos' ? '🛡️ CLUBES' : t === 'banderas' ? '🌎 BANDERAS' : '🔗 URL'}
                   </button>
                 ))}
               </div>
 
-              {logoTab !== 'url' && (
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:120, overflowY:'auto', padding:'4px 0' }}>
-                  {(logoTab === 'escudos' ? LOGOS_ESCUDOS : logoTab === 'banderas' ? LOGOS_FLAGS : LOGOS_CLUBS).map(l => {
-                    const flagCode = logoTab === 'banderas' ? flagEmojiToCode(l) : null;
-                    return (
-                      <button key={l} onClick={() => setLogo(l)}
-                        style={{
-                          width:38, height:38, borderRadius:8,
-                          fontSize: flagCode ? 'unset' : '1.3rem',
-                          background: logo===l ? '#00ff8822' : '#21262d',
-                          border: logo===l ? '2px solid #00ff88' : '1px solid #30363d',
-                          cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-                          transition:'all 0.12s', flexShrink:0, padding:0, overflow:'hidden',
-                        }}
-                      >
-                        {flagCode
-                          ? <img src={`https://flagcdn.com/40x30/${flagCode}.png`} alt={flagCode.toUpperCase()} style={{ width:34, height:'auto', display:'block' }} />
-                          : l
-                        }
+              {/* Club shields */}
+              {logoTab === 'escudos' && (
+                <div>
+                  <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:8 }}>
+                    <button onClick={() => setEscudoRegion('')} style={{ padding:'2px 7px', borderRadius:5, cursor:'pointer', fontSize:'0.58rem', background: escudoRegion==='' ? '#00ff8822' : '#21262d', border:`1px solid ${escudoRegion==='' ? '#00ff8844' : '#30363d'}`, color: escudoRegion==='' ? '#00ff88' : '#8b949e' }}>TODOS</button>
+                    {(Object.entries(CLUB_REGIONS) as [FootballClub['region'], string][]).map(([code, label]) => (
+                      <button key={code} onClick={() => setEscudoRegion(escudoRegion === code ? '' : code)} style={{ padding:'2px 7px', borderRadius:5, cursor:'pointer', fontSize:'0.58rem', background: escudoRegion===code ? '#00ff8822' : '#21262d', border:`1px solid ${escudoRegion===code ? '#00ff8844' : '#30363d'}`, color: escudoRegion===code ? '#00ff88' : '#8b949e' }}>{label}</button>
+                    ))}
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:5, maxHeight:160, overflowY:'auto', padding:'2px 0' }}>
+                    {FOOTBALL_CLUBS.filter(c => !escudoRegion || c.region === escudoRegion).map(club => (
+                      <button key={club.name} onClick={() => { setLogo(club.logo); setCustomUrl(''); }} style={{ display:'flex', flexDirection:'column', alignItems:'center', width:58, padding:'4px 2px', borderRadius:8, border:`2px solid ${logo===club.logo && !customUrl ? '#00ff88' : 'transparent'}`, background: logo===club.logo && !customUrl ? '#00ff8820' : '#21262d', cursor:'pointer' }}>
+                        <img src={club.logo} alt={club.name} style={{ width:36, height:36, objectFit:'contain' }} onError={e => { (e.target as HTMLImageElement).style.opacity='0.15'; }} />
+                        <span style={{ fontSize:'0.44rem', color:'#8b949e', marginTop:2, textAlign:'center', lineHeight:1.2, wordBreak:'break-word', maxWidth:54 }}>{club.name}</span>
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -195,13 +190,13 @@ export default function EnrollModal({ league, uid, onClose, onSuccess }: Props) 
                 </div>
               )}
 
-              <div style={{ textAlign:'center', fontSize:'2.5rem', marginTop:10 }}>
+              <div style={{ textAlign:'center', marginTop:10 }}>
                 {(() => {
-                  const src = logoTab === 'url' && customUrl.trim() ? customUrl.trim() : null;
-                  if (src) return <img src={src} alt="logo" style={{ width:50, height:50, borderRadius:10, objectFit:'cover', display:'inline-block' }} onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />;
+                  const src = logoTab === 'url' && customUrl.trim() ? customUrl.trim() : (logo.startsWith('http') ? logo : null);
+                  if (src) return <img src={src} alt="logo" style={{ width:52, height:52, borderRadius:10, objectFit:'contain', display:'inline-block', background:'#21262d', padding:2 }} onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />;
                   const code = flagEmojiToCode(logo);
                   if (code) return <img src={`https://flagcdn.com/48x36/${code}.png`} alt={code.toUpperCase()} style={{ borderRadius:4, display:'inline-block' }} />;
-                  return logo;
+                  return <span style={{ fontSize:'2.5rem' }}>{logo}</span>;
                 })()}
               </div>
             </div>
