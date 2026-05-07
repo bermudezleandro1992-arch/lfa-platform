@@ -83,6 +83,12 @@ export async function POST(req: NextRequest) {
   const montoUSDT = montoCoins / RATE;
   const uRef = adminDb.collection('usuarios').doc(uid);
 
+  // Capturar IP del solicitante para trazabilidad de auditoría
+  const ipSolicitud =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown';
+
   /* 3 ── Transacción atómica: validar + descontar ── */
   let retiroRef: FirebaseFirestore.DocumentReference | null = null;
   let ledgerTxId = '';
@@ -155,6 +161,7 @@ export async function POST(req: NextRequest) {
         ledger_tx_id:     ledgerTxId,
         fecha:            FieldValue.serverTimestamp(),
         updated_at:       FieldValue.serverTimestamp(),
+        ip_solicitud:     ipSolicitud,
       });
     });
   } catch (err: unknown) {

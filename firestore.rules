@@ -96,7 +96,11 @@ service cloud.firestore {
 
     match /retiros/{retiroId} {
       allow read: if authExists() && (isOwner(resource.data.uid) || esAdmin());
-      allow create, update, delete: if false;
+      // Los retiros se crean SIEMPRE por Admin SDK (server-side API route).
+      // Solo el admin puede cambiar 'estado' (aprobar/rechazar) desde el CEO panel.
+      allow create: if false;
+      allow update: if esAdmin();
+      allow delete: if esAdmin();
     }
 
     match /torneo/{resultadoId} {

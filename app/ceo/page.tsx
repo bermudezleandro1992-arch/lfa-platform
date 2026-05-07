@@ -37,6 +37,8 @@ interface Retiro {
   id: string; nombre_real?: string; nombreJugador?: string;
   whatsapp?: string; montoCoins?: number; cbuAlias?: string;
   fecha?: { toDate?: () => Date }; uid?: string;
+  usd?: number; wallet?: string; network?: string; metodo?: string;
+  estado?: string; ip_solicitud?: string; motivo_rechazo?: string;
 }
 interface PagoManual {
   id: string; jugador_nombre?: string; uid?: string; coins?: number; coins_total?: number;
@@ -271,7 +273,7 @@ export default function CeoPage() {
       snap => { let g=0; snap.forEach(d => { const t=d.data(); g+=((t.costo_inscripcion||0)*(t.cupos_totales||0)*0.15); }); setGanancias(g); }
     ));
 
-    subs.push(onSnapshot(query(collection(db,'retiros'), where('estado','==','pendiente')), snap => {
+    subs.push(onSnapshot(query(collection(db,'retiros'), where('estado','in',['pendiente','aprobacion_manual'])), snap => {
       const l: Retiro[] = []; snap.forEach(d => l.push({ id: d.id, ...d.data() } as Retiro)); setRetiros(l);
     }));
 
@@ -366,10 +368,17 @@ export default function CeoPage() {
   async function rechazarPago(id: string) { await updateDoc(doc(db,'pagos_pendientes',id), { estado: 'rechazado', rechazado_at: serverTimestamp() }); }
   async function marcarRetiroPagado(id: string) { await updateDoc(doc(db,'retiros',id), { estado: 'completado' }); await alerta('LISTO','Retiro marcado como pagado.','exito'); }
   async function rechazarRetiro(id: string, uid: string, monto: number) {
+    const motivo = await modal.current!.pedirDato('MOTIVO DEL RECHAZO', 'Describí el motivo (se guardará en el historial del usuario):');
+    if (!motivo) return; // Cancelado
     const b = writeBatch(db);
     b.update(doc(db,'usuarios',uid), { number: increment(monto) });
-    b.update(doc(db,'retiros',id), { estado: 'rechazado' });
-    await b.commit(); await alerta('DEVUELTO','Coins devueltas.','exito');
+    b.update(doc(db,'retiros',id), {
+      estado: 'rechazado',
+      motivo_rechazo: motivo,
+      rechazado_at: serverTimestamp(),
+    });
+    await b.commit();
+    await alerta('DEVUELTO', `🔙 Coins devueltas al usuario.\nMotivo registrado: "${motivo}"`, 'exito');
   }
 
   async function abrirAudit(uid: string) {
@@ -1320,15 +1329,26 @@ export default function CeoPage() {
                         const fp    = jDat?.fair_play ?? 100;
                         const ipOtros = jugadores.filter(j => j.id !== r.uid && j.ip && j.ip === jDat?.ip);
                         const fpOtros = jugadores.filter(j => j.id !== r.uid && (j as unknown as Record<string,unknown>).fingerprint_id && (j as unknown as Record<string,unknown>).fingerprint_id === (jDat as unknown as Record<string,unknown>)?.fingerprint_id);
-                        const riesgoAlt = ipOtros.length > 0 || fpOtros.length > 0 || (wr >= 80 && parts >= 10) || fp < 30;
+                        const ipCambio = !!(r.ip_solicitud && r.ip_solicitud !== 'unknown' && jDat?.ip && r.ip_solicitud !== jDat.ip);
+                        const esManual = r.estado === 'aprobacion_manual';
+                        const riesgoAlt = ipOtros.length > 0 || fpOtros.length > 0 || (wr >= 80 && parts >= 10) || fp < 30 || ipCambio || esManual;
                         return (
                           <tr key={r.id} className="crow" style={{ background: riesgoAlt ? 'rgba(255,71,87,0.04)' : undefined }}>
                             <td style={td}>
                               <b>{r.nombre_real||r.nombreJugador}</b>
-                              <br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp}</span>
+                              <br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp||'—'}</span>
+                              {r.ip_solicitud && r.ip_solicitud !== 'unknown' && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>🌐 {r.ip_solicitud}</div>}
+                              {esManual && <div style={{ fontSize:'0.6rem', fontWeight:700, color:'#ffd700', marginTop:2 }}>⚠️ APROBACIÓN MANUAL</div>}
                             </td>
-                            <td style={{ ...td, color:'#ff4757', fontWeight:700 }}>🪙 {(r.montoCoins||0).toLocaleString()}</td>
-                            <td style={td}><code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.cbuAlias || '—'}</code></td>
+                            <td style={{ ...td, fontWeight:700 }}>
+                              <span style={{ color:'#ff4757' }}>🪙 {(r.montoCoins||0).toLocaleString()}</span>
+                              {r.usd && <div style={{ color:'#ffd700', fontSize:'0.72rem', marginTop:2 }}>${r.usd.toFixed(2)} USDT</div>}
+                            </td>
+                            <td style={td}>
+                              <code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.wallet || r.cbuAlias || '—'}</code>
+                              {r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.network === 'TRX' ? '🟣 TRC20' : r.network === 'BSC' ? '🟡 BEP20' : r.network}</div>}
+                              {r.metodo && !r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.metodo}</div>}
+                            </td>
                             <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
                             <td style={td}>
                               <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
@@ -1339,6 +1359,8 @@ export default function CeoPage() {
                                 {fpOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🖥️ Mismo device</span>}
                                 {wr >= 80 && parts >= 10 && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>📈 WR {wr}% ({parts}p)</span>}
                                 {fp < 30 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>💔 FP {fp}%</span>}
+                                {ipCambio && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🌐 IP diferente al login</span>}
+                                {esManual && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>💰 &gt;$200 USDT</span>}
                               </div>
                             </td>
                             <td style={td}>

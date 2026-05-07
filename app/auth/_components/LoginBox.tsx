@@ -47,11 +47,13 @@ const TOS_TEXT = `📋 REGLAMENTO OFICIAL SOMOSLFA
 • Cada jugador debe tener una sola cuenta activa.
 • Está prohibido compartir cuentas o usar IDs ajenos.
 • El EA ID / Konami ID registrado debe coincidir con el usado en partidos.
-• Solo jugadores mayores de 13 años pueden participar.
+• El nombre en la captura de pantalla debe coincidir exactamente con tu ID registrado. Si no coincide, serás descalificado automáticamente por Suplantación de Identidad.
+• Solo jugadores mayores de 18 años pueden participar en torneos con premios.
 • Los resultados se reportan con captura de pantalla del marcador final.
 • La IA valida el marcador automáticamente; en disputas decide el Staff.
 • Tenés 10 minutos para confirmar el resultado luego de que tu rival lo reporte.
-• No presentarse sin aviso genera descuento de puntos.
+• Si no disputás en esos 10 minutos, el resultado se valida automáticamente (Aceptación Silenciosa) y no se podrá reclamar.
+• Usar el botón de Denuncia para retrasar pagos sin causa real es falta grave de Fair Play y resulta en penalización.
 • Conducta antideportiva, insultos o manipulación → descuento o exclusión.
 • El incumplimiento reiterado puede derivar en ban permanente.
 • Se prohíbe el uso de glitches, bugs o cualquier ventaja no permitida.
@@ -77,11 +79,11 @@ const TOS_TEXT = `📋 REGLAMENTO OFICIAL SOMOSLFA
 ━━━━━━━━━━━━━━━━━━━━━━━━
 💰 POLÍTICA DE REEMBOLSOS
 
-• Inscripciones pagadas son reembolsables si la liga no inicia en 7 días hábiles desde la fecha anunciada.
+• Compras de LFA Coins no utilizadas son reembolsables dentro de los 14 días calendario según la Política de Reembolsos.
 • Si el torneo se cancela por causas internas, se reembolsa el 100%.
 • No hay reembolso por abandono voluntario una vez iniciada la liga.
 • No se reembolsa si el jugador es sancionado por incumplimiento del reglamento.
-• Las monedas LFA (LFC) no son reembolsables en dinero real.
+• Las LFA Coins ganadas en torneos son retirables. Coins ya usadas en inscripciones ejecutadas no se reembolsan.
 
 Al marcar la casilla confirmás haber leído y comprendido todo lo anterior.`;
 

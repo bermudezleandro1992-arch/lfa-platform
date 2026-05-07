@@ -26,6 +26,7 @@ export default function ReglamentoPage() {
         <li>Cada usuario solo puede poseer <strong>una (1) cuenta registrada</strong>. La detección de cuentas múltiples resultará en el baneo permanente de todas las cuentas involucradas y la pérdida total del saldo.</li>
         <li>El <strong>ID de Consola / PC / GamerTag</strong> ingresado al registrarse debe ser real, activo y de propiedad del usuario. Está prohibido usar el ID de otra persona.</li>
         <li>LFA podrá solicitar verificación adicional de identidad (captura de pantalla del perfil de la plataforma de juego) en cualquier momento, especialmente ante retiros de montos elevados o disputas activas.</li>
+        <li>El <strong>ID de consola / GamerTag / Konami ID / EA ID</strong> vinculado a la cuenta de SomosLFA es <strong>único e intransferible</strong>. No se permiten cambios de ID una vez inscripto en un torneo activo. Si el sistema VAR o el equipo administrativo detecta que el nombre de usuario visible en la captura de pantalla de resultado <strong>no coincide</strong> con el ID registrado en el perfil, el jugador será <strong>descalificado automáticamente por Suplantación de Identidad</strong> y perderá el torneo junto con las LFA Coins correspondientes.</li>
       </ul>
 
       <h2 className="legal-h2">4. CONDUCTA Y JUEGO LIMPIO — TRUST FACTOR</h2>
@@ -43,7 +44,7 @@ export default function ReglamentoPage() {
       </div>
       <ul className="legal-ul">
         <li>Los torneos pueden estar restringidos a regiones geográficas específicas para garantizar la calidad de conexión entre los participantes.</li>
-        <li>Si un jugador experimenta <strong>lag extremo verificable</strong> por culpa de la conexión del rival, debe <strong>grabar la pantalla mostrando el medidor de ping</strong> y retirarse del partido <strong>antes del minuto 15 del primer tiempo</strong> (tiempo de juego). Si el abandono ocurre después de ese límite, el resultado parcial será tomado como válido.</li>
+        <li>Si un jugador experimenta <strong>lag extremo verificable</strong> por culpa de la conexión del rival, debe <strong>grabar la pantalla mostrando el medidor de ping</strong> y retirarse del partido dentro del límite de tiempo según el videojuego: <strong>antes del minuto 10 en eFootball</strong> o <strong>antes del minuto 15 en EA FC 26</strong> (tiempo de juego). Si el abandono ocurre después de ese límite, el resultado parcial será tomado como válido.</li>
         <li>Los problemas de conexión propios (corte de luz, internet, consola) no son motivo válido para solicitar la repetición del partido ni el reembolso de la inscripción.</li>
       </ul>
 
@@ -54,6 +55,8 @@ export default function ReglamentoPage() {
         <li><strong>Requisitos de la prueba:</strong> La captura de pantalla debe mostrar con total claridad los <em>IDs de ambos jugadores</em> y el <em>marcador final</em>. No debe estar editada digitalmente, recortada de forma que omita información clave ni bloqueada por notificaciones del sistema.</li>
         <li>Las imágenes son procesadas por el <strong>Sistema VAR basado en Inteligencia Artificial</strong> (Google Cloud Vision API). La decisión del VAR es vinculante y ejecutada de forma automática.</li>
         <li><strong>Penalización por Fraude:</strong> Subir una imagen manipulada, falsa o de un resultado anterior para engañar al sistema resultará en una multa automática de <strong>-15 puntos de Trust Factor</strong> y puede derivar en baneo permanente con pérdida de fondos.</li>
+        <li><strong>Aceptación Silenciosa:</strong> Una vez cargado el resultado por el ganador, el participante declarado perdedor dispone de un margen de <strong>10 minutos</strong> para iniciar una Denuncia Técnica. Si transcurrido ese tiempo no hay ninguna acción, el sistema dará el resultado por validado automáticamente y las LFA Coins se acreditarán al ganador sin posibilidad de reclamo posterior.</li>
+        <li><strong>Penalización por Denuncia Fraudulenta:</strong> El uso del botón de Denuncia con la intención de retrasar el pago de premios o revertir una derrota legítima constituye una falta grave de Fair Play. Si el equipo de soporte determina que la denuncia fue infundada o malintencionada, el denunciante sufrirá una penalización automática de <strong>-10% de Fair Play</strong> y perderá automáticamente la disputa.</li>
         <li>En caso de <strong>Disputa Oficial</strong>, ambas partes deben presentar sus pruebas al Staff dentro de las <strong>24 horas</strong> posteriores al partido. El Staff resolverá en un plazo máximo de 72 horas. <strong>Las decisiones de la Administración son inapelables.</strong></li>
       </ul>
 
