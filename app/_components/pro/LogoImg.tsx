@@ -2,7 +2,7 @@
 
 /** Converts a flag emoji (🇦🇷, 🇧🇷…) to its ISO-2 code, or null if not a flag. */
 export function flagEmojiToCode(emoji: string): string | null {
-  const pts = [...emoji].map(c => c.codePointAt(0)!);
+  const pts = Array.from(emoji).map(c => c.codePointAt(0)!);
   if (pts.length === 2 && pts.every(p => p >= 0x1F1E6 && p <= 0x1F1FF)) {
     return String.fromCharCode(pts[0] - 0x1F1E6 + 65, pts[1] - 0x1F1E6 + 65).toLowerCase();
   }
