@@ -3,7 +3,7 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { createHash } from "crypto";
 
-const VALID_GAMES   = ["FC26", "EFOOTBALL"] as const;
+const VALID_GAMES   = ["FC26", "EFOOTBALL", "EFOOTBALL_MOBILE", "FC_MOBILE"] as const;
 const VALID_MODES   = ["GENERAL_95", "ULTIMATE", "DREAM_TEAM", "GENUINOS"] as const;
 const VALID_REGIONS = ["LATAM_SUR", "LATAM_NORTE", "AMERICA", "EUROPA", "GLOBAL"] as const;
 const VALID_CAPS    = [2, 4, 8, 16, 32] as const;
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     premio_monto?:      number;
     premio_moneda?:     string;
     password?:          string;
+    country?:           string;
   };
   try {
     body = await req.json();
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { game, mode, region, capacity, entry_fee, descripcion, premio_externo, premio_descripcion,
-          nombre_torneo, tipo_premio, premio_monto, premio_moneda, password } = body;
+          nombre_torneo, tipo_premio, premio_monto, premio_moneda, password, country } = body;
 
   if (!(VALID_GAMES as readonly string[]).includes(game)) {
     return NextResponse.json({ error: "Juego inválido" }, { status: 400 });
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
   const safeMoneda   = typeof premio_moneda      === "string" ? premio_moneda.slice(0, 20)       : "";
   const safeTipo     = ["coins", "usd", "puntos", "otro"].includes(tipo_premio as string) ? tipo_premio : "coins";
   const safeMonto    = typeof premio_monto === "number" && premio_monto >= 0 ? premio_monto : 0;
+  const safeCountry  = typeof country === "string" && country.length <= 60 ? country.trim() : "";
 
   // Password hash (SHA-256, server-side only)
   let passwordHash: string | null = null;
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
       premio_moneda:       safeMoneda || null,
       has_password:        passwordHash !== null,
       ...(passwordHash ? { password_hash: passwordHash } : {}),
+      ...(safeCountry ? { country: safeCountry } : {}),
     });
 
     return NextResponse.json({ ok: true, tournamentId: ref.id });

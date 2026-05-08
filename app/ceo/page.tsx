@@ -238,6 +238,22 @@ export default function CeoPage() {
   const [crAutoRespawn, setCrAutoRespawn] = useState(false);
   const [crSpawnInterval, setCrSpawnInterval] = useState(1); // horas
 
+  /* ── Crear torneo organizado (CEO) ──────────────────────── */
+  const [orgGame,    setOrgGame]    = useState('FC26');
+  const [orgMode,    setOrgMode]    = useState('GENERAL_95');
+  const [orgRegion,  setOrgRegion]  = useState('LATAM_SUR');
+  const [orgCap,     setOrgCap]     = useState('8');
+  const [orgFee,     setOrgFee]     = useState('0');
+  const [orgNombre,  setOrgNombre]  = useState('');
+  const [orgDesc,    setOrgDesc]    = useState('');
+  const [orgCountry, setOrgCountry] = useState('');
+  const [orgPass,    setOrgPass]    = useState('');
+  const [orgCreating, setOrgCreating] = useState(false);
+  const ORG_MODES: Record<string, string[]> = {
+    FC26: ['GENERAL_95','ULTIMATE'], EFOOTBALL: ['DREAM_TEAM','GENUINOS'],
+    EFOOTBALL_MOBILE: ['DREAM_TEAM','GENUINOS'], FC_MOBILE: ['ULTIMATE','GENUINOS'],
+  };
+
   /* ── Fair play ───────────────────────────────────────────── */
   const [fpUid, setFpUid] = useState('');
 
@@ -656,6 +672,32 @@ export default function CeoPage() {
       ...(crCountry ? { country: crCountry } : {}),
     });
     await alerta('SALA CREADA', `${GL[crGame]} · ${ML[crMode]} · ${crTier} · ${cap}j · ${mkPrizes().length} premios${crCountry ? ` · ${crCountry}` : ''}${crAutoRespawn ? ` · ♻️ Auto-Respawn cada ${crSpawnInterval}h` : ''}`, 'exito');
+  }
+
+  /* ── Crear torneo organizado desde CEO ──────────────────── */
+  async function crearTorneoOrg() {
+    setOrgCreating(true);
+    try {
+      const token = await getIdToken(auth.currentUser!);
+      const res = await fetch('/api/organizer/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          game: orgGame, mode: orgMode, region: orgRegion,
+          capacity: parseInt(orgCap), entry_fee: parseInt(orgFee) || 0,
+          nombre_torneo: orgNombre || undefined,
+          descripcion:   orgDesc   || undefined,
+          country:       orgCountry || undefined,
+          password:      orgPass    || undefined,
+          tipo_premio:   'coins',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error');
+      await alerta('🏆 TORNEO CREADO', `ID: ${data.tournamentId}${orgNombre ? ` · "${orgNombre}"` : ''}${orgCountry ? ` · ${orgCountry}` : ''}`, 'exito');
+      setOrgNombre(''); setOrgDesc(''); setOrgCountry(''); setOrgPass('');
+    } catch (e: unknown) { await alerta('ERROR', (e as Error).message, 'error'); }
+    setOrgCreating(false);
   }
 
   /* ── BOT Actions (fill / advance round) ─────────────────── */
@@ -1290,6 +1332,43 @@ export default function CeoPage() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* ── CREAR TORNEO ORGANIZADO ─────────────────── */}
+            <div style={{ marginTop:28, ...card, borderTop:'3px solid #a371f7' }}>
+              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#a371f7', margin:'0 0 16px', fontSize:'0.85rem' }}>🏆 CREAR TORNEO ORGANIZADO</h3>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:10 }}>
+                <input style={inp} placeholder="Nombre del torneo (opcional)" value={orgNombre} onChange={e => setOrgNombre(e.target.value.slice(0,80))} />
+                <select style={inp} value={orgGame} onChange={e => { const g=e.target.value; setOrgGame(g); setOrgMode(ORG_MODES[g]?.[0]??'GENERAL_95'); }}>
+                  <option value="FC26">⚽ FC 26</option>
+                  <option value="EFOOTBALL">🟡 eFootball</option>
+                  <option value="EFOOTBALL_MOBILE">📱 eFootball Mobile</option>
+                  <option value="FC_MOBILE">📱 FC Mobile</option>
+                </select>
+                <select style={inp} value={orgMode} onChange={e => setOrgMode(e.target.value)}>
+                  {(ORG_MODES[orgGame]??[]).map(m => <option key={m} value={m}>{ML[m]??m}</option>)}
+                </select>
+                <select style={inp} value={orgRegion} onChange={e => setOrgRegion(e.target.value)}>
+                  <option value="LATAM_SUR">LATAM Sur</option>
+                  <option value="LATAM_NORTE">LATAM Norte</option>
+                  <option value="AMERICA">América</option>
+                  <option value="GLOBAL">Global</option>
+                  <option value="EUROPA">Europa</option>
+                </select>
+                <select style={inp} value={orgCap} onChange={e => setOrgCap(e.target.value)}>
+                  {[2,4,8,16,32].map(n => <option key={n} value={String(n)}>{n} jugadores</option>)}
+                </select>
+                <input style={inp} type="number" min={0} placeholder="Inscripción LFC (0 = gratis)" value={orgFee} onChange={e => setOrgFee(e.target.value)} />
+                <select style={inp} value={orgCountry} onChange={e => setOrgCountry(e.target.value)}>
+                  <option value="">🌐 Todos los países</option>
+                  {PAISES_SPAWN.map(p => <option key={p.code} value={p.code}>{p.flag} {p.code}</option>)}
+                </select>
+                <input style={inp} placeholder="Contraseña (opcional — sala privada)" value={orgPass} onChange={e => setOrgPass(e.target.value.slice(0,50))} />
+                <input style={{ ...inp, gridColumn:'1/-1' }} placeholder="Descripción (opcional)" value={orgDesc} onChange={e => setOrgDesc(e.target.value.slice(0,280))} />
+              </div>
+              <button style={{ ...btn('#a371f7','white'), width:'100%', marginTop:8, opacity: orgCreating ? 0.6 : 1 }} disabled={orgCreating} onClick={crearTorneoOrg}>
+                {orgCreating ? '⏳ CREANDO...' : '🏆 PUBLICAR TORNEO ORGANIZADO'}
+              </button>
             </div>
           </>}
 

@@ -12,7 +12,8 @@ interface Jugador {
   id: string; nombre?: string; avatar_url?: string; region?: string;
   number?: number; fair_play?: number; titulos?: number;
   partidos_jugados?: number; victorias?: number; derrotas?: number;
-  baneado?: boolean; rol?: string; country?: string; main_game?: string;
+  baneado?: boolean; rol?: string; country?: string;
+  main_game?: string; platform?: string; preferred_mode?: string;
 }
 
 /* ─── Helpers ────────────────────────────────────────── */
@@ -65,13 +66,46 @@ const REGIONS = [
   { value: 'EUROPA',      label: '🇪🇺 Europa'        },
 ];
 
-const GAME_FILTER_OPTS = [
-  { value: '',                 label: '🌐 Todos'       },
-  { value: 'FC26',             label: '⚽ FC 26'        },
-  { value: 'EFOOTBALL',        label: '🟡 eFootball'    },
-  { value: 'EFOOTBALL_MOBILE', label: '📱 eFB Mobile'  },
-  { value: 'FC_MOBILE',        label: '📱 FC Mobile'   },
+const GAME_FAMILY_OPTS = [
+  { value: '',          label: '🌐 Todos los juegos' },
+  { value: 'fc',        label: '⚽ EA Sports FC'     },
+  { value: 'efootball', label: '🟡 eFootball'         },
 ];
+
+const PLATFORM_OPTS = [
+  { value: '',          label: '🌐 Todas'     },
+  { value: 'crossplay', label: '🚫 CROSSPLAY' },
+  { value: 'mobile',    label: '📱 MOBILE'    },
+];
+
+const MODE_OPTS_BY_FAMILY: Record<string, { value: string; label: string }[]> = {
+  '':         [
+    { value: '', label: '🌐 Todos' },
+    { value: 'GENERAL_95', label: '⚽ 95 General' },
+    { value: 'ULTIMATE',   label: '⭐ Ultimate'   },
+    { value: 'DREAM_TEAM', label: '🟡 Dream Team' },
+    { value: 'GENUINOS',   label: '💪 Genuinos'   },
+  ],
+  'fc':        [
+    { value: '', label: '🌐 Todos modos' },
+    { value: 'GENERAL_95', label: '⚽ 95 General'    },
+    { value: 'ULTIMATE',   label: '⭐ Ultimate Team' },
+  ],
+  'efootball': [
+    { value: '', label: '🌐 Todos modos' },
+    { value: 'DREAM_TEAM', label: '🟡 Dream Team' },
+    { value: 'GENUINOS',   label: '💪 Genuinos'   },
+  ],
+};
+
+function getEffectiveGames(family: string, platform: string): string[] {
+  if (!family && !platform) return [];
+  const fcGames    = platform === 'mobile' ? ['FC_MOBILE'] : platform === 'crossplay' ? ['FC26'] : ['FC26', 'FC_MOBILE'];
+  const efGames    = platform === 'mobile' ? ['EFOOTBALL_MOBILE'] : platform === 'crossplay' ? ['EFOOTBALL'] : ['EFOOTBALL', 'EFOOTBALL_MOBILE'];
+  if (family === 'fc')        return fcGames;
+  if (family === 'efootball') return efGames;
+  return [...fcGames, ...efGames];
+}
 
 /* ── Posición decorativa ─────────────────────────────── */
 function PosIcon({ pos }: { pos: number }) {
@@ -86,10 +120,12 @@ export default function RankingPage() {
   const router = useRouter();
   const [uid,       setUid]       = useState('');
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
-  const [sortKey,   setSortKey]   = useState<SortKey>('titulos');
-  const [region,    setRegion]    = useState('');
-  const [gameFilter, setGameFilter] = useState('');
-  const [ready,     setReady]     = useState(false);
+  const [sortKey,      setSortKey]      = useState<SortKey>('titulos');
+  const [region,       setRegion]       = useState('');
+  const [gameFamily,   setGameFamily]   = useState('');
+  const [platform,     setPlatform]     = useState('');
+  const [modeFilter,   setModeFilter]   = useState('');
+  const [ready,        setReady]        = useState(false);
 
   /* ── Auth ─────────────────────────────────────────── */
   useEffect(() => {
@@ -131,8 +167,13 @@ export default function RankingPage() {
   );
 
   /* ── Filtrar y ordenar ────────────────────────────── */
+  const effectiveGames = getEffectiveGames(gameFamily, platform);
+  const modeOpts       = MODE_OPTS_BY_FAMILY[gameFamily] ?? MODE_OPTS_BY_FAMILY[''];
   const filtrados = jugadores
-    .filter(j => !region || j.region === region)    .filter(j => !gameFilter || j.main_game === gameFilter)    .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0));
+    .filter(j => !region || j.region === region)
+    .filter(j => !effectiveGames.length || effectiveGames.includes(j.main_game ?? ''))
+    .filter(j => !modeFilter || j.preferred_mode === modeFilter)
+    .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0));
 
   const top3  = filtrados.slice(0, 3);
   const resto = filtrados.slice(3);
@@ -172,42 +213,71 @@ export default function RankingPage() {
         <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(18px,3vw,30px) clamp(12px,4vw,5%)' }}>
 
           {/* ── FILTROS ──────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 22, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ color: '#8b949e', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif", marginRight: 4 }}>ORDENAR:</span>
-            {SORT_OPTS.map(o => (
-              <button key={o.key} className="filt" onClick={() => setSortKey(o.key)} style={{
-                background: sortKey === o.key ? 'rgba(255,215,0,0.1)' : 'transparent',
-                border: `1px solid ${sortKey === o.key ? '#ffd700' : '#30363d'}`,
-                color: sortKey === o.key ? '#ffd700' : '#8b949e',
-                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
-                fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 700,
-                transition: '0.15s',
-              }}>{o.label}</button>
-            ))}
-            <span style={{ color: '#30363d' }}>|</span>
-            <span style={{ color: '#8b949e', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif" }}>REGIÓN:</span>
-            {REGIONS.map(r => (
-              <button key={r.value} className="filt" onClick={() => setRegion(r.value)} style={{
-                background: region === r.value ? 'rgba(0,158,227,0.1)' : 'transparent',
-                border: `1px solid ${region === r.value ? '#009ee3' : '#30363d'}`,
-                color: region === r.value ? '#009ee3' : '#8b949e',
-                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
-                fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 700,
-                transition: '0.15s',
-              }}>{r.label}</button>
-            ))}
-            <span style={{ color: '#30363d' }}>|</span>
-            <span style={{ color: '#8b949e', fontSize: '0.72rem', fontFamily: "'Orbitron',sans-serif" }}>JUEGO:</span>
-            {GAME_FILTER_OPTS.map(g => (
-              <button key={g.value} className="filt" onClick={() => setGameFilter(g.value)} style={{
-                background: gameFilter === g.value ? 'rgba(0,195,255,0.1)' : 'transparent',
-                border: `1px solid ${gameFilter === g.value ? '#00c3ff' : '#30363d'}`,
-                color: gameFilter === g.value ? '#00c3ff' : '#8b949e',
-                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
-                fontFamily: "'Orbitron',sans-serif", fontSize: '0.67rem', fontWeight: 700,
-                transition: '0.15s',
-              }}>{g.label}</button>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
+
+            {/* Fila 1: Ordenar */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ color: '#8b949e', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif", minWidth: 64 }}>ORDENAR:</span>
+              {SORT_OPTS.map(o => (
+                <button key={o.key} className="filt" onClick={() => setSortKey(o.key)} style={{
+                  background: sortKey === o.key ? 'rgba(255,215,0,0.1)' : 'transparent',
+                  border: `1px solid ${sortKey === o.key ? '#ffd700' : '#30363d'}`,
+                  color: sortKey === o.key ? '#ffd700' : '#8b949e',
+                  padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700, transition: '0.15s',
+                }}>{o.label}</button>
+              ))}
+              <span style={{ color: '#30363d' }}>|</span>
+              <span style={{ color: '#8b949e', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif" }}>REGIÓN:</span>
+              {REGIONS.map(r => (
+                <button key={r.value} className="filt" onClick={() => setRegion(r.value)} style={{
+                  background: region === r.value ? 'rgba(0,158,227,0.1)' : 'transparent',
+                  border: `1px solid ${region === r.value ? '#009ee3' : '#30363d'}`,
+                  color: region === r.value ? '#009ee3' : '#8b949e',
+                  padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700, transition: '0.15s',
+                }}>{r.label}</button>
+              ))}
+            </div>
+
+            {/* Fila 2: Juego + Plataforma */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '10px 14px', background: '#161b22', border: '1px solid #30363d', borderRadius: 12 }}>
+              <span style={{ color: '#8b949e', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif", minWidth: 46 }}>JUEGO:</span>
+              {GAME_FAMILY_OPTS.map(g => (
+                <button key={g.value} className="filt" onClick={() => { setGameFamily(g.value); setModeFilter(''); }} style={{
+                  background: gameFamily === g.value ? 'rgba(0,195,255,0.12)' : 'transparent',
+                  border: `1px solid ${gameFamily === g.value ? '#00c3ff' : '#30363d'}`,
+                  color: gameFamily === g.value ? '#00c3ff' : '#8b949e',
+                  padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700, transition: '0.15s',
+                }}>{g.label}</button>
+              ))}
+              <span style={{ color: '#30363d' }}>|</span>
+              <span style={{ color: '#8b949e', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif" }}>PLAT:</span>
+              {PLATFORM_OPTS.map(p => (
+                <button key={p.value} className="filt" onClick={() => setPlatform(p.value)} style={{
+                  background: platform === p.value ? 'rgba(156,95,255,0.12)' : 'transparent',
+                  border: `1px solid ${platform === p.value ? '#9c5fff' : '#30363d'}`,
+                  color: platform === p.value ? '#9c5fff' : '#8b949e',
+                  padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                  fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700, transition: '0.15s',
+                }}>{p.label}</button>
+              ))}
+              {modeOpts.length > 1 && (<>
+                <span style={{ color: '#30363d' }}>|</span>
+                <span style={{ color: '#8b949e', fontSize: '0.67rem', fontFamily: "'Orbitron',sans-serif" }}>MODO:</span>
+                {modeOpts.map(m => (
+                  <button key={m.value} className="filt" onClick={() => setModeFilter(m.value)} style={{
+                    background: modeFilter === m.value ? 'rgba(0,255,136,0.1)' : 'transparent',
+                    border: `1px solid ${modeFilter === m.value ? '#00ff88' : '#30363d'}`,
+                    color: modeFilter === m.value ? '#00ff88' : '#8b949e',
+                    padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                    fontFamily: "'Orbitron',sans-serif", fontSize: '0.65rem', fontWeight: 700, transition: '0.15s',
+                  }}>{m.label}</button>
+                ))}
+              </>)}
+            </div>
+
           </div>
 
           {/* ── TOP 3 PODIO ──────────────────────────── */}

@@ -718,12 +718,39 @@ const GAME_MODES: Record<string, string[]> = {
   FC_MOBILE:        ["ULTIMATE", "GENUINOS"],
 };
 
+const PAISES_ORG = [
+  { code: "Argentina",            flag: "🇦🇷" },
+  { code: "México",               flag: "🇲🇽" },
+  { code: "Colombia",             flag: "🇨🇴" },
+  { code: "Chile",                flag: "🇨🇱" },
+  { code: "Perú",                 flag: "🇵🇪" },
+  { code: "Venezuela",            flag: "🇻🇪" },
+  { code: "Ecuador",              flag: "🇪🇨" },
+  { code: "Bolivia",              flag: "🇧🇴" },
+  { code: "Paraguay",             flag: "🇵🇾" },
+  { code: "Uruguay",              flag: "🇺🇾" },
+  { code: "Brasil",               flag: "🇧🇷" },
+  { code: "España",               flag: "🇪🇸" },
+  { code: "Costa Rica",           flag: "🇨🇷" },
+  { code: "Guatemala",            flag: "🇬🇹" },
+  { code: "Honduras",             flag: "🇭🇳" },
+  { code: "Nicaragua",            flag: "🇳🇮" },
+  { code: "Panamá",               flag: "🇵🇦" },
+  { code: "El Salvador",          flag: "🇸🇻" },
+  { code: "República Dominicana", flag: "🇩🇴" },
+  { code: "Cuba",                 flag: "🇨🇺" },
+  { code: "Puerto Rico",          flag: "🇵🇷" },
+  { code: "Estados Unidos",       flag: "🇺🇸" },
+  { code: "Canadá",               flag: "🇨🇦" },
+];
+
 function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
   const [form, setForm] = useState({
     nombre_torneo:      "",
     game:               "FC26",
     mode:               "GENERAL_95",
     region:             "LATAM_SUR",
+    country:            "",
     capacity:           8,
     entry_fee:          0,
     descripcion:        "",
@@ -814,6 +841,16 @@ function CreateModal({ uid, onClose, onCreated }: CreateModalProps) {
           <select value={form.region} onChange={e => set("region", e.target.value)} style={sel()}>
             {["LATAM_SUR", "LATAM_NORTE", "AMERICA", "EUROPA", "GLOBAL"].map(r => (
               <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+        </Field>
+
+        {/* Country (optional) */}
+        <Field label="PAÍS (opcional — restringir a un país)">
+          <select value={form.country} onChange={e => set("country", e.target.value)} style={sel()}>
+            <option value="">🌐 Todos los países</option>
+            {PAISES_ORG.map(p => (
+              <option key={p.code} value={p.code}>{p.flag} {p.code}</option>
             ))}
           </select>
         </Field>
