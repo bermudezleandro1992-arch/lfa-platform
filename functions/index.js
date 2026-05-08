@@ -1607,19 +1607,21 @@ async function runSpawnCycle() {
         for (let i = 0; i < needed; i++) {
             const ref = db.collection("tournaments").doc();
             batch.set(ref, {
-                game:       tpl.game,
-                mode:       tpl.mode,
-                region:     tpl.region,
-                tier:       tpl.tier,
-                free:       tpl.entry_fee === 0,
-                entry_fee:  tpl.entry_fee,
-                prize_pool: calcPrizePool(tpl.capacity, tpl.entry_fee),
-                prizes:     calcPrizes(tpl.capacity, tpl.entry_fee),
-                capacity:   tpl.capacity,
-                players:    [],
-                status:     "OPEN",
-                spawned:    true,
-                created_at: admin.firestore.FieldValue.serverTimestamp(),
+                game:         tpl.game,
+                mode:         tpl.mode,
+                region:       tpl.region,
+                tier:         tpl.tier,
+                free:         tpl.entry_fee === 0,
+                entry_fee:    tpl.entry_fee,
+                prize_pool:   calcPrizePool(tpl.capacity, tpl.entry_fee),
+                prizes:       calcPrizes(tpl.capacity, tpl.entry_fee),
+                capacity:     tpl.capacity,
+                players:      [],
+                status:       "OPEN",
+                spawned:      true,
+                permanent:    true,   // never deleted by checkWaitingRooms
+                auto_respawn: true,   // respawned after finishing
+                created_at:   admin.firestore.FieldValue.serverTimestamp(),
             });
             created++;
         }
@@ -2216,6 +2218,21 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // Actualizar stats de usuario (victorias / partidos)
+    const loserId = matchData.p1 === winnerId ? matchData.p2 : matchData.p1;
+    const statsWinner = {
+        victorias:        admin.firestore.FieldValue.increment(1),
+        partidos_ganados: admin.firestore.FieldValue.increment(1),
+        partidos_jugados: admin.firestore.FieldValue.increment(1),
+    };
+    const statsLoser = {
+        derrotas:          admin.firestore.FieldValue.increment(1),
+        partidos_perdidos: admin.firestore.FieldValue.increment(1),
+        partidos_jugados:  admin.firestore.FieldValue.increment(1),
+    };
+    await db.collection('usuarios').doc(winnerId).update(statsWinner).catch(() => {});
+    if (loserId) await db.collection('usuarios').doc(loserId).update(statsLoser).catch(() => {});
+
     const winnerName = await getUserName(winnerId);
     console.log(`[BOT] Match ${matchId} FINISHED → ganador: ${winnerName} (${winnerId})`);
 
@@ -2280,7 +2297,11 @@ async function advanceBracket(matchDoc, matchData, tournamentDoc, tournament) {
                 const snap = await tx.get(winnerRef);
                 if (!snap.exists) return;
                 const current = snap.data().number || 0;
-                tx.update(winnerRef, { number: current + prizeCoins });
+                const champExtras = i === 0 ? {
+                    titulos: admin.firestore.FieldValue.increment(1),
+                    copas:   admin.firestore.FieldValue.increment(1),
+                } : {};
+                tx.update(winnerRef, { number: current + prizeCoins, ...champExtras });
                 // Log en transactions
                 await db.collection('transactions').add({
                     userId:      winnerUid,

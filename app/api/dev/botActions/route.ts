@@ -228,6 +228,7 @@ export async function POST(req: NextRequest) {
         const baseScore = BOT_SCORES[Math.floor(Math.random() * BOT_SCORES.length)];
         const score    = p1wins ? baseScore : baseScore.split('-').reverse().join('-');
 
+        const loserUid = p1wins ? match.p2 : match.p1;
         newWinners.push({
           uid:    winner,
           p1name: match.p1_username || match.p1.slice(0, 10),
@@ -241,6 +242,18 @@ export async function POST(req: NextRequest) {
           winner,
           score,
           updated_at: FieldValue.serverTimestamp(),
+        });
+
+        // Actualizar stats en usuarios
+        batch.update(adminDb.collection('usuarios').doc(winner), {
+          victorias:        FieldValue.increment(1),
+          partidos_ganados: FieldValue.increment(1),
+          partidos_jugados: FieldValue.increment(1),
+        });
+        batch.update(adminDb.collection('usuarios').doc(loserUid), {
+          derrotas:          FieldValue.increment(1),
+          partidos_perdidos: FieldValue.increment(1),
+          partidos_jugados:  FieldValue.increment(1),
         });
       }
 
@@ -272,6 +285,12 @@ export async function POST(req: NextRequest) {
           champion_name:  champName,
           finished_at:    FieldValue.serverTimestamp(),
         });
+        if (champion) {
+          batch.update(adminDb.collection('usuarios').doc(champion), {
+            titulos: FieldValue.increment(1),
+            copas:   FieldValue.increment(1),
+          });
+        }
         tournamentFinished = true;
 
       } else if (allWinners.length === totalCurrentRoundMatches) {
