@@ -23,6 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0e14"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.somos.lfa",
       "versionCode": 1,
       "permissions": [
