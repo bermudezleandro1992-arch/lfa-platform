@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SomosLFA",
-    "slug": "lfa-mobile",
+    "slug": "somoslfa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,14 +26,14 @@
       "package": "com.somos.lfa",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "POST_NOTIFICATIONS"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
       ],
-      "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "com.somos.lfa",
@@ -72,10 +72,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "lfa-mobile-project-id"
+        "projectId": "8005a3d8-09dc-44c7-b8a4-c7226c618f8a"
       },
       "firebaseApiKey": "process.env.EXPO_PUBLIC_FIREBASE_API_KEY",
       "firebaseProjectId": "lfaofficial"
-    }
+    },
+    "owner": "somoslfa.com"
   }
 }
