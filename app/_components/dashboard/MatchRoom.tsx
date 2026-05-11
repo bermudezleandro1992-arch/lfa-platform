@@ -84,6 +84,7 @@ export default function MatchRoom({ matchId }: Props) {
   const [prevWinner,     setPrevWinner]     = useState<string | null>(null);
   const [ceoForcing,     setCeoForcing]     = useState(false);
   const [checkingIn,     setCheckingIn]     = useState(false);
+  const [playTimeLeft,   setPlayTimeLeft]   = useState(0);
   const chatBottomRef  = useRef<HTMLDivElement>(null);
 
   const uid      = auth.currentUser?.uid;
@@ -126,6 +127,21 @@ export default function MatchRoom({ matchId }: Props) {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMsgs]);
+
+  /* ── Countdown 10 min para jugar tras ambos check-in ── */
+  useEffect(() => {
+    if (!match?.p1_ready || !match?.p2_ready || match?.status !== "WAITING") return;
+    const p1At = match?.p1_ready_at?.toMillis() ?? 0;
+    const p2At = match?.p2_ready_at?.toMillis() ?? 0;
+    const startMs = Math.max(p1At, p2At);
+    if (!startMs) return;
+    const endMs = startMs + 10 * 60 * 1000;
+    const iv = setInterval(() => {
+      setPlayTimeLeft(Math.max(0, Math.floor((endMs - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.p1_ready, match?.p2_ready, match?.status, match?.p1_ready_at, match?.p2_ready_at]);
 
   /* ── Real-time brackets listener ── */
   useEffect(() => {
@@ -282,6 +298,16 @@ export default function MatchRoom({ matchId }: Props) {
     try {
       await callApi("/api/ceo/forceWinner", { matchId, winnerSide: side });
       setMessage(`✅ CEO Override: ${label} avanza. Bracket actualizado.`);
+      // Notificar en el chat de la sala
+      await addDoc(collection(db, "match_chat"), {
+        matchId,
+        tournamentId: match.tournamentId,
+        uid: "BOT_LFA",
+        nombre: "🤖 BOT LFA",
+        rol: "bot",
+        texto: `⚡ DECISIÓN CEO: El partido fue resuelto por Staff. Ganador oficial → ${label}. El bracket fue actualizado. Si tenés alguna consulta, abrí un ticket.`,
+        timestamp: serverTimestamp(),
+      });
     } catch (err: unknown) {
       setMessage(`❌ ${err instanceof Error ? err.message : "Error al forzar ganador"}`);
     } finally { setCeoForcing(false); }
@@ -585,11 +611,18 @@ export default function MatchRoom({ matchId }: Props) {
               ))
             )}
 
+            {/* ID del rival con cuadro destacado */}
             {rivalEaId && (
-              <button onClick={() => copyId(rivalEaId)}
-                style={{ ...btnStyle("rgba(0,158,227,0.1)", isEfootball ? "#00c896" : "#009ee3"), marginTop: 14, border: `1px solid ${isEfootball ? "rgba(0,200,150,0.3)" : "rgba(0,158,227,0.3)"}`, fontSize: "0.75rem" }}>
-                {copied ? "✅ ¡Copiado!" : `📋 COPIAR ${idLabel.toUpperCase()} DEL RIVAL`}
-              </button>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ background: "#0b0e14", border: `2px solid ${isEfootball ? "rgba(0,200,150,0.5)" : "rgba(0,158,227,0.5)"}`, borderRadius: 12, padding: "12px 16px", marginBottom: 10, textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: "0.6rem", fontFamily: "'Orbitron',sans-serif", marginBottom: 6 }}>{isEfootball ? "⚽ KONAMI ID DEL RIVAL" : "🎮 EA ID DEL RIVAL"}</div>
+                  <div style={{ fontFamily: "monospace", color: isEfootball ? "#00c896" : "#009ee3", fontSize: "1.1rem", fontWeight: 700, letterSpacing: 2, wordBreak: "break-all" as const }}>{rivalEaId}</div>
+                </div>
+                <button onClick={() => copyId(rivalEaId)}
+                  style={{ ...btnStyle(isEfootball ? "rgba(0,200,150,0.15)" : "rgba(0,158,227,0.15)", isEfootball ? "#00c896" : "#009ee3"), border: `1px solid ${isEfootball ? "rgba(0,200,150,0.3)" : "rgba(0,158,227,0.3)"}`, fontSize: "0.75rem" }}>
+                  {copied ? "✅ ¡Copiado!" : `📋 COPIAR ${idLabel.toUpperCase()} DEL RIVAL`}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -637,6 +670,25 @@ export default function MatchRoom({ matchId }: Props) {
         )}
 
         {/* ── REPORTAR RESULTADO ── */}
+        {/* ── TIMER 10 MIN PARA JUGAR ── */}
+        {match.status === "WAITING" && bothReady && isPlayer && !isCeo && (
+          <div style={{ ...card, borderColor: playTimeLeft > 120 ? "rgba(0,255,136,0.5)" : playTimeLeft > 0 ? "rgba(255,71,87,0.5)" : "rgba(139,148,158,0.3)", background: playTimeLeft > 120 ? "rgba(0,255,136,0.04)" : playTimeLeft > 0 ? "rgba(255,71,87,0.05)" : "#161b22" }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: playTimeLeft > 120 ? "#00ff88" : "#ff4757", fontSize: "0.82rem", fontWeight: 700, marginBottom: 6, textAlign: "center" }}>
+              {playTimeLeft > 0 ? "⏱️ TIEMPO PARA JUGAR" : "⌛ TIEMPO VENCIDO"}
+            </div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: "clamp(2rem,7vw,3rem)", fontWeight: 900, color: playTimeLeft > 120 ? "#00ff88" : "#ff4757", textAlign: "center", marginBottom: 6, animation: playTimeLeft <= 60 && playTimeLeft > 0 ? "pulse 1s infinite" : "none" }}>
+              {playTimeLeft > 0
+                ? `${Math.floor(playTimeLeft / 60).toString().padStart(2, "0")}:${(playTimeLeft % 60).toString().padStart(2, "0")}`
+                : "00:00"}
+            </div>
+            <p style={{ color: "#8b949e", fontSize: "0.72rem", textAlign: "center", margin: 0 }}>
+              {playTimeLeft > 0
+                ? "¡Ambos confirmaron! Tenés 10 minutos para conectarte y jugar el partido."
+                : "Se acabó el tiempo. Subí la foto del resultado o el BOT puede descalificar a quien no reportó."}
+            </p>
+          </div>
+        )}
+
         {canReport && (
           <div style={card}>
             <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#ffd700", fontSize: "0.82rem", fontWeight: 700, marginBottom: 8 }}>📸 REPORTAR RESULTADO</div>
@@ -645,10 +697,22 @@ export default function MatchRoom({ matchId }: Props) {
               El BOT LFA verifica automáticamente con Vision AI.<br />
               <span style={{ color: "#f3ba2f" }}>⚠️ Subir una foto falsa implica sanción de Fair Play.</span>
             </p>
-            <label style={{ ...btnStyle(uploading || botChecking ? "#30363d" : "#ffd700", uploading || botChecking ? "#555" : "#0b0e14"), display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: uploading || botChecking ? "not-allowed" : "pointer", animation: botChecking ? "pulse 1.5s infinite" : "none" }}>
-              {uploading ? "⬆️ Subiendo..." : botChecking ? "🤖 BOT verificando..." : "📸 SUBIR FOTO DEL RESULTADO"}
-              <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleUploadResult} disabled={uploading || botChecking} />
-            </label>
+            {uploading || botChecking ? (
+              <div style={{ ...btnStyle("#30363d", "#555"), display: "flex", alignItems: "center", justifyContent: "center", gap: 8, animation: botChecking ? "pulse 1.5s infinite" : "none", borderRadius: 12, padding: 14, fontSize: "0.82rem", fontFamily: "'Orbitron',sans-serif", fontWeight: 900 }}>
+                {uploading ? "⬆️ Subiendo..." : "🤖 BOT verificando..."}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <label style={{ ...btnStyle("#ffd700", "#0b0e14"), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", borderRadius: 12, padding: 14, fontSize: "0.78rem", fontFamily: "'Orbitron',sans-serif", fontWeight: 900 }}>
+                  📷 TOMAR FOTO
+                  <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleUploadResult} />
+                </label>
+                <label style={{ ...btnStyle("rgba(255,215,0,0.12)", "#ffd700"), border: "1px solid rgba(255,215,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", borderRadius: 12, padding: 14, fontSize: "0.78rem", fontFamily: "'Orbitron',sans-serif", fontWeight: 900 }}>
+                  🖼️ ELEGIR IMAGEN
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleUploadResult} />
+                </label>
+              </div>
+            )}
             <p style={{ color: "#8b949e", fontSize: "0.65rem", marginTop: 8, textAlign: "center" }}>JPG, PNG o WebP · Máx 5MB · Mostrá el marcador final completo</p>
           </div>
         )}
@@ -713,17 +777,25 @@ export default function MatchRoom({ matchId }: Props) {
 
         {/* ── DISPUTA ACTIVA ── */}
         {match.status === "DISPUTE" && (
-          <div style={{ ...card, borderColor: "rgba(145,70,255,0.4)", background: "rgba(145,70,255,0.05)", textAlign: "center" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 8 }}>⚖️</div>
-            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#9146FF", fontSize: "0.82rem", fontWeight: 700 }}>DISPUTA ACTIVA</div>
-            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginTop: 8, marginBottom: 14 }}>
+          <div style={{ ...card, borderColor: "rgba(145,70,255,0.6)", background: "linear-gradient(135deg,rgba(145,70,255,0.08),rgba(255,71,87,0.04))", textAlign: "center" }}>
+            <div style={{ fontSize: "2.4rem", marginBottom: 6 }}>⚖️</div>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", color: "#9146FF", fontSize: "0.9rem", fontWeight: 900, marginBottom: 6 }}>🚨 DISPUTA ACTIVA</div>
+            <div style={{ display: "inline-block", padding: "4px 14px", background: "rgba(255,71,87,0.12)", border: "1px solid rgba(255,71,87,0.4)", borderRadius: 99, fontSize: "0.62rem", color: "#ff4757", fontFamily: "'Orbitron',sans-serif", fontWeight: 700, marginBottom: 12 }}>SALA CONGELADA — STAFF REVISANDO</div>
+            <p style={{ color: "#8b949e", fontSize: "0.78rem", marginBottom: 16, lineHeight: 1.6 }}>
               Un administrador está revisando el caso.<br />
-              <span style={{ color: "#f3ba2f" }}>⚠️ Se aplicarán sanciones Fair Play según el veredicto.</span>
+              <span style={{ color: "#f3ba2f" }}>⚠️ Se aplicarán sanciones Fair Play según el veredicto.</span><br />
+              <span style={{ color: "#8b949e" }}>La sala permanece congelada hasta la resolución del Staff.</span>
             </p>
-            <a href={DISCORD_URL} target="_blank" rel="noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", background: "rgba(88,101,242,0.15)", color: "#5865F2", border: "1px solid rgba(88,101,242,0.4)", borderRadius: 10, textDecoration: "none", fontFamily: "'Orbitron',sans-serif", fontSize: "0.72rem", fontWeight: 700 }}>
-              💬 Abrir ticket en Discord
-            </a>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+              <a href="/tickets" 
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", background: "linear-gradient(135deg,#9146FF,#6c3fc5)", color: "white", border: "none", borderRadius: 12, textDecoration: "none", fontFamily: "'Orbitron',sans-serif", fontSize: "0.8rem", fontWeight: 900, boxShadow: "0 0 20px rgba(145,70,255,0.3)", letterSpacing: 1 }}>
+                🎫 ABRIR TICKET
+              </a>
+              <a href={DISCORD_URL} target="_blank" rel="noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "rgba(88,101,242,0.1)", color: "#5865F2", border: "1px solid rgba(88,101,242,0.3)", borderRadius: 10, textDecoration: "none", fontSize: "0.7rem", fontWeight: 700 }}>
+                💬 Discord Staff
+              </a>
+            </div>
           </div>
         )}
 
