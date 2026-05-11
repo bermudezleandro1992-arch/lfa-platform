@@ -254,6 +254,16 @@ export default function CeoPage() {
     EFOOTBALL_MOBILE: ['DREAM_TEAM','GENUINOS'], FC_MOBILE: ['ULTIMATE','GENUINOS'],
   };
 
+  /* ── Finanzas — historial de transacciones ──────────────── */
+  interface TxRecord {
+    id: string; type: string; amount: number; status?: string;
+    userId?: string; description?: string;
+    timestamp?: { toDate?: () => Date };
+    created_at?: { toDate?: () => Date };
+  }
+  const [txHistory, setTxHistory] = useState<TxRecord[]>([]);
+  const [finPeriod, setFinPeriod] = useState<'7d'|'30d'|'90d'>('30d');
+
   /* ── Fair play ───────────────────────────────────────────── */
   const [fpUid, setFpUid] = useState('');
 
@@ -354,6 +364,12 @@ export default function CeoPage() {
       const l: TiendaProducto[] = [];
       snap.forEach(d => l.push({ id: d.id, ...d.data() } as TiendaProducto));
       setTiendaProds(l);
+    }));
+
+    subs.push(onSnapshot(query(collection(db,'transactions'), orderBy('timestamp','desc'), limit(500)), snap => {
+      const l: TxRecord[] = [];
+      snap.forEach(d => l.push({ id: d.id, ...d.data() } as TxRecord));
+      setTxHistory(l);
     }));
 
     return () => subs.forEach(u => u());
@@ -1373,203 +1389,438 @@ export default function CeoPage() {
           </>}
 
           {/* ══ FINANZAS ════════════════════════════════════ */}
-          {tab === 'finanzas' && <>
-            <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 18px', fontSize:'0.9rem' }}>💰 PANEL FINANCIERO</h2>
+          {tab === 'finanzas' && (() => {
+            /* ── Computed metrics ──────────────────────────── */
+            const now       = Date.now();
+            const dayMs     = 86_400_000;
+            const periodDays = finPeriod === '7d' ? 7 : finPeriod === '30d' ? 30 : 90;
+            const periodMs  = periodDays * dayMs;
+            const periodStart = now - periodMs;
 
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(310px,1fr))', gap:18, marginBottom:22 }}>
-              {[
-                { label:'🏦 TRANSFERENCIAS (AR/UY)', data:pagosAR, color:'#009ee3' },
-                { label:'₿ BINANCE PAY (USDT)',       data:pagosBN, color:'#f3ba2f' },
-              ].map(({ label, data, color }) => (
-                <div key={label} style={{ ...card, borderColor:color, overflowX:'auto' }}>
-                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color, margin:'0 0 12px', fontSize:'0.82rem' }}>{label}</h3>
-                  {data.length === 0
-                    ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin pendientes ✓</p>
-                    : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem' }}>
-                        <thead><tr>{['JUGADOR','PACK / MONTO','TX / REF','COMP.','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
-                        <tbody>
-                          {data.map(p => (
-                            <tr key={p.id} className="crow">
-                              <td style={td}><b>{(p.jugador_nombre||'').toUpperCase()}</b><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{(p.uid||'').slice(0,8)}</span><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{p.sender_id || '—'}</span></td>
-                              <td style={{ ...td, color:'#ffd700' }}>
-                                🪙{(p.coins_total||p.coins||0).toLocaleString()}<br/>
-                                <span style={{ color:'#ccc', fontSize:'0.68rem' }}>${p.usd} USDT · {p.pack_label || p.metodo}</span>
+            const txInPeriod = txHistory.filter(t => {
+              const ts = (t.timestamp?.toDate?.() ?? t.created_at?.toDate?.())?.getTime() ?? 0;
+              return ts >= periodStart;
+            });
+
+            const depositos = txInPeriod.filter(t => t.type === 'DEPOSIT' && t.status === 'completed');
+            const premios   = txInPeriod.filter(t => t.type === 'TOURNAMENT_PRIZE' && t.status === 'completed');
+            const retirosTx = txInPeriod.filter(t => t.type === 'WITHDRAWAL' && t.status === 'completed');
+
+            const totalDepUSD    = depositos.reduce((s,t) => s + (t.amount / 1000), 0);
+            const totalDepCoins  = depositos.reduce((s,t) => s + t.amount, 0);
+            const totalPremios   = premios.reduce((s,t)   => s + t.amount, 0);
+            const totalRetiros   = retirosTx.reduce((s,t) => s + t.amount, 0);
+            const feeRecaudado   = totalPremios * 0.10; // 10% fee LFA sobre premios
+            const margenBruto    = totalDepCoins - totalRetiros;
+            const margenPct      = totalDepCoins > 0 ? Math.round((margenBruto / totalDepCoins) * 100) : 0;
+            const promedioDeposito = depositos.length > 0 ? Math.round(totalDepCoins / depositos.length) : 0;
+
+            /* ── Agrupar por día para gráficos ────────────── */
+            const daysMap: Record<string, { dep: number; ret: number; premio: number }> = {};
+            for (let i = 0; i < periodDays; i++) {
+              const d = new Date(now - (periodDays - 1 - i) * dayMs);
+              const key = `${d.getMonth()+1}/${d.getDate()}`;
+              daysMap[key] = { dep: 0, ret: 0, premio: 0 };
+            }
+            txInPeriod.forEach(t => {
+              const d = t.timestamp?.toDate?.() ?? t.created_at?.toDate?.();
+              if (!d) return;
+              const key = `${d.getMonth()+1}/${d.getDate()}`;
+              if (!daysMap[key]) return;
+              if (t.type === 'DEPOSIT' && t.status === 'completed')
+                daysMap[key].dep += t.amount;
+              else if (t.type === 'WITHDRAWAL' && t.status === 'completed')
+                daysMap[key].ret += t.amount;
+              else if (t.type === 'TOURNAMENT_PRIZE' && t.status === 'completed')
+                daysMap[key].premio += t.amount;
+            });
+            const chartDays  = Object.keys(daysMap);
+            const chartDep   = chartDays.map(k => daysMap[k].dep);
+            const chartRet   = chartDays.map(k => daysMap[k].ret);
+            const chartPrem  = chartDays.map(k => daysMap[k].premio);
+            const chartMax   = Math.max(...chartDep, ...chartRet, ...chartPrem, 1);
+
+            /* ── SVG bar chart helper ─────────────────────── */
+            const W = 600, H = 120, BAR = Math.max(4, Math.floor(W / (chartDays.length * 3 + 1)));
+            const barX = (i: number, offset: number) =>
+              Math.round(i * (W / chartDays.length) + offset * (BAR + 2) + 2);
+            const barH = (v: number) => Math.round((v / chartMax) * (H - 10));
+            const barY = (v: number) => H - barH(v);
+
+            /* ── Last 30 tx for table ─────────────────────── */
+            const recentTx = txInPeriod.slice(0, 50);
+
+            return <>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:18 }}>
+                <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:0, fontSize:'0.9rem' }}>💰 PANEL FINANCIERO</h2>
+                <div style={{ display:'flex', gap:6 }}>
+                  {(['7d','30d','90d'] as const).map(p => (
+                    <button key={p} onClick={() => setFinPeriod(p)} style={{ ...sm(finPeriod===p ? '#ffd700' : '#1c2128', finPeriod===p ? '#0b0e14' : '#8b949e'), border:`1px solid ${finPeriod===p ? '#ffd700' : '#30363d'}` }}>
+                      {p === '7d' ? '7 días' : p === '30d' ? '30 días' : '90 días'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── KPI Cards ─────────────────────────────── */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
+                {[
+                  { label:'INGRESOS (USD)',   val:`$${totalDepUSD.toFixed(2)}`,         sub:`${depositos.length} depósitos`,              c:'#00ff88', icon:'💵' },
+                  { label:'COINS DEPOSITADAS',val:`🪙${totalDepCoins.toLocaleString()}`, sub:`≈ $${totalDepUSD.toFixed(0)} USD`,           c:'#ffd700', icon:'🪙' },
+                  { label:'RETIROS PAGADOS',  val:`🪙${totalRetiros.toLocaleString()}`,  sub:`${retirosTx.length} operaciones`,            c:'#ff4757', icon:'💸' },
+                  { label:'PREMIOS ENTREGADOS',val:`🪙${totalPremios.toLocaleString()}`, sub:`Fee LFA: 🪙${Math.round(feeRecaudado).toLocaleString()}`, c:'#a371f7', icon:'🏆' },
+                  { label:'MARGEN BRUTO',     val:`${margenPct}%`,                       sub:`🪙${margenBruto.toLocaleString()} neto`,     c: margenPct>50?'#00ff88':margenPct>20?'#ffd700':'#ff4757', icon:'📊' },
+                  { label:'PROM. DEPÓSITO',   val:`🪙${promedioDeposito.toLocaleString()}`, sub:`por transacción`,                        c:'#00c3ff', icon:'📈' },
+                  { label:'DEPÓSITOS PEND.',  val:String(pagosAR.length + pagosBN.length), sub:'requieren aprobación',                    c:(pagosAR.length+pagosBN.length)>0?'#ff4757':'#00ff88', icon:'⏳' },
+                  { label:'RETIROS PEND.',    val:String(retiros.length),                sub:'solicitudes activas',                       c:retiros.length>0?'#ff4757':'#00ff88', icon:'🔔' },
+                ].map(m => (
+                  <div key={m.label} style={{ background:'#161b22', border:`1px solid ${m.c}30`, borderLeft:`3px solid ${m.c}`, borderRadius:10, padding:'14px 16px' }}>
+                    <div style={{ fontSize:'1.1rem', marginBottom:4 }}>{m.icon}</div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.58rem', color:'#8b949e', marginBottom:4 }}>{m.label}</div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1.05rem', fontWeight:900, color:m.c }}>{m.val}</div>
+                    <div style={{ fontSize:'0.62rem', color:'#8b949e', marginTop:3 }}>{m.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Gráfico de barras ─────────────────────── */}
+              <div style={{ ...card, marginBottom:18 }}>
+                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', margin:'0 0 4px', fontSize:'0.82rem' }}>📊 ACTIVIDAD FINANCIERA — ÚLTIMOS {periodDays} DÍAS</h3>
+                <div style={{ display:'flex', gap:14, marginBottom:10, flexWrap:'wrap' }}>
+                  {[['#00ff88','Depósitos'],['#ff4757','Retiros'],['#a371f7','Premios']].map(([c,l]) => (
+                    <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.7rem', color:'#8b949e' }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:c }} />{l}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ overflowX:'auto' }}>
+                  <svg width="100%" viewBox={`0 0 ${W} ${H+28}`} style={{ display:'block', minWidth:320 }}>
+                    {/* Grid lines */}
+                    {[0.25,0.5,0.75,1].map(f => (
+                      <line key={f} x1={0} y1={H - f*(H-10)} x2={W} y2={H - f*(H-10)}
+                        stroke="#30363d" strokeWidth={1} strokeDasharray="4 4" />
+                    ))}
+                    {/* Bars */}
+                    {chartDays.map((_, i) => (
+                      <g key={i}>
+                        <rect x={barX(i,0)} y={barY(chartDep[i])}   width={BAR} height={barH(chartDep[i])}   fill="#00ff88" opacity={0.85} rx={2} />
+                        <rect x={barX(i,1)} y={barY(chartRet[i])}   width={BAR} height={barH(chartRet[i])}   fill="#ff4757" opacity={0.85} rx={2} />
+                        <rect x={barX(i,2)} y={barY(chartPrem[i])}  width={BAR} height={barH(chartPrem[i])}  fill="#a371f7" opacity={0.85} rx={2} />
+                      </g>
+                    ))}
+                    {/* X labels — show every N to avoid clutter */}
+                    {chartDays.map((label, i) => {
+                      const step = periodDays <= 7 ? 1 : periodDays <= 30 ? 5 : 10;
+                      if (i % step !== 0 && i !== chartDays.length - 1) return null;
+                      return (
+                        <text key={label} x={barX(i,1)+BAR/2} y={H+18} textAnchor="middle"
+                          fontSize={9} fill="#8b949e">{label}</text>
+                      );
+                    })}
+                    {/* Axis */}
+                    <line x1={0} y1={H} x2={W} y2={H} stroke="#30363d" strokeWidth={1} />
+                  </svg>
+                </div>
+              </div>
+
+              {/* ── Resumen + donut-like metrics ──────────── */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:16, marginBottom:18 }}>
+
+                {/* Flujo de caja */}
+                <div style={{ ...card, borderTop:'3px solid #00ff88' }}>
+                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:'0 0 14px', fontSize:'0.8rem' }}>💵 FLUJO DE CAJA</h3>
+                  {[
+                    { label:'Entradas (depósitos)',  val: totalDepCoins,   c:'#00ff88', pct: 100 },
+                    { label:'Salidas (retiros)',      val: totalRetiros,    c:'#ff4757', pct: totalDepCoins>0 ? Math.round(totalRetiros/totalDepCoins*100) : 0 },
+                    { label:'Salidas (premios)',      val: totalPremios,    c:'#a371f7', pct: totalDepCoins>0 ? Math.round(totalPremios/totalDepCoins*100) : 0 },
+                    { label:'Fee LFA recaudado',      val: Math.round(feeRecaudado), c:'#ffd700', pct: totalDepCoins>0 ? Math.round(feeRecaudado/totalDepCoins*100) : 0 },
+                    { label:'Saldo neto estimado',   val: margenBruto,     c: margenBruto>=0?'#00ff88':'#ff4757', pct: Math.abs(margenPct) },
+                  ].map(r => (
+                    <div key={r.label} style={{ marginBottom:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', marginBottom:3 }}>
+                        <span style={{ color:'#8b949e' }}>{r.label}</span>
+                        <span style={{ color:r.c, fontWeight:700 }}>🪙{r.val.toLocaleString()} <span style={{ color:'#484f58' }}>({r.pct}%)</span></span>
+                      </div>
+                      <div style={{ height:5, background:'#0b0e14', borderRadius:3, overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${Math.min(100,r.pct)}%`, background:r.c, borderRadius:3, transition:'width 0.6s' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Métricas de salud */}
+                <div style={{ ...card, borderTop:'3px solid #00c3ff' }}>
+                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00c3ff', margin:'0 0 14px', fontSize:'0.8rem' }}>📈 MÉTRICAS DE SALUD</h3>
+                  {[
+                    { label:'Tasa de ahorro',    val:`${Math.max(0,margenPct)}%`,          c: margenPct>40?'#00ff88':margenPct>15?'#ffd700':'#ff4757',  desc:'(depósitos − retiros) / depósitos' },
+                    { label:'Margen de beneficio', val:`${margenPct}%`,                     c: margenPct>30?'#00ff88':margenPct>0?'#ffd700':'#ff4757',   desc:'neto sobre ingresos brutos' },
+                    { label:'Ratio retiros/dep.', val: totalDepCoins>0 ? `${Math.round(totalRetiros/totalDepCoins*100)}%` : '—', c:'#a371f7', desc:'qué % de lo recibido se retira' },
+                    { label:'Tickets aprobados',  val: String(depositos.length),             c:'#00ff88', desc:`en los últimos ${periodDays} días` },
+                    { label:'Ticket promedio',    val:`$${totalDepUSD > 0 && depositos.length > 0 ? (totalDepUSD/depositos.length).toFixed(2) : '0'} USD`, c:'#ffd700', desc:'por depósito' },
+                    { label:'Tesorería USDT',     val:`$${(tesoreria.usdt_total||0).toFixed(2)}`, c:'#00d4ff', desc:`${tesoreria.depositos_count||0} depósitos históricos` },
+                  ].map(m => (
+                    <div key={m.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'1px solid #21262d' }}>
+                      <div>
+                        <div style={{ fontSize:'0.73rem', color:'#e6edf3' }}>{m.label}</div>
+                        <div style={{ fontSize:'0.6rem', color:'#484f58' }}>{m.desc}</div>
+                      </div>
+                      <div style={{ fontFamily:"'Orbitron',sans-serif", fontWeight:900, color:m.c, fontSize:'0.88rem' }}>{m.val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Distribución por tipo */}
+                <div style={{ ...card, borderTop:'3px solid #a371f7' }}>
+                  <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#a371f7', margin:'0 0 14px', fontSize:'0.8rem' }}>🥧 DISTRIBUCIÓN POR MÉTODO</h3>
+                  {(() => {
+                    const arCount = pagosAR.length, bnCount = pagosBN.length;
+                    const total   = arCount + bnCount || 1;
+                    return [
+                      { label:'Transferencias AR/UY', val:arCount, c:'#009ee3', pct:Math.round(arCount/total*100) },
+                      { label:'Binance Pay (USDT)',    val:bnCount, c:'#f3ba2f', pct:Math.round(bnCount/total*100) },
+                    ].map(r => (
+                      <div key={r.label} style={{ marginBottom:14 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.72rem', marginBottom:4 }}>
+                          <span style={{ color:'#8b949e' }}>{r.label}</span>
+                          <span style={{ color:r.c, fontWeight:700 }}>{r.val} pend. ({r.pct}%)</span>
+                        </div>
+                        <div style={{ height:8, background:'#0b0e14', borderRadius:4, overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${r.pct}%`, background:r.c, borderRadius:4 }} />
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                  <div style={{ marginTop:12, padding:'10px 12px', background:'#0b0e14', borderRadius:8, border:'1px solid #30363d' }}>
+                    <div style={{ fontSize:'0.68rem', color:'#8b949e', marginBottom:4 }}>TESORERÍA TOTAL (histórico)</div>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', fontWeight:900, fontSize:'1.1rem' }}>
+                      ${(tesoreria.usdt_total||0).toFixed(2)} <span style={{ color:'#8b949e', fontSize:'0.65rem', fontWeight:400 }}>USDT</span>
+                    </div>
+                    <div style={{ fontSize:'0.62rem', color:'#8b949e', marginTop:2 }}>{tesoreria.depositos_count||0} depósitos aprobados en total</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Historial de transacciones ────────────── */}
+              <div style={{ ...card, marginBottom:18, overflowX:'auto' }}>
+                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00c3ff', margin:'0 0 12px', fontSize:'0.82rem' }}>🧾 HISTORIAL TRANSACCIONES — ÚLTIMAS {recentTx.length}</h3>
+                {recentTx.length === 0
+                  ? <p style={{ color:'#8b949e', textAlign:'center', padding:'20px 0' }}>Sin transacciones en el período seleccionado</p>
+                  : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.76rem', minWidth:520 }}>
+                      <thead><tr>{['TIPO','MONTO','USUARIO','DESCRIPCIÓN','FECHA','ESTADO'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {recentTx.map(t => {
+                          const isDeposit = t.type === 'DEPOSIT';
+                          const isPrize   = t.type === 'TOURNAMENT_PRIZE';
+                          const isRetiro  = t.type === 'WITHDRAWAL';
+                          const typeColor = isDeposit ? '#00ff88' : isPrize ? '#a371f7' : isRetiro ? '#ff4757' : '#8b949e';
+                          const typeLabel = isDeposit ? '💵 DEP' : isPrize ? '🏆 PREMIO' : isRetiro ? '💸 RETIRO' : t.type;
+                          const fecha = (t.timestamp?.toDate?.() ?? t.created_at?.toDate?.())?.toLocaleDateString('es-AR') ?? '—';
+                          return (
+                            <tr key={t.id} className="crow">
+                              <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.62rem', color:typeColor, fontWeight:700 }}>{typeLabel}</span></td>
+                              <td style={{ ...td, color:typeColor, fontWeight:700, fontFamily:"'Orbitron',sans-serif" }}>
+                                {isDeposit ? '+' : '−'}🪙{(t.amount||0).toLocaleString()}
+                              </td>
+                              <td style={{ ...td, fontSize:'0.68rem', color:'#8b949e', fontFamily:'monospace' }}>{t.userId?.slice(0,10)||'—'}…</td>
+                              <td style={{ ...td, fontSize:'0.7rem', color:'#8b949e', maxWidth:200 }}>{t.description||'—'}</td>
+                              <td style={{ ...td, fontSize:'0.68rem', color:'#8b949e' }}>{fecha}</td>
+                              <td style={td}>
+                                <span style={{ fontSize:'0.62rem', padding:'2px 7px', borderRadius:4, background: t.status==='completed'?'rgba(0,255,136,0.1)':'rgba(255,215,0,0.1)', color: t.status==='completed'?'#00ff88':'#ffd700', fontWeight:700 }}>
+                                  {t.status==='completed'?'✅ OK':'⏳'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                }
+              </div>
+
+              {/* ── Depósitos pendientes ──────────────────── */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(310px,1fr))', gap:18, marginBottom:18 }}>
+                {[
+                  { label:'🏦 TRANSFERENCIAS (AR/UY)', data:pagosAR, color:'#009ee3' },
+                  { label:'₿ BINANCE PAY (USDT)',       data:pagosBN, color:'#f3ba2f' },
+                ].map(({ label, data, color }) => (
+                  <div key={label} style={{ ...card, borderColor:color, overflowX:'auto' }}>
+                    <h3 style={{ fontFamily:"'Orbitron',sans-serif", color, margin:'0 0 12px', fontSize:'0.82rem' }}>{label}</h3>
+                    {data.length === 0
+                      ? <p style={{ color:'#00ff88', textAlign:'center', padding:'16px 0', fontSize:'0.78rem' }}>✅ Sin pendientes</p>
+                      : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem' }}>
+                          <thead><tr>{['JUGADOR','PACK / MONTO','TX / REF','COMP.','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                          <tbody>
+                            {data.map(p => (
+                              <tr key={p.id} className="crow">
+                                <td style={td}><b>{(p.jugador_nombre||'').toUpperCase()}</b><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{(p.uid||'').slice(0,8)}</span><br/><span style={{ color:'#8b949e', fontSize:'0.65rem' }}>{p.sender_id || '—'}</span></td>
+                                <td style={{ ...td, color:'#ffd700' }}>
+                                  🪙{(p.coins_total||p.coins||0).toLocaleString()}<br/>
+                                  <span style={{ color:'#ccc', fontSize:'0.68rem' }}>${p.usd} USDT · {p.pack_label || p.metodo}</span>
+                                </td>
+                                <td style={td}>
+                                  <div style={{ fontSize:'0.68rem', fontFamily:'monospace', color:'#009ee3', wordBreak:'break-all', maxWidth:140 }}>
+                                    {p.tx_hash ? <span title={p.tx_hash}>🔑 {p.tx_hash.slice(0,18)}…</span> : <span style={{ color:'#555' }}>—</span>}
+                                  </div>
+                                  {p.referencia_id && <div style={{ fontSize:'0.65rem', fontFamily:'monospace', color:'#8b949e', marginTop:2 }}>ref: {p.referencia_id.slice(0,16)}</div>}
+                                </td>
+                                <td style={td}>{p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄 VER</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>❌ SIN COMP.</span>}</td>
+                                <td style={td}>
+                                  <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                                    <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => aprobarPago(p.id,p.uid!,p.coins_total||p.coins!,p.usd||0,p.tx_hash,p.referencia_id)}>✅ APROBAR</button>
+                                    <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarPago(p.id)}>✕ RECHAZAR</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                    }
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Retiros pendientes ────────────────────── */}
+              <div style={{ ...card, borderTop:'3px solid #ff4757', overflowX:'auto' }}>
+                <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 12px', fontSize:'0.85rem' }}>💸 RETIROS PENDIENTES ({retiros.length})</h3>
+                {retiros.length === 0
+                  ? <p style={{ color:'#00ff88', textAlign:'center', padding:'16px 0' }}>✅ Sin solicitudes pendientes</p>
+                  : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:600 }}>
+                      <thead><tr>{['JUGADOR','MONTO','CBU / ALIAS / WALLET','FECHA','RIESGO','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {retiros.map(r => {
+                          const jDat = jugadores.find(j => j.id === r.uid);
+                          const victs = jDat?.titulos || 0;
+                          const parts = jDat?.partidos_jugados || 0;
+                          const wr    = parts > 0 ? Math.round((victs / parts) * 100) : 0;
+                          const fp    = jDat?.fair_play ?? 100;
+                          const ipOtros = jugadores.filter(j => j.id !== r.uid && j.ip && j.ip === jDat?.ip);
+                          const fpOtros = jugadores.filter(j => j.id !== r.uid && (j as unknown as Record<string,unknown>).fingerprint_id && (j as unknown as Record<string,unknown>).fingerprint_id === (jDat as unknown as Record<string,unknown>)?.fingerprint_id);
+                          const ipCambio = !!(r.ip_solicitud && r.ip_solicitud !== 'unknown' && jDat?.ip && r.ip_solicitud !== jDat.ip);
+                          const esManual = r.estado === 'aprobacion_manual';
+                          const riesgoAlt = ipOtros.length > 0 || fpOtros.length > 0 || (wr >= 80 && parts >= 10) || fp < 30 || ipCambio || esManual;
+                          return (
+                            <tr key={r.id} className="crow" style={{ background: riesgoAlt ? 'rgba(255,71,87,0.04)' : undefined }}>
+                              <td style={td}>
+                                <b>{r.nombre_real||r.nombreJugador}</b>
+                                <br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp||'—'}</span>
+                                {r.ip_solicitud && r.ip_solicitud !== 'unknown' && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>🌐 {r.ip_solicitud}</div>}
+                                {esManual && <div style={{ fontSize:'0.6rem', fontWeight:700, color:'#ffd700', marginTop:2 }}>⚠️ APROBACIÓN MANUAL</div>}
+                              </td>
+                              <td style={{ ...td, fontWeight:700 }}>
+                                <span style={{ color:'#ff4757' }}>🪙 {(r.montoCoins||0).toLocaleString()}</span>
+                                {r.usd && <div style={{ color:'#ffd700', fontSize:'0.72rem', marginTop:2 }}>${r.usd.toFixed(2)} USDT</div>}
                               </td>
                               <td style={td}>
-                                <div style={{ fontSize:'0.68rem', fontFamily:'monospace', color:'#009ee3', wordBreak:'break-all', maxWidth:140 }}>
-                                  {p.tx_hash ? <span title={p.tx_hash}>🔑 {p.tx_hash.slice(0,18)}…</span> : <span style={{ color:'#555' }}>—</span>}
-                                </div>
-                                {p.referencia_id && <div style={{ fontSize:'0.65rem', fontFamily:'monospace', color:'#8b949e', marginTop:2 }}>ref: {p.referencia_id.slice(0,16)}</div>}
+                                <code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.wallet || r.cbuAlias || '—'}</code>
+                                {r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.network === 'TRX' ? '🟣 TRC20' : r.network === 'BSC' ? '🟡 BEP20' : r.network}</div>}
+                                {r.metodo && !r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.metodo}</div>}
                               </td>
-                              <td style={td}>{p.comprobante_url ? <button style={sm('#222')} onClick={() => window.open(p.comprobante_url,'_blank')}>📄 VER</button> : <span style={{ color:'#ff4757', fontSize:'0.66rem' }}>❌ SIN COMP.</span>}</td>
+                              <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
+                              <td style={td}>
+                                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                                  <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', fontWeight:900, color: riesgoAlt ? '#ff4757' : '#00ff88', padding:'2px 7px', background: riesgoAlt ? 'rgba(255,71,87,0.1)' : 'rgba(0,255,136,0.07)', borderRadius:4 }}>
+                                    {riesgoAlt ? '🚨 REVISAR' : '✅ OK'}
+                                  </span>
+                                  {ipOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>⚠️ IP compartida</span>}
+                                  {fpOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🖥️ Mismo device</span>}
+                                  {wr >= 80 && parts >= 10 && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>📈 WR {wr}% ({parts}p)</span>}
+                                  {fp < 30 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>💔 FP {fp}%</span>}
+                                  {ipCambio && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🌐 IP diferente al login</span>}
+                                  {esManual && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>💰 &gt;$200 USDT</span>}
+                                </div>
+                              </td>
                               <td style={td}>
                                 <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                                  <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => aprobarPago(p.id,p.uid!,p.coins_total||p.coins!,p.usd||0,p.tx_hash,p.referencia_id)}>✅ APROBAR</button>
-                                  <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarPago(p.id)}>✕ RECHAZAR</button>
+                                  <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => abrirAudit(r.uid||'')} disabled={auditLoading}>🕵️ AUDIT</button>
+                                  <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => marcarRetiroPagado(r.id)}>✅ PAGADO</button>
+                                  <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarRetiro(r.id,r.uid||'',r.montoCoins||0)}>↩ DEVOLVER</button>
                                 </div>
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                  }
-                </div>
-              ))}
-            </div>
-
-            <div style={{ ...card, borderTop:'3px solid #ff4757', overflowX:'auto' }}>
-              <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', margin:'0 0 12px', fontSize:'0.85rem' }}>💸 RETIROS PENDIENTES ({retiros.length})</h3>
-              {retiros.length === 0
-                ? <p style={{ color:'#8b949e', textAlign:'center', padding:'16px 0' }}>Sin solicitudes ✓</p>
-                : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem', minWidth:600 }}>
-                    <thead><tr>{['JUGADOR','MONTO','CBU / ALIAS / WALLET','FECHA','RIESGO','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {retiros.map(r => {
-                        const jDat = jugadores.find(j => j.id === r.uid);
-                        const victs = jDat?.titulos || 0;
-                        const parts = jDat?.partidos_jugados || 0;
-                        const wr    = parts > 0 ? Math.round((victs / parts) * 100) : 0;
-                        const fp    = jDat?.fair_play ?? 100;
-                        const ipOtros = jugadores.filter(j => j.id !== r.uid && j.ip && j.ip === jDat?.ip);
-                        const fpOtros = jugadores.filter(j => j.id !== r.uid && (j as unknown as Record<string,unknown>).fingerprint_id && (j as unknown as Record<string,unknown>).fingerprint_id === (jDat as unknown as Record<string,unknown>)?.fingerprint_id);
-                        const ipCambio = !!(r.ip_solicitud && r.ip_solicitud !== 'unknown' && jDat?.ip && r.ip_solicitud !== jDat.ip);
-                        const esManual = r.estado === 'aprobacion_manual';
-                        const riesgoAlt = ipOtros.length > 0 || fpOtros.length > 0 || (wr >= 80 && parts >= 10) || fp < 30 || ipCambio || esManual;
-                        return (
-                          <tr key={r.id} className="crow" style={{ background: riesgoAlt ? 'rgba(255,71,87,0.04)' : undefined }}>
-                            <td style={td}>
-                              <b>{r.nombre_real||r.nombreJugador}</b>
-                              <br/><span style={{ color:'#8b949e', fontSize:'0.68rem' }}>📱 {r.whatsapp||'—'}</span>
-                              {r.ip_solicitud && r.ip_solicitud !== 'unknown' && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>🌐 {r.ip_solicitud}</div>}
-                              {esManual && <div style={{ fontSize:'0.6rem', fontWeight:700, color:'#ffd700', marginTop:2 }}>⚠️ APROBACIÓN MANUAL</div>}
-                            </td>
-                            <td style={{ ...td, fontWeight:700 }}>
-                              <span style={{ color:'#ff4757' }}>🪙 {(r.montoCoins||0).toLocaleString()}</span>
-                              {r.usd && <div style={{ color:'#ffd700', fontSize:'0.72rem', marginTop:2 }}>${r.usd.toFixed(2)} USDT</div>}
-                            </td>
-                            <td style={td}>
-                              <code style={{ background:'#0b0e14', padding:'3px 7px', borderRadius:4, color:'#00e5ff', fontSize:'0.78rem' }}>{r.wallet || r.cbuAlias || '—'}</code>
-                              {r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.network === 'TRX' ? '🟣 TRC20' : r.network === 'BSC' ? '🟡 BEP20' : r.network}</div>}
-                              {r.metodo && !r.network && <div style={{ fontSize:'0.6rem', color:'#8b949e', marginTop:2 }}>{r.metodo}</div>}
-                            </td>
-                            <td style={{ ...td, color:'#8b949e', fontSize:'0.72rem' }}>{r.fecha?.toDate?.()?.toLocaleDateString()||'—'}</td>
-                            <td style={td}>
-                              <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                                <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.65rem', fontWeight:900, color: riesgoAlt ? '#ff4757' : '#00ff88', padding:'2px 7px', background: riesgoAlt ? 'rgba(255,71,87,0.1)' : 'rgba(0,255,136,0.07)', borderRadius:4 }}>
-                                  {riesgoAlt ? '🚨 REVISAR' : '✅ OK'}
-                                </span>
-                                {ipOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>⚠️ IP compartida</span>}
-                                {fpOtros.length > 0 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🖥️ Mismo device</span>}
-                                {wr >= 80 && parts >= 10 && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>📈 WR {wr}% ({parts}p)</span>}
-                                {fp < 30 && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>💔 FP {fp}%</span>}
-                                {ipCambio && <span style={{ fontSize:'0.62rem', color:'#ff4757' }}>🌐 IP diferente al login</span>}
-                                {esManual && <span style={{ fontSize:'0.62rem', color:'#ffd700' }}>💰 &gt;$200 USDT</span>}
-                              </div>
-                            </td>
-                            <td style={td}>
-                              <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                                <button className="cact" style={sm('rgba(0,158,227,0.15)','#009ee3')} onClick={() => abrirAudit(r.uid||'')} disabled={auditLoading}>🕵️ AUDIT</button>
-                                <button className="cact" style={sm('rgba(0,255,136,0.15)','#00ff88')} onClick={() => marcarRetiroPagado(r.id)}>✅ PAGADO</button>
-                                <button className="cact" style={sm('rgba(255,71,87,0.15)','#ff4757')} onClick={() => rechazarRetiro(r.id,r.uid||'',r.montoCoins||0)}>↩ DEVOLVER</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-              }
-            </div>
-
-            {/* ── Modal Audit ─────────────────────────────────── */}
-            {auditModal && (
-              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={e => { if(e.target===e.currentTarget) setAuditModal(null); }}>
-                <div style={{ background:'#0d1117', border:`2px solid ${auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88'}`, borderRadius:16, padding:24, maxWidth:680, width:'100%', maxHeight:'90vh', overflowY:'auto', position:'relative' }}>
-                  <button onClick={() => setAuditModal(null)} style={{ position:'absolute', top:14, right:18, background:'none', border:'none', color:'#8b949e', fontSize:'1.5rem', cursor:'pointer', lineHeight:1 }}>×</button>
-
-                  <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.9rem', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
-                    🕵️ AUDITORÍA — {auditModal.nombre.toUpperCase()}
-                    <span style={{ fontSize:'0.7rem', padding:'3px 10px', borderRadius:20, background: auditModal.riesgo==='ALTO'?'rgba(255,71,87,0.15)':auditModal.riesgo==='MEDIO'?'rgba(255,215,0,0.1)':'rgba(0,255,136,0.08)', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88' }}>
-                      {auditModal.riesgo}
-                    </span>
-                  </div>
-
-                  {/* Alertas */}
-                  {auditModal.alertas.length > 0 && (
-                    <div style={{ background:'rgba(255,71,87,0.07)', border:'1px solid #ff475730', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
-                      <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', fontSize:'0.72rem', marginBottom:8 }}>🚨 ALERTAS DETECTADAS</div>
-                      {auditModal.alertas.map((a, i) => <div key={i} style={{ color:'#ff4757', fontSize:'0.78rem', marginBottom:4 }}>{a}</div>)}
-                    </div>
-                  )}
-
-                  {/* Stats */}
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:16 }}>
-                    {[
-                      { l:'WIN RATE',  v:`${auditModal.winRate}%`,   c: auditModal.winRate>=80?'#ff4757':auditModal.winRate>=50?'#ffd700':'#00ff88' },
-                      { l:'PARTIDOS',  v: String(auditModal.partidos), c:'#009ee3' },
-                      { l:'VICTORIAS', v: String(auditModal.victorias), c:'#00ff88' },
-                      { l:'FAIR PLAY', v:`${auditModal.fairPlay}%`,  c: auditModal.fairPlay<30?'#ff4757':auditModal.fairPlay<60?'#ffd700':'#00ff88' },
-                      { l:'SALDO',     v:`🪙${auditModal.saldo.toLocaleString()}`, c:'#ffd700' },
-                    ].map(s => (
-                      <div key={s.l} style={{ background:'#161b22', borderRadius:8, padding:'10px 12px', borderLeft:`3px solid ${s.c}` }}>
-                        <div style={{ color:'#8b949e', fontSize:'0.6rem', fontFamily:"'Orbitron',sans-serif" }}>{s.l}</div>
-                        <div style={{ color:s.c, fontWeight:900, fontSize:'1.1rem', fontFamily:"'Orbitron',sans-serif" }}>{s.v}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* IP & Fingerprint */}
-                  <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px', marginBottom:12, fontSize:'0.77rem' }}>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
-                      <div><span style={{ color:'#8b949e' }}>IP: </span><code style={{ color:'#009ee3' }}>{auditModal.ip||'—'}</code></div>
-                      <div><span style={{ color:'#8b949e' }}>Fingerprint: </span><code style={{ color:'#9146FF', fontSize:'0.68rem' }}>{auditModal.fingerprintId?auditModal.fingerprintId.slice(0,16)+'…':'—'}</code></div>
-                    </div>
-                  </div>
-
-                  {/* Colusiones IP */}
-                  {auditModal.colisionIp.length > 0 && (
-                    <div style={{ background:'rgba(255,71,87,0.06)', border:'1px solid #ff475720', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
-                      <div style={{ color:'#ff4757', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>⚠️ MISMA IP — POSIBLE MULTIUENTA ({auditModal.colisionIp.length})</div>
-                      {auditModal.colisionIp.map(c => (
-                        <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
-                          <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
-                          <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Colusiones Fingerprint */}
-                  {auditModal.colisionFp.length > 0 && (
-                    <div style={{ background:'rgba(145,70,255,0.06)', border:'1px solid #9146FF20', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
-                      <div style={{ color:'#9146FF', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>🖥️ MISMO DEVICE (FINGERPRINT) ({auditModal.colisionFp.length})</div>
-                      {auditModal.colisionFp.map(c => (
-                        <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
-                          <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
-                          <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Últimos matches */}
-                  {auditModal.ultimosMatchs.length > 0 && (
-                    <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px' }}>
-                      <div style={{ color:'#ffd700', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:8 }}>🎮 ÚLTIMOS PARTIDOS</div>
-                      {auditModal.ultimosMatchs.map(m => (
-                        <div key={m.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'0.74rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
-                          <span style={{ color:'#8b949e', fontFamily:'monospace' }}>vs {m.vs.slice(0,10)}…</span>
-                          <span style={{ color: m.winner===auditModal.uid?'#00ff88':m.winner?'#ff4757':'#8b949e', fontWeight:700 }}>
-                            {m.winner===auditModal.uid?'✅ Ganó':m.winner?'❌ Perdió':'— Pendiente'} · {m.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                }
               </div>
-            )}
-          </>}
+
+              {/* ── Modal Audit ─────────────────────────────── */}
+              {auditModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={e => { if(e.target===e.currentTarget) setAuditModal(null); }}>
+                  <div style={{ background:'#0d1117', border:`2px solid ${auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88'}`, borderRadius:16, padding:24, maxWidth:680, width:'100%', maxHeight:'90vh', overflowY:'auto', position:'relative' }}>
+                    <button onClick={() => setAuditModal(null)} style={{ position:'absolute', top:14, right:18, background:'none', border:'none', color:'#8b949e', fontSize:'1.5rem', cursor:'pointer', lineHeight:1 }}>×</button>
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.9rem', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
+                      🕵️ AUDITORÍA — {auditModal.nombre.toUpperCase()}
+                      <span style={{ fontSize:'0.7rem', padding:'3px 10px', borderRadius:20, background: auditModal.riesgo==='ALTO'?'rgba(255,71,87,0.15)':auditModal.riesgo==='MEDIO'?'rgba(255,215,0,0.1)':'rgba(0,255,136,0.08)', color: auditModal.riesgo==='ALTO'?'#ff4757':auditModal.riesgo==='MEDIO'?'#ffd700':'#00ff88' }}>
+                        {auditModal.riesgo}
+                      </span>
+                    </div>
+                    {auditModal.alertas.length > 0 && (
+                      <div style={{ background:'rgba(255,71,87,0.07)', border:'1px solid #ff475730', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+                        <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff4757', fontSize:'0.72rem', marginBottom:8 }}>🚨 ALERTAS DETECTADAS</div>
+                        {auditModal.alertas.map((a, i) => <div key={i} style={{ color:'#ff4757', fontSize:'0.78rem', marginBottom:4 }}>{a}</div>)}
+                      </div>
+                    )}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:16 }}>
+                      {[
+                        { l:'WIN RATE',  v:`${auditModal.winRate}%`,   c: auditModal.winRate>=80?'#ff4757':auditModal.winRate>=50?'#ffd700':'#00ff88' },
+                        { l:'PARTIDOS',  v: String(auditModal.partidos), c:'#009ee3' },
+                        { l:'VICTORIAS', v: String(auditModal.victorias), c:'#00ff88' },
+                        { l:'FAIR PLAY', v:`${auditModal.fairPlay}%`,  c: auditModal.fairPlay<30?'#ff4757':auditModal.fairPlay<60?'#ffd700':'#00ff88' },
+                        { l:'SALDO',     v:`🪙${auditModal.saldo.toLocaleString()}`, c:'#ffd700' },
+                      ].map(s => (
+                        <div key={s.l} style={{ background:'#161b22', borderRadius:8, padding:'10px 12px', borderLeft:`3px solid ${s.c}` }}>
+                          <div style={{ color:'#8b949e', fontSize:'0.6rem', fontFamily:"'Orbitron',sans-serif" }}>{s.l}</div>
+                          <div style={{ color:s.c, fontWeight:900, fontSize:'1.1rem', fontFamily:"'Orbitron',sans-serif" }}>{s.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px', marginBottom:12, fontSize:'0.77rem' }}>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
+                        <div><span style={{ color:'#8b949e' }}>IP: </span><code style={{ color:'#009ee3' }}>{auditModal.ip||'—'}</code></div>
+                        <div><span style={{ color:'#8b949e' }}>Fingerprint: </span><code style={{ color:'#9146FF', fontSize:'0.68rem' }}>{auditModal.fingerprintId?auditModal.fingerprintId.slice(0,16)+'…':'—'}</code></div>
+                      </div>
+                    </div>
+                    {auditModal.colisionIp.length > 0 && (
+                      <div style={{ background:'rgba(255,71,87,0.06)', border:'1px solid #ff475720', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+                        <div style={{ color:'#ff4757', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>⚠️ MISMA IP ({auditModal.colisionIp.length})</div>
+                        {auditModal.colisionIp.map(c => (
+                          <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                            <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
+                            <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {auditModal.colisionFp.length > 0 && (
+                      <div style={{ background:'rgba(145,70,255,0.06)', border:'1px solid #9146FF20', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+                        <div style={{ color:'#9146FF', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:6 }}>🖥️ MISMO DEVICE ({auditModal.colisionFp.length})</div>
+                        {auditModal.colisionFp.map(c => (
+                          <div key={c.uid} style={{ display:'flex', gap:10, fontSize:'0.75rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                            <span style={{ color:'#e6edf3' }}>{c.nombre}</span>
+                            <span style={{ color:'#8b949e', fontFamily:'monospace', fontSize:'0.67rem' }}>{c.uid.slice(0,10)}…</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {auditModal.ultimosMatchs.length > 0 && (
+                      <div style={{ background:'#161b22', borderRadius:10, padding:'12px 14px' }}>
+                        <div style={{ color:'#ffd700', fontFamily:"'Orbitron',sans-serif", fontSize:'0.7rem', marginBottom:8 }}>🎮 ÚLTIMOS PARTIDOS</div>
+                        {auditModal.ultimosMatchs.map(m => (
+                          <div key={m.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'0.74rem', padding:'4px 0', borderBottom:'1px solid #1c2028' }}>
+                            <span style={{ color:'#8b949e', fontFamily:'monospace' }}>vs {m.vs.slice(0,10)}…</span>
+                            <span style={{ color: m.winner===auditModal.uid?'#00ff88':m.winner?'#ff4757':'#8b949e', fontWeight:700 }}>
+                              {m.winner===auditModal.uid?'✅ Ganó':m.winner?'❌ Perdió':'— Pendiente'} · {m.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>;
+          })()}
 
           {/* ══ SPAWNER ═════════════════════════════════════ */}
           {tab === 'spawner' && <>
