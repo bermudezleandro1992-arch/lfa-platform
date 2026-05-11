@@ -46,6 +46,7 @@ interface ChatMsg {
   texto:      string;
   timestamp?: { toMillis: () => number };
   rol?:       string;
+  image_url?: string;
 }
 
 interface BracketMatch {
@@ -85,6 +86,7 @@ export default function MatchRoom({ matchId }: Props) {
   const [ceoForcing,     setCeoForcing]     = useState(false);
   const [checkingIn,     setCheckingIn]     = useState(false);
   const [playTimeLeft,   setPlayTimeLeft]   = useState(0);
+  const [chatUploading,  setChatUploading]  = useState(false);
   const chatBottomRef  = useRef<HTMLDivElement>(null);
 
   const uid      = auth.currentUser?.uid;
@@ -275,6 +277,37 @@ export default function MatchRoom({ matchId }: Props) {
       setChatInput("");
     } catch { /* silently fail */ }
     finally { setSendingChat(false); }
+  };
+
+  const handleChatImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uid || !match) return;
+    e.target.value = "";
+    if (![",image/jpeg", "image/png", "image/webp", "image/gif"].some(t => file.type === t.slice(1))) {
+      setMessage("❌ Solo se aceptan imágenes JPEG, PNG, WebP o GIF."); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("❌ La imagen no puede superar 5 MB."); return;
+    }
+    setChatUploading(true);
+    try {
+      const storageRef = ref(storage, `chat/${match.tournamentId}/${matchId}/${Date.now()}_${file.name.slice(-20)}`);
+      await uploadBytes(storageRef, file, { contentType: file.type });
+      const imageUrl = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "match_chat"), {
+        matchId,
+        tournamentId: match.tournamentId,
+        uid,
+        nombre: userName,
+        texto: "📷 Imagen",
+        image_url: imageUrl,
+        timestamp: serverTimestamp(),
+      });
+    } catch {
+      setMessage("❌ Error al subir imagen al chat.");
+    } finally {
+      setChatUploading(false);
+    }
   };
 
   const handleCheckin = async () => {
@@ -869,9 +902,18 @@ export default function MatchRoom({ matchId }: Props) {
               const isBot  = msg.rol === "bot" || msg.uid === "BOT_LFA";
               return (
                 <div key={msg.id} style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start", marginBottom: 6 }}>
-                  <div className={`chat-bubble ${isMine ? "mine" : isBot ? "bot" : ""}`}>
+                  <div className={`chat-bubble ${isMine ? "mine" : isBot ? "bot" : ""}`} style={{ maxWidth: msg.image_url ? 220 : undefined }}>
                     {!isMine && <div style={{ color: isBot ? "#00ff88" : "#8b949e", fontSize: "0.62rem", marginBottom: 2, fontWeight: 700 }}>{msg.nombre}</div>}
-                    <div style={{ color: "white", fontSize: "0.8rem" }}>{msg.texto}</div>
+                    {msg.image_url ? (
+                      <img
+                        src={msg.image_url}
+                        alt="imagen chat"
+                        onClick={() => window.open(msg.image_url, "_blank")}
+                        style={{ width: "100%", borderRadius: 8, display: "block", cursor: "pointer", border: "1px solid #30363d" }}
+                      />
+                    ) : (
+                      <div style={{ color: "white", fontSize: "0.8rem" }}>{msg.texto}</div>
+                    )}
                   </div>
                 </div>
               );
@@ -879,7 +921,12 @@ export default function MatchRoom({ matchId }: Props) {
             <div ref={chatBottomRef} />
           </div>
           {isPlayer && !isLoser && (
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {/* Botón foto en chat */}
+              <label title="Enviar imagen" style={{ width: 38, height: 38, background: chatUploading ? "#30363d" : "rgba(0,158,227,0.12)", border: "1px solid rgba(0,158,227,0.3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: chatUploading ? "not-allowed" : "pointer", flexShrink: 0, fontSize: "1rem" }}>
+                {chatUploading ? "⏳" : "📷"}
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleChatImage} disabled={chatUploading} />
+              </label>
               <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
                 placeholder={isEfootball ? "Ej: Yo creo la sala, código: 5555-8888" : "Escribí un mensaje..."}

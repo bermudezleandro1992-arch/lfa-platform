@@ -12,7 +12,7 @@ import { onAuthStateChanged, getIdToken } from 'firebase/auth';
 import {
   collection, doc, onSnapshot, updateDoc, deleteDoc,
   addDoc, serverTimestamp, writeBatch, increment,
-  query, where, limit, orderBy, getDoc, setDoc,
+  query, where, limit, orderBy, getDoc, setDoc, getDocs,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import LfaModal, { LfaModalHandle } from '@/app/_components/LfaModal';
@@ -264,6 +264,20 @@ export default function CeoPage() {
   const [txHistory, setTxHistory] = useState<TxRecord[]>([]);
   const [finPeriod, setFinPeriod] = useState<'7d'|'30d'|'90d'>('30d');
 
+  /* ── Finanzas — modal de sala ────────────────────────────── */
+  interface CeoMatch {
+    id: string; p1: string; p2: string;
+    p1_username?: string; p2_username?: string;
+    status: string; winner?: string | null; score?: string;
+    round?: string; screenshot_url?: string;
+    dispute_reason?: string;
+  }
+  const [salaModal, setSalaModal]               = useState<Room|null>(null);
+  const [salaModalMatches, setSalaModalMatches] = useState<CeoMatch[]>([]);
+  const [salaModalLoading, setSalaModalLoading] = useState(false);
+  const [reopeningMatch, setReopeningMatch]     = useState<string|null>(null);
+  const [salaFiltro, setSalaFiltro]             = useState<'ALL'|'OPEN'|'ACTIVE'|'FINISHED'>('ALL');
+
   /* ── Fair play ───────────────────────────────────────────── */
   const [fpUid, setFpUid] = useState('');
 
@@ -513,6 +527,38 @@ export default function CeoPage() {
     await updateDoc(doc(db,'usuarios',fpUid), { fair_play: valor });
     await alerta('LISTO', `Fair Play → ${valor}%`, 'exito');
     setFpUid('');
+  }
+
+  /* ── Modal de sala (Finanzas) ───────────────────────────── */
+  async function abrirModalSala(room: Room) {
+    setSalaModal(room);
+    setSalaModalMatches([]);
+    setSalaModalLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'matches'), where('tournamentId', '==', room.id)));
+      const list: CeoMatch[] = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() } as CeoMatch));
+      list.sort((a, b) => (a.round || '').localeCompare(b.round || ''));
+      setSalaModalMatches(list);
+    } catch { /* silently fail */ }
+    setSalaModalLoading(false);
+  }
+
+  async function reopenMatch(matchId: string) {
+    setReopeningMatch(matchId);
+    try {
+      const token = await getIdToken(auth.currentUser!);
+      const res = await fetch('/api/ceo/reopenMatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ matchId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await alerta('✅ MATCH REABIERTO', 'El partido fue reseteado a WAITING. Los jugadores deben hacer check-in nuevamente.', 'exito');
+      if (salaModal) await abrirModalSala(salaModal);
+    } catch (e: unknown) { await alerta('ERROR', (e as Error).message, 'error'); }
+    setReopeningMatch(null);
   }
 
   /* ── Rooms ───────────────────────────────────────────────── */
@@ -1644,17 +1690,16 @@ export default function CeoPage() {
                 const salasFinished = rooms.filter(r => r.status === 'FINISHED');
                 const salasPorTier: Record<string, number> = { FREE:0, RECREATIVO:0, COMPETITIVO:0, ELITE:0 };
                 salasOpen.forEach(r => { if (r.tier && r.tier in salasPorTier) salasPorTier[r.tier]++; });
-                const recentRooms = rooms.slice(0, 60);
+                const filteredRooms = (salaFiltro === 'ALL' ? rooms : rooms.filter(r => r.status === salaFiltro)).slice(0, 80);
                 return (
                   <div style={{ ...card, borderTop:'3px solid #ff00cc', marginBottom:18 }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:14 }}>
-                      <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:0, fontSize:'0.85rem' }}>🎮 GESTIÓN DE SALAS</h3>
+                      <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:0, fontSize:'0.85rem' }}>🎮 HISTORIAL DE SALAS</h3>
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                         <button style={sm('rgba(255,0,204,0.12)','#ff00cc')} onClick={limpiarSalasVacias}>🧹 Vacías</button>
                         <button style={sm('rgba(0,255,136,0.12)','#00ff88')} onClick={triggerManualSpawn} disabled={spawning}>
                           {spawning ? '⏳ Spawning...' : '⚡ Spawn ahora'}
                         </button>
-                        <button style={sm('rgba(255,71,87,0.12)','#ff4757')} onClick={limpiarTodasAbiertas}>🗑️ Limpiar OPEN</button>
                       </div>
                     </div>
 
@@ -1674,7 +1719,7 @@ export default function CeoPage() {
                     </div>
 
                     {/* Abiertas por tier */}
-                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
                       {(['FREE','RECREATIVO','COMPETITIVO','ELITE'] as const).map(tier => (
                         <div key={tier} style={{ background:`${TIER_CLR[tier]}0d`, border:`1px solid ${TIER_CLR[tier]}35`, borderRadius:6, padding:'5px 14px', display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontFamily:"'Orbitron',sans-serif", color:TIER_CLR[tier], fontWeight:900, fontSize:'0.6rem' }}>{tier}</span>
@@ -1684,38 +1729,47 @@ export default function CeoPage() {
                       ))}
                     </div>
 
+                    {/* Filtro de estado */}
+                    <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
+                      {(['ALL','OPEN','ACTIVE','FINISHED'] as const).map(f => (
+                        <button key={f} onClick={() => setSalaFiltro(f)}
+                          style={{ ...sm(salaFiltro===f ? '#ff00cc' : '#1c2128', salaFiltro===f ? 'white' : '#8b949e'), border:`1px solid ${salaFiltro===f ? '#ff00cc' : '#30363d'}`, fontSize:'0.68rem' }}>
+                          {f === 'ALL' ? `📋 Todas (${rooms.length})` : f === 'OPEN' ? `🟢 Abiertas (${salasOpen.length})` : f === 'ACTIVE' ? `🟡 Activas (${salasActive.length})` : `⬛ Finalizadas (${salasFinished.length})`}
+                        </button>
+                      ))}
+                    </div>
+
                     {spawnLog && <div style={{ fontSize:'0.72rem', color:'#00ff88', background:'#0b0e14', borderRadius:6, padding:'6px 10px', marginBottom:12, border:'1px solid #00ff8820' }}>{spawnLog}</div>}
 
                     {/* Tabla */}
                     <div style={{ overflowX:'auto' }}>
                       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.75rem', minWidth:560 }}>
                         <thead>
-                          <tr>{['JUEGO','MODO','TIER','REGIÓN','ESTADO','JUGADORES','ENTRADA','ACCIONES'].map(h=><th key={h} style={th}>{h}</th>)}</tr>
+                          <tr>{['ID SALA','JUEGO','TIER','REGIÓN','ESTADO','JUGADORES','ACCIÓN'].map(h=><th key={h} style={th}>{h}</th>)}</tr>
                         </thead>
                         <tbody>
-                          {recentRooms.length === 0
-                            ? <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'#8b949e', padding:'20px 0' }}>Sin salas cargadas</td></tr>
-                            : recentRooms.map(r => {
+                          {filteredRooms.length === 0
+                            ? <tr><td colSpan={7} style={{ ...td, textAlign:'center', color:'#8b949e', padding:'20px 0' }}>Sin salas con este filtro</td></tr>
+                            : filteredRooms.map(r => {
                                 const stClr = r.status === 'OPEN' ? '#00ff88' : r.status === 'ACTIVE' ? '#ffd700' : '#484f58';
+                                const shortId = r.id.slice(-8).toUpperCase();
                                 return (
                                   <tr key={r.id} className="crow">
-                                    <td style={td}><span style={{ color:'#e6edf3' }}>{GL[r.game||''] || r.game || '—'}</span></td>
-                                    <td style={{ ...td, color:'#8b949e', fontSize:'0.68rem' }}>{ML[r.mode||''] || r.mode || '—'}</td>
-                                    <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.6rem', color:TIER_CLR[r.tier||'']||'#8b949e', fontWeight:900 }}>{r.tier||'—'}</span></td>
+                                    <td style={{ ...td, fontFamily:'monospace', fontSize:'0.68rem', color:'#a371f7' }}>#{shortId}</td>
+                                    <td style={td}>
+                                      <div style={{ color:'#e6edf3', fontSize:'0.75rem' }}>{GL[r.game||''] || r.game || '—'}</div>
+                                      <div style={{ color:'#8b949e', fontSize:'0.62rem' }}>{ML[r.mode||''] || r.mode || '—'}</div>
+                                    </td>
+                                    <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.58rem', color:TIER_CLR[r.tier||'']||'#8b949e', fontWeight:900 }}>{r.tier||'—'}</span></td>
                                     <td style={{ ...td, color:'#8b949e', fontSize:'0.68rem' }}>{RL[r.region||''] || r.region || '—'}</td>
                                     <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.62rem', color:stClr, fontWeight:700 }}>{r.status}</span></td>
                                     <td style={{ ...td, textAlign:'center', color:'#e6edf3' }}>{r.players?.length||0}<span style={{ color:'#484f58' }}>/{r.capacity||'?'}</span></td>
-                                    <td style={{ ...td, color:'#ffd700', fontSize:'0.72rem' }}>{(r.entry_fee||0)===0?'🆓 GRATIS':`🪙${(r.entry_fee||0).toLocaleString()}`}</td>
                                     <td style={td}>
-                                      <div style={{ display:'flex', gap:4 }}>
-                                        {r.status === 'OPEN' && (
-                                          <button className="cact" style={{ ...sm('rgba(255,0,204,0.15)','#ff00cc'), padding:'4px 8px', fontSize:'0.7rem' }} title="Fill con bots" onClick={() => botFill(r.id)}>🤖</button>
-                                        )}
-                                        {r.status === 'ACTIVE' && (
-                                          <button className="cact" style={{ ...sm('rgba(255,215,0,0.15)','#ffd700'), padding:'4px 8px', fontSize:'0.7rem' }} title="Avanzar ronda" onClick={() => botAdvance(r.id)}>⚡</button>
-                                        )}
-                                        <button className="cact" style={{ ...sm('rgba(255,71,87,0.15)','#ff4757'), padding:'4px 8px', fontSize:'0.7rem' }} title="Eliminar sala" onClick={() => deleteRoom(r.id)}>🗑</button>
-                                      </div>
+                                      <button className="cact"
+                                        style={{ ...sm('rgba(255,0,204,0.15)','#ff00cc'), padding:'5px 12px', fontSize:'0.7rem', fontWeight:700 }}
+                                        onClick={() => abrirModalSala(r)}>
+                                        👁 ACCEDER
+                                      </button>
                                     </td>
                                   </tr>
                                 );
@@ -1727,6 +1781,118 @@ export default function CeoPage() {
                   </div>
                 );
               })()}
+
+              {/* ── Modal de sala ────────────────────────── */}
+              {salaModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+                  onClick={e => { if(e.target===e.currentTarget) setSalaModal(null); }}>
+                  <div style={{ background:'#0d1117', border:'2px solid #ff00cc', borderRadius:16, padding:24, maxWidth:760, width:'100%', maxHeight:'92vh', overflowY:'auto', position:'relative' }}>
+                    <button onClick={() => setSalaModal(null)} style={{ position:'absolute', top:14, right:18, background:'none', border:'none', color:'#8b949e', fontSize:'1.6rem', cursor:'pointer', lineHeight:1 }}>×</button>
+
+                    {/* Header */}
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', fontSize:'0.95rem', fontWeight:900, marginBottom:4 }}>
+                      🎮 SALA #{salaModal.id.slice(-8).toUpperCase()}
+                    </div>
+                    <div style={{ fontFamily:'monospace', color:'#484f58', fontSize:'0.62rem', marginBottom:16, wordBreak:'break-all' }}>{salaModal.id}</div>
+
+                    {/* Info de la sala */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:16 }}>
+                      {[
+                        { l:'JUEGO',     v: GL[salaModal.game||''] || salaModal.game || '—',      c:'#e6edf3' },
+                        { l:'MODO',      v: ML[salaModal.mode||''] || salaModal.mode || '—',      c:'#8b949e' },
+                        { l:'TIER',      v: salaModal.tier || '—',                                 c: TIER_CLR[salaModal.tier||''] || '#8b949e' },
+                        { l:'REGIÓN',    v: RL[salaModal.region||''] || salaModal.region || '—',  c:'#8b949e' },
+                        { l:'ESTADO',    v: salaModal.status || '—',                               c: salaModal.status==='OPEN'?'#00ff88':salaModal.status==='ACTIVE'?'#ffd700':'#484f58' },
+                        { l:'JUGADORES', v: `${salaModal.players?.length||0}/${salaModal.capacity||'?'}`, c:'#00c3ff' },
+                        { l:'ENTRADA',   v: (salaModal.entry_fee||0)===0?'GRATIS':`🪙${(salaModal.entry_fee||0).toLocaleString()}`, c:'#ffd700' },
+                      ].map(m => (
+                        <div key={m.l} style={{ background:'#161b22', border:`1px solid ${m.c}20`, borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.55rem', color:'#8b949e', marginBottom:3 }}>{m.l}</div>
+                          <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.8rem', fontWeight:700, color:m.c }}>{m.v}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Acciones rápidas de sala */}
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
+                      <a href={`/dashboard`} target="_blank" rel="noreferrer"
+                        style={{ ...sm('rgba(0,195,255,0.12)','#00c3ff'), textDecoration:'none', border:'1px solid rgba(0,195,255,0.3)', padding:'6px 14px', fontSize:'0.72rem' }}>
+                        🔗 Dashboard
+                      </a>
+                      {salaModal.status === 'OPEN' && (
+                        <button style={sm('rgba(255,0,204,0.12)','#ff00cc')} onClick={() => { setSalaModal(null); botFill(salaModal.id); }}>🤖 Fill Bots</button>
+                      )}
+                    </div>
+
+                    {/* Partidos del torneo */}
+                    <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', fontSize:'0.78rem', fontWeight:700, marginBottom:10 }}>
+                      ⚡ PARTIDOS DEL TORNEO
+                      {!salaModalLoading && <span style={{ color:'#484f58', fontWeight:400, fontSize:'0.65rem', marginLeft:8 }}>({salaModalMatches.length} encontrados)</span>}
+                    </div>
+
+                    {salaModalLoading ? (
+                      <div style={{ textAlign:'center', padding:'30px 0', color:'#8b949e' }}>⏳ Cargando partidos...</div>
+                    ) : salaModalMatches.length === 0 ? (
+                      <div style={{ background:'#161b22', borderRadius:10, padding:'20px', textAlign:'center', color:'#8b949e', fontSize:'0.78rem' }}>
+                        Sin partidos en este torneo aún
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        {salaModalMatches.map(m => {
+                          const mStClr = m.status === 'WAITING' ? '#00ff88' : m.status === 'PENDING_RESULT' ? '#ffd700' : m.status === 'DISPUTE' ? '#ff4757' : '#484f58';
+                          const canReopen = ['DISPUTE','FINISHED','PENDING_RESULT'].includes(m.status);
+                          return (
+                            <div key={m.id} style={{ background:'#161b22', border:`1px solid ${mStClr}25`, borderLeft:`3px solid ${mStClr}`, borderRadius:10, padding:'12px 14px' }}>
+                              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
+                                <div>
+                                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                                    <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.58rem', color:mStClr, fontWeight:900, padding:'2px 8px', background:`${mStClr}15`, borderRadius:4 }}>{m.status}</span>
+                                    <span style={{ fontSize:'0.62rem', color:'#484f58' }}>{m.round}</span>
+                                  </div>
+                                  <div style={{ fontSize:'0.8rem', color:'#e6edf3', fontWeight:600 }}>
+                                    {m.p1_username || m.p1.slice(0,10)} <span style={{ color:'#30363d' }}>vs</span> {m.p2_username || m.p2.slice(0,10)}
+                                  </div>
+                                  {m.score && m.status !== 'WAITING' && (
+                                    <div style={{ fontFamily:"'Orbitron',sans-serif", color:'#ffd700', fontSize:'0.72rem', marginTop:2 }}>
+                                      Marcador: {m.score}
+                                      {m.winner && <span style={{ color:'#00ff88', marginLeft:8 }}>🏆 {m.winner === m.p1 ? (m.p1_username||'P1') : (m.p2_username||'P2')}</span>}
+                                    </div>
+                                  )}
+                                  {m.dispute_reason && (
+                                    <div style={{ fontSize:'0.68rem', color:'#ff4757', marginTop:3 }}>⚖️ {m.dispute_reason.slice(0,80)}</div>
+                                  )}
+                                  {m.screenshot_url && (
+                                    <button onClick={() => window.open(m.screenshot_url, '_blank')}
+                                      style={{ ...sm('rgba(0,195,255,0.1)','#00c3ff'), marginTop:4, padding:'3px 10px', fontSize:'0.65rem' }}>
+                                      📸 Ver screenshot
+                                    </button>
+                                  )}
+                                </div>
+                                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                                  <a href={`/match/${m.id}`} target="_blank" rel="noreferrer"
+                                    style={{ ...sm('rgba(163,113,247,0.12)','#a371f7'), textDecoration:'none', padding:'5px 12px', fontSize:'0.7rem', border:'1px solid rgba(163,113,247,0.3)' }}>
+                                    👁 Entrar
+                                  </a>
+                                  {canReopen && (
+                                    <button className="cact"
+                                      onClick={() => reopenMatch(m.id)}
+                                      disabled={reopeningMatch === m.id}
+                                      style={{ ...sm('rgba(0,255,136,0.12)','#00ff88'), padding:'5px 12px', fontSize:'0.7rem', border:'1px solid rgba(0,255,136,0.3)', opacity: reopeningMatch === m.id ? 0.5 : 1 }}>
+                                      {reopeningMatch === m.id ? '⏳...' : '🔄 Reabrir'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
 
               {/* ── Depósitos pendientes ──────────────────── */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(310px,1fr))', gap:18, marginBottom:18 }}>
