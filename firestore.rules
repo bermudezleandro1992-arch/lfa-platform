@@ -387,39 +387,48 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       // Jugador ve sus propios tickets; staff ve todos
       allow read: if authExists() && (
-        resource.data.userId == request.auth.uid || esStaff()
+        resource.data.uid == request.auth.uid || esStaff()
       );
       // Jugador puede crear su propio ticket
       allow create: if authExists()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.status == 'OPEN'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'open'
         && request.resource.data.subject is string
         && request.resource.data.subject.size() >= 3
         && request.resource.data.subject.size() <= 100;
-      // Staff puede actualizar status/prioridad/asignación; jugador puede solo actualizar unreadUser
+      // Staff puede actualizar; jugador solo puede marcar como leído
       allow update: if authExists() && (
         esStaff() ||
         (
-          resource.data.userId == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadUser', 'updated_at'])
+          resource.data.uid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_user', 'updatedAt'])
         )
       );
       allow delete: if esStaff();
+
+      // Subcollección de mensajes del ticket
+      match /messages/{msgId} {
+        allow read: if authExists() && (
+          esStaff() ||
+          get(/databases/$(database)/documents/tickets/$(ticketId)).data.uid == request.auth.uid
+        );
+        allow create: if authExists() && (
+          esStaff() ||
+          get(/databases/$(database)/documents/tickets/$(ticketId)).data.uid == request.auth.uid
+        );
+        allow update, delete: if false;
+      }
     }
 
     match /ticket_chat/{msgId} {
-      // Participantes del ticket (dueño o staff) pueden leer
       allow read: if authExists() && (
         esStaff() ||
-        get(/databases/$(database)/documents/tickets/$(resource.data.ticketId)).data.userId == request.auth.uid
+        get(/databases/$(database)/documents/tickets/$(resource.data.ticketId)).data.uid == request.auth.uid
       );
-      // Crear mensaje: el dueño del ticket o staff
       allow create: if authExists() && (
         esStaff() ||
-        get(/databases/$(database)/documents/tickets/$(request.resource.data.ticketId)).data.userId == request.auth.uid
-      ) && request.resource.data.uid == request.auth.uid
-        && request.resource.data.texto is string
-        && request.resource.data.texto.size() <= 500;
+        get(/databases/$(database)/documents/tickets/$(request.resource.data.ticketId)).data.uid == request.auth.uid
+      );
       allow update, delete: if false;
     }
 
