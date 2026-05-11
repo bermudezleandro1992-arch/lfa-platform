@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1073871074458",
+    "project_id": "lfaofficial",
+    "storage_bucket": "lfaofficial.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1073871074458:android:03d73959ea871defcd5b23",
+        "android_client_info": {
+          "package_name": "com.somos.lfa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1073871074458-ci77p2r3rsd8jkugoi1f32qnulc48ka1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWd-xpw6hKn94JUnH2Msm8DsTaXginWAU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1073871074458-ci77p2r3rsd8jkugoi1f32qnulc48ka1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
