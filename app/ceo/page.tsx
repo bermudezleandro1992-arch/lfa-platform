@@ -1637,6 +1637,97 @@ export default function CeoPage() {
                 }
               </div>
 
+              {/* ── Gestión de Salas ─────────────────────── */}
+              {(() => {
+                const salasOpen     = rooms.filter(r => r.status === 'OPEN');
+                const salasActive   = rooms.filter(r => r.status === 'ACTIVE');
+                const salasFinished = rooms.filter(r => r.status === 'FINISHED');
+                const salasPorTier: Record<string, number> = { FREE:0, RECREATIVO:0, COMPETITIVO:0, ELITE:0 };
+                salasOpen.forEach(r => { if (r.tier && r.tier in salasPorTier) salasPorTier[r.tier]++; });
+                const recentRooms = rooms.slice(0, 60);
+                return (
+                  <div style={{ ...card, borderTop:'3px solid #ff00cc', marginBottom:18 }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:14 }}>
+                      <h3 style={{ fontFamily:"'Orbitron',sans-serif", color:'#ff00cc', margin:0, fontSize:'0.85rem' }}>🎮 GESTIÓN DE SALAS</h3>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        <button style={sm('rgba(255,0,204,0.12)','#ff00cc')} onClick={limpiarSalasVacias}>🧹 Vacías</button>
+                        <button style={sm('rgba(0,255,136,0.12)','#00ff88')} onClick={triggerManualSpawn} disabled={spawning}>
+                          {spawning ? '⏳ Spawning...' : '⚡ Spawn ahora'}
+                        </button>
+                        <button style={sm('rgba(255,71,87,0.12)','#ff4757')} onClick={limpiarTodasAbiertas}>🗑️ Limpiar OPEN</button>
+                      </div>
+                    </div>
+
+                    {/* KPIs salas */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:10, marginBottom:14 }}>
+                      {[
+                        { label:'ABIERTAS',    val: salasOpen.length,     c:'#00ff88' },
+                        { label:'ACTIVAS',     val: salasActive.length,   c:'#ffd700' },
+                        { label:'FINALIZADAS', val: salasFinished.length, c:'#8b949e' },
+                        { label:'TOTAL',       val: rooms.length,         c:'#00c3ff' },
+                      ].map(k => (
+                        <div key={k.label} style={{ background:'#0b0e14', border:`1px solid ${k.c}25`, borderLeft:`3px solid ${k.c}`, borderRadius:8, padding:'10px 12px' }}>
+                          <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.55rem', color:'#8b949e', marginBottom:3 }}>{k.label}</div>
+                          <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1.3rem', fontWeight:900, color:k.c }}>{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Abiertas por tier */}
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                      {(['FREE','RECREATIVO','COMPETITIVO','ELITE'] as const).map(tier => (
+                        <div key={tier} style={{ background:`${TIER_CLR[tier]}0d`, border:`1px solid ${TIER_CLR[tier]}35`, borderRadius:6, padding:'5px 14px', display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontFamily:"'Orbitron',sans-serif", color:TIER_CLR[tier], fontWeight:900, fontSize:'0.6rem' }}>{tier}</span>
+                          <span style={{ color:'#e6edf3', fontWeight:700, fontSize:'0.78rem' }}>{salasPorTier[tier]}</span>
+                          <span style={{ color:'#484f58', fontSize:'0.62rem' }}>open</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {spawnLog && <div style={{ fontSize:'0.72rem', color:'#00ff88', background:'#0b0e14', borderRadius:6, padding:'6px 10px', marginBottom:12, border:'1px solid #00ff8820' }}>{spawnLog}</div>}
+
+                    {/* Tabla */}
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.75rem', minWidth:560 }}>
+                        <thead>
+                          <tr>{['JUEGO','MODO','TIER','REGIÓN','ESTADO','JUGADORES','ENTRADA','ACCIONES'].map(h=><th key={h} style={th}>{h}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {recentRooms.length === 0
+                            ? <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'#8b949e', padding:'20px 0' }}>Sin salas cargadas</td></tr>
+                            : recentRooms.map(r => {
+                                const stClr = r.status === 'OPEN' ? '#00ff88' : r.status === 'ACTIVE' ? '#ffd700' : '#484f58';
+                                return (
+                                  <tr key={r.id} className="crow">
+                                    <td style={td}><span style={{ color:'#e6edf3' }}>{GL[r.game||''] || r.game || '—'}</span></td>
+                                    <td style={{ ...td, color:'#8b949e', fontSize:'0.68rem' }}>{ML[r.mode||''] || r.mode || '—'}</td>
+                                    <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.6rem', color:TIER_CLR[r.tier||'']||'#8b949e', fontWeight:900 }}>{r.tier||'—'}</span></td>
+                                    <td style={{ ...td, color:'#8b949e', fontSize:'0.68rem' }}>{RL[r.region||''] || r.region || '—'}</td>
+                                    <td style={td}><span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'0.62rem', color:stClr, fontWeight:700 }}>{r.status}</span></td>
+                                    <td style={{ ...td, textAlign:'center', color:'#e6edf3' }}>{r.players?.length||0}<span style={{ color:'#484f58' }}>/{r.capacity||'?'}</span></td>
+                                    <td style={{ ...td, color:'#ffd700', fontSize:'0.72rem' }}>{(r.entry_fee||0)===0?'🆓 GRATIS':`🪙${(r.entry_fee||0).toLocaleString()}`}</td>
+                                    <td style={td}>
+                                      <div style={{ display:'flex', gap:4 }}>
+                                        {r.status === 'OPEN' && (
+                                          <button className="cact" style={{ ...sm('rgba(255,0,204,0.15)','#ff00cc'), padding:'4px 8px', fontSize:'0.7rem' }} title="Fill con bots" onClick={() => botFill(r.id)}>🤖</button>
+                                        )}
+                                        {r.status === 'ACTIVE' && (
+                                          <button className="cact" style={{ ...sm('rgba(255,215,0,0.15)','#ffd700'), padding:'4px 8px', fontSize:'0.7rem' }} title="Avanzar ronda" onClick={() => botAdvance(r.id)}>⚡</button>
+                                        )}
+                                        <button className="cact" style={{ ...sm('rgba(255,71,87,0.15)','#ff4757'), padding:'4px 8px', fontSize:'0.7rem' }} title="Eliminar sala" onClick={() => deleteRoom(r.id)}>🗑</button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* ── Depósitos pendientes ──────────────────── */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(310px,1fr))', gap:18, marginBottom:18 }}>
                 {[
