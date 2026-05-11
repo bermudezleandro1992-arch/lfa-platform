@@ -20,7 +20,7 @@ interface Ticket {
   description: string; status: string; priority: string;
   matchId?: string; createdAt: { toDate: () => Date } | null;
 }
-interface Msg { id: string; uid: string; username: string; text?: string; image_url?: string; isStaff: boolean; createdAt: { toDate: () => Date } | null; }
+interface Msg { id: string; uid: string; username: string; text?: string; image_url?: string; video_url?: string; senderName?: string; isStaff: boolean; createdAt: { toDate: () => Date } | null; }
 
 export default function TicketDetailPage() {
   const router = useRouter();
@@ -69,19 +69,25 @@ export default function TicketDetailPage() {
   async function sendMsg() {
     if (!text.trim() || !myUid) return;
     setSending(true);
-    const snap = await getDoc(doc(db, 'usuarios', myUid));
-    const username = snap.data()?.username ?? snap.data()?.nombre ?? 'Jugador';
-    await addDoc(collection(db, 'tickets', id, 'messages'), {
-      uid: myUid, username, text: text.trim(), isStaff,
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, 'tickets', id), {
-      updatedAt: serverTimestamp(),
-      unread_user: !isStaff,
-      unread_staff: isStaff ? false : true,
-      ...(isStaff && ticket?.status === 'open' ? { status: 'in_progress' } : {}),
-    });
-    setText('');
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', myUid));
+      const username = snap.data()?.username ?? snap.data()?.nombre ?? 'Jugador';
+      await addDoc(collection(db, 'tickets', id, 'messages'), {
+        uid: myUid, username, text: text.trim(), isStaff,
+        createdAt: serverTimestamp(),
+      });
+      if (isStaff) {
+        await updateDoc(doc(db, 'tickets', id), {
+          updatedAt: serverTimestamp(), unread_user: true, unread_staff: false,
+          ...(ticket?.status === 'open' ? { status: 'in_progress' } : {}),
+        });
+      } else {
+        await updateDoc(doc(db, 'tickets', id), {
+          updatedAt: serverTimestamp(), unread_user: false, unread_staff: true,
+        });
+      }
+      setText('');
+    } catch (err) { console.error(err); }
     setSending(false);
   }
 
@@ -95,11 +101,17 @@ export default function TicketDetailPage() {
       const storageRef = ref(storage, `tickets/${id}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
+      const isVideo = file.type.startsWith('video/');
       await addDoc(collection(db, 'tickets', id, 'messages'), {
-        uid: myUid, username, image_url: url, isStaff,
-        createdAt: serverTimestamp(),
+        uid: myUid, username,
+        ...(isVideo ? { video_url: url } : { image_url: url }),
+        isStaff, createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'tickets', id), { updatedAt: serverTimestamp(), unread_user: !isStaff, unread_staff: isStaff ? false : true });
+      if (isStaff) {
+        await updateDoc(doc(db, 'tickets', id), { updatedAt: serverTimestamp(), unread_user: true, unread_staff: false });
+      } else {
+        await updateDoc(doc(db, 'tickets', id), { updatedAt: serverTimestamp(), unread_user: false, unread_staff: true });
+      }
     } catch (err) { console.error(err); }
     setUploading(false);
     e.target.value = '';
@@ -174,8 +186,12 @@ export default function TicketDetailPage() {
       {/* Chat */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', maxWidth: 720, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         {msgs.length === 0 && (
-          <div style={{ textAlign: 'center', color: '#8b949e', fontSize: '0.82rem', padding: '40px 0' }}>
-            El ticket está abierto. El staff responderá pronto.
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: 16 }}>El ticket está abierto. El staff responderá pronto.</div>
+            <div style={{ background: '#161b22', border: '1px solid #21262d', borderRadius: 10, padding: '14px 18px', display: 'inline-block', textAlign: 'left', maxWidth: 340 }}>
+              <div style={{ fontSize: '0.72rem', color: '#ffd700', fontWeight: 700, marginBottom: 4 }}>🕐 HORARIO DE ATENCIÓN</div>
+              <div style={{ fontSize: '0.78rem', color: '#8b949e', lineHeight: 1.6 }}>12:00 a 00:00hs — Dejanos tu consulta y te responderemos apenas estemos online.</div>
+            </div>
           </div>
         )}
         {msgs.map(m => {
@@ -190,15 +206,19 @@ export default function TicketDetailPage() {
             <div key={m.id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
               <div style={{ maxWidth: '75%' }}>
                 <div style={{ fontSize: '0.68rem', color: '#8b949e', marginBottom: 3, textAlign: isMine ? 'right' : 'left' }}>
-                  {m.isStaff && <span style={{ color: '#ffd700', fontWeight: 700 }}>⭐ STAFF · </span>}
-                  {m.username}
+                  {m.isStaff
+                    ? <span style={{ color: '#ffd700', fontWeight: 700 }}>{m.username ?? m.senderName ?? '★ Moderador SomosLFA'}</span>
+                    : m.username}
                 </div>
                 <div style={{ background: isMine ? '#00ff8822' : '#161b22', border: `1px solid ${isMine ? '#00ff8840' : '#30363d'}`, borderRadius: isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px', padding: '10px 14px' }}>
                   {m.text && <div style={{ fontSize: '0.88rem', color: '#e6edf3', lineHeight: 1.5 }}>{m.text}</div>}
                   {m.image_url && (
                     <a href={m.image_url} target="_blank" rel="noreferrer">
-                      <img src={m.image_url} alt="img" style={{ maxWidth: 220, maxHeight: 200, borderRadius: 8, display: 'block', cursor: 'pointer' }} />
+                      <img src={m.image_url} alt="img" style={{ maxWidth: 220, maxHeight: 200, borderRadius: 8, display: 'block', cursor: 'pointer', marginTop: m.text ? 8 : 0 }} />
                     </a>
+                  )}
+                  {m.video_url && (
+                    <video src={m.video_url} controls style={{ maxWidth: 260, borderRadius: 8, display: 'block', marginTop: m.text ? 8 : 0 }} />
                   )}
                 </div>
                 {m.createdAt && <div style={{ fontSize: '0.65rem', color: '#6e7681', marginTop: 2, textAlign: isMine ? 'right' : 'left' }}>{m.createdAt.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</div>}
@@ -210,28 +230,28 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Input */}
-      {!isClosed ? (
-        <div style={{ borderTop: '1px solid #21262d', background: '#0d1117', padding: '12px 16px', flexShrink: 0 }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
-            <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              style={{ background: '#161b22', border: '1px solid #30363d', color: '#8b949e', borderRadius: 8, width: 38, height: 38, flexShrink: 0, cursor: 'pointer', fontSize: '1rem' }}>
-              {uploading ? '⏳' : '📷'}
-            </button>
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMsg())}
-              placeholder="Escribí tu mensaje..." maxLength={500}
-              style={{ flex: 1, background: '#161b22', border: '1px solid #30363d', color: '#e6edf3', borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem', outline: 'none' }} />
-            <button onClick={sendMsg} disabled={sending || !text.trim()}
-              style={{ background: '#00ff88', border: 'none', color: '#0b0e14', borderRadius: 8, width: 38, height: 38, flexShrink: 0, cursor: 'pointer', fontWeight: 900, fontSize: '1rem' }}>
-              {sending ? '⏳' : '➤'}
-            </button>
+      <div style={{ borderTop: '1px solid #21262d', background: '#0d1117', padding: '12px 16px', flexShrink: 0 }}>
+        {isClosed && !isStaff && (
+          <div style={{ background: '#21262d', borderRadius: 8, padding: '8px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#8b949e' }}>
+            <span style={{ fontSize: '1rem' }}>🔒</span>
+            <span>Este chat fue cerrado. Si necesitás ayuda podés enviar un nuevo mensaje y te responderemos pronto.</span>
           </div>
+        )}
+        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleImage} style={{ display: 'none' }} />
+          <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Adjuntar imagen o video"
+            style={{ background: '#161b22', border: '1px solid #30363d', color: '#8b949e', borderRadius: 8, width: 38, height: 38, flexShrink: 0, cursor: 'pointer', fontSize: '1rem' }}>
+            {uploading ? '⏳' : '📎'}
+          </button>
+          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMsg())}
+            placeholder={isClosed && !isStaff ? 'Enviar mensaje para reabrir…' : 'Escribí tu mensaje...'} maxLength={500}
+            style={{ flex: 1, background: '#161b22', border: '1px solid #30363d', color: '#e6edf3', borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem', outline: 'none' }} />
+          <button onClick={sendMsg} disabled={sending || !text.trim()}
+            style={{ background: '#00ff88', border: 'none', color: '#0b0e14', borderRadius: 8, width: 38, height: 38, flexShrink: 0, cursor: 'pointer', fontWeight: 900, fontSize: '1rem' }}>
+            {sending ? '⏳' : '➤'}
+          </button>
         </div>
-      ) : (
-        <div style={{ borderTop: '1px solid #21262d', background: '#0d1117', padding: 12, textAlign: 'center', flexShrink: 0 }}>
-          <span style={{ color: '#8b949e', fontSize: '0.78rem' }}>🔒 Este ticket está {STATUS_LBL[ticket.status]?.toLowerCase()}.</span>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

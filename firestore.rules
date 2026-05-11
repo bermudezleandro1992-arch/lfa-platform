@@ -401,7 +401,7 @@ service cloud.firestore {
         esStaff() ||
         (
           resource.data.uid == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_user', 'updatedAt'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_user', 'unread_staff', 'updatedAt'])
         )
       );
       allow delete: if esStaff();

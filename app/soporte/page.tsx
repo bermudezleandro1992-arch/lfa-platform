@@ -7,7 +7,8 @@ import {
   collection, onSnapshot, query, orderBy,
   doc, getDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
+import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const CEO_UID = '2bOrFxTAcPgFPoHKJHQfYxoQJpw1';
 const ROLES_STAFF = ['soporte', 'mod', 'moderador'];
@@ -22,6 +23,16 @@ const CAT_ICON: Record<string, string> = {
   disputa: '⚖️', pago: '💰', cuenta: '👤', tecnico: '🔧', otro: '📋',
 };
 
+const TEMPLATES = (name: string) => [
+  { icon: '👋', label: 'Saludo', text: `Buenas, bienvenido al soporte de SomosLFA. Soy ${name}. ¿En qué te podemos ayudar hoy?` },
+  { icon: '🔌', label: 'Conexión/Carga', text: 'Lamentamos el inconveniente. Para asistirte mejor, ¿podrías indicarnos tu ID de usuario y si el error ocurre en la web o durante la carga del partido en FC 26 / eFootball?' },
+  { icon: '⚔️', label: 'Disputa', text: 'Recibimos tu disputa. Por favor adjuntá una captura o video del resultado real para poder analizarlo. Gracias.' },
+  { icon: '🎮', label: 'Crossplay', text: '¿El partido fue en crossplay (PC + consola)? Necesitamos que nos indiques las plataformas involucradas (PS5, Xbox, Steam/PC, etc.).' },
+  { icon: '📱', label: 'Mobile', text: '¿Estás jugando desde la app mobile? Indicanos el dispositivo y versión del juego para ayudarte mejor.' },
+  { icon: '🕐', label: 'Horario', text: 'Nuestro horario de atención es de 12:00 a 00:00hs. Dejanos tu consulta y te responderemos apenas estemos online.' },
+  { icon: '✅', label: 'Cierre', text: 'Quedamos a tu disposición para cualquier consulta adicional. ¡Mucha suerte en tus próximos partidos! — Staff SomosLFA' },
+];
+
 type FilterId = 'all' | 'open' | 'in_progress' | 'resolved' | 'closed';
 
 export default function SoportePage() {
@@ -35,16 +46,23 @@ export default function SoportePage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [reply, setReply]       = useState('');
   const [sending, setSending]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [myName, setMyName]     = useState('Staff LFA');
+  const [myUid, setMyUid]       = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef   = useRef<HTMLInputElement>(null);
 
   /* ── Auth guard ─────────────────────────────────────────── */
   useEffect(() => {
     return onAuthStateChanged(auth, async user => {
       if (!user) { router.replace('/auth'); return; }
-      if (user.uid === CEO_UID) { setAllowed(true); setLoading(false); return; }
+      setMyUid(user.uid);
       const snap = await getDoc(doc(db, 'usuarios', user.uid));
-      const rol = snap.data()?.rol ?? '';
-      if (ROLES_STAFF.includes(rol)) { setAllowed(true); setLoading(false); return; }
+      const data = snap.data();
+      setMyName(data?.nombre ?? data?.username ?? 'Staff LFA');
+      if (user.uid === CEO_UID) { setAllowed(true); setLoading(false); return; }
+      if (ROLES_STAFF.includes(data?.rol ?? '')) { setAllowed(true); setLoading(false); return; }
       router.replace('/hub');
     });
   }, [router]);
@@ -74,10 +92,18 @@ export default function SoportePage() {
 
   /* ── Cambiar estado ─────────────────────────────────────── */
   async function cambiarEstado(ticketId: string, newStatus: string) {
-    await updateDoc(doc(db, 'tickets', ticketId), {
-      status: newStatus, updatedAt: serverTimestamp(),
-    });
+    await updateDoc(doc(db, 'tickets', ticketId), { status: newStatus, updatedAt: serverTimestamp() });
     if (selected?.id === ticketId) setSelected((p: any) => p ? { ...p, status: newStatus } : null);
+    const isClose = newStatus === 'closed' || newStatus === 'resolved';
+    const { addDoc: sysAdd } = await import('firebase/firestore');
+    await sysAdd(collection(db, 'tickets', ticketId, 'messages'), {
+      uid: 'system', username: 'Sistema LFA',
+      text: isClose
+        ? '🔒 Este chat ha sido cerrado. Para cualquier consulta adicional podés enviarnos un mensaje y te responderemos a la brevedad. ¡Gracias!'
+        : `⚡ Estado actualizado a: ${STATUS_LBL[newStatus]}`,
+      isStaff: true, sender: 'system', createdAt: serverTimestamp(),
+    });
+    if (isClose) await updateDoc(doc(db, 'tickets', ticketId), { unread_user: true });
   }
 
   /* ── Enviar respuesta ───────────────────────────────────── */
@@ -86,9 +112,12 @@ export default function SoportePage() {
     setSending(true);
     try {
       const { addDoc } = await import('firebase/firestore');
+      const displayName = `${myName} · Moderador SomosLFA`;
       await addDoc(collection(db, 'tickets', selected.id, 'messages'), {
-        text: reply.trim(), sender: 'staff',
-        senderName: 'Staff LFA', createdAt: serverTimestamp(),
+        uid: myUid || 'staff', username: displayName,
+        text: reply.trim(), isStaff: true,
+        sender: 'staff', senderName: displayName,
+        createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'tickets', selected.id), {
         updatedAt: serverTimestamp(),
@@ -97,6 +126,29 @@ export default function SoportePage() {
       });
       setReply('');
     } finally { setSending(false); }
+  }
+
+  /* ── Subir imagen/video ─────────────────────────────────── */
+  async function handleMedia(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !selected) return;
+    setUploading(true);
+    try {
+      const storageRef = sRef(storage, `tickets/${selected.id}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const isVideo = file.type.startsWith('video/');
+      const displayName = `${myName} · Moderador SomosLFA`;
+      const { addDoc } = await import('firebase/firestore');
+      await addDoc(collection(db, 'tickets', selected.id, 'messages'), {
+        uid: myUid || 'staff', username: displayName,
+        ...(isVideo ? { video_url: url } : { image_url: url }),
+        isStaff: true, sender: 'staff', createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, 'tickets', selected.id), { updatedAt: serverTimestamp(), unread_user: true, unread_staff: false });
+    } catch (err) { console.error(err); }
+    setUploading(false);
+    e.target.value = '';
   }
 
   /* ── Filtrar y buscar ───────────────────────────────────── */
@@ -256,15 +308,22 @@ export default function SoportePage() {
                 <div style={{ textAlign: 'center', color: '#8b949e', fontSize: '0.8rem', marginTop: 40 }}>Sin mensajes aún. Sé el primero en responder.</div>
               )}
               {messages.map(m => {
-                const isStaff = m.sender === 'staff' || m.sender === 'system';
+                const isSt = m.isStaff || m.sender === 'staff';
+                const isSys = m.uid === 'system' || m.sender === 'system';
+                if (isSys) return (
+                  <div key={m.id} style={{ textAlign: 'center', margin: '8px 0' }}>
+                    <span style={{ background: '#21262d', color: '#8b949e', borderRadius: 20, padding: '4px 14px', fontSize: '0.72rem' }}>{m.text}</span>
+                  </div>
+                );
                 return (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: isStaff ? 'flex-end' : 'flex-start' }}>
-                    <div style={{ maxWidth: '75%', background: isStaff ? '#1a3a2a' : '#161b22', border: `1px solid ${isStaff ? '#00ff8830' : '#30363d'}`, borderRadius: 10, padding: '8px 12px' }}>
-                      <div style={{ fontSize: '0.68rem', color: isStaff ? '#00ff88' : '#00c3ff', fontWeight: 700, marginBottom: 4 }}>
-                        {m.senderName ?? (isStaff ? 'Staff LFA' : 'Usuario')}
+                  <div key={m.id} style={{ display: 'flex', justifyContent: isSt ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ maxWidth: '75%', background: isSt ? '#1a3a2a' : '#161b22', border: `1px solid ${isSt ? '#00ff8830' : '#30363d'}`, borderRadius: 10, padding: '8px 12px' }}>
+                      <div style={{ fontSize: '0.68rem', color: isSt ? '#00ff88' : '#00c3ff', fontWeight: 700, marginBottom: 4 }}>
+                        {m.username ?? m.senderName ?? (isSt ? 'Staff LFA' : 'Usuario')}
                       </div>
-                      {m.imageUrl && <img src={m.imageUrl} alt="img" style={{ maxWidth: 200, borderRadius: 6, marginBottom: 6 }} />}
-                      <div style={{ fontSize: '0.82rem', lineHeight: 1.5, color: '#e6edf3', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                      {m.image_url && <a href={m.image_url} target="_blank" rel="noreferrer"><img src={m.image_url} alt="img" style={{ maxWidth: 200, borderRadius: 6, marginBottom: 6, cursor: 'pointer' }} /></a>}
+                      {m.video_url && <video src={m.video_url} controls style={{ maxWidth: 240, borderRadius: 6, marginBottom: 6, display: 'block' }} />}
+                      {m.text && <div style={{ fontSize: '0.82rem', lineHeight: 1.5, color: '#e6edf3', whiteSpace: 'pre-wrap' }}>{m.text}</div>}
                       {m.createdAt && (
                         <div style={{ fontSize: '0.62rem', color: '#8b949e', marginTop: 4, textAlign: 'right' }}>
                           {m.createdAt.toDate().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
@@ -278,19 +337,41 @@ export default function SoportePage() {
             </div>
 
             {/* Input de respuesta */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #30363d', background: '#0d1117', display: 'flex', gap: 10 }}>
-              <textarea
-                value={reply}
-                onChange={e => setReply(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-                placeholder="Responder al usuario… (Enter para enviar)"
-                rows={2}
-                style={{ flex: 1, background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#e6edf3', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }}
-              />
-              <button onClick={enviar} disabled={sending || !reply.trim()}
-                style={{ background: reply.trim() ? '#00ff88' : '#30363d', color: '#0b0e14', border: 'none', borderRadius: 8, padding: '0 18px', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, fontSize: '0.72rem', cursor: reply.trim() ? 'pointer' : 'not-allowed', transition: '0.2s', minWidth: 80 }}>
-                {sending ? '…' : 'ENVIAR'}
-              </button>
+            <div style={{ borderTop: '1px solid #30363d', background: '#0d1117' }}>
+              {/* Respuestas rápidas */}
+              {showTemplates && (
+                <div style={{ padding: '10px 20px', borderBottom: '1px solid #21262d', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {TEMPLATES(myName).map((t, i) => (
+                    <button key={i} onClick={() => { setReply(t.text); setShowTemplates(false); }}
+                      style={{ background: '#161b22', border: '1px solid #30363d', color: '#e6edf3', borderRadius: 6, padding: '5px 10px', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                      {t.icon} {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{ padding: '10px 20px', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleMedia} style={{ display: 'none' }} />
+                <button onClick={() => setShowTemplates(s => !s)} title="Respuestas rápidas"
+                  style={{ background: showTemplates ? '#00ff8820' : '#161b22', border: `1px solid ${showTemplates ? '#00ff88' : '#30363d'}`, color: showTemplates ? '#00ff88' : '#8b949e', borderRadius: 8, width: 34, height: 34, flexShrink: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
+                  ⚡
+                </button>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Adjuntar imagen/video"
+                  style={{ background: '#161b22', border: '1px solid #30363d', color: '#8b949e', borderRadius: 8, width: 34, height: 34, flexShrink: 0, cursor: 'pointer', fontSize: '0.9rem' }}>
+                  {uploading ? '⏳' : '📎'}
+                </button>
+                <textarea
+                  value={reply}
+                  onChange={e => setReply(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                  placeholder="Responder al usuario… (Enter para enviar)"
+                  rows={2}
+                  style={{ flex: 1, background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: '8px 12px', color: '#e6edf3', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button onClick={enviar} disabled={sending || !reply.trim()}
+                  style={{ background: reply.trim() ? '#00ff88' : '#30363d', color: '#0b0e14', border: 'none', borderRadius: 8, padding: '0 14px', fontFamily: "'Orbitron',sans-serif", fontWeight: 700, fontSize: '0.72rem', cursor: reply.trim() ? 'pointer' : 'not-allowed', transition: '0.2s', minWidth: 72, height: 34, alignSelf: 'flex-end' }}>
+                  {sending ? '…' : 'ENVIAR'}
+                </button>
+              </div>
             </div>
           </div>
         )}
