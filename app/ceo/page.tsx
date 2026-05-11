@@ -19,6 +19,96 @@ import LfaModal, { LfaModalHandle } from '@/app/_components/LfaModal';
 import dynamic from 'next/dynamic';
 const LigasPROTab = dynamic(() => import('@/app/_components/pro/LigasPROTab'), { ssr: false });
 
+/* ─── SoporteTab ─────────────────────────────────────────── */
+function SoporteTab() {
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [filter, setFilter]   = useState<'all'|'open'|'in_progress'|'resolved'|'closed'>('all');
+  const STATUS_CLR: Record<string,string> = { open:'#00c3ff', in_progress:'#ffd700', resolved:'#00ff88', closed:'#8b949e' };
+  const STATUS_LBL: Record<string,string> = { open:'Abierto', in_progress:'En proceso', resolved:'Resuelto', closed:'Cerrado' };
+
+  useEffect(() => {
+    const { collection: col, onSnapshot: ons, query: q, orderBy: ob } = require('firebase/firestore');
+    const unsub = ons(q(col(db, 'tickets')), (snap: any) => {
+      const arr = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      arr.sort((a: any, b: any) => {
+        const ta = a.createdAt?.toDate?.()?.getTime() ?? 0;
+        const tb = b.createdAt?.toDate?.()?.getTime() ?? 0;
+        return tb - ta;
+      });
+      setTickets(arr);
+    });
+    return unsub;
+  }, []);
+
+  const filtered = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+  const counts = { all: tickets.length, open: tickets.filter(t=>t.status==='open').length, in_progress: tickets.filter(t=>t.status==='in_progress').length, resolved: tickets.filter(t=>t.status==='resolved').length, closed: tickets.filter(t=>t.status==='closed').length };
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Orbitron',sans-serif", color:'#00ff88', margin:'0 0 18px', fontSize:'0.9rem', borderLeft:'4px solid #00ff88', paddingLeft:12 }}>
+        🎫 GESTIÓN DE SOPORTE ({tickets.length} tickets)
+      </h2>
+
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:20 }}>
+        {[
+          { l:'ABIERTOS',    v: counts.open,        c:'#00c3ff' },
+          { l:'EN PROCESO',  v: counts.in_progress, c:'#ffd700' },
+          { l:'RESUELTOS',   v: counts.resolved,    c:'#00ff88' },
+          { l:'CERRADOS',    v: counts.closed,       c:'#8b949e' },
+        ].map(k => (
+          <div key={k.l} style={{ background:'#161b22', border:`1px solid ${k.c}33`, borderRadius:10, padding:'12px 16px' }}>
+            <div style={{ fontSize:'1.6rem', fontWeight:900, color:k.c, fontFamily:"'Orbitron',sans-serif" }}>{k.v}</div>
+            <div style={{ fontSize:'0.65rem', color:'#8b949e', fontWeight:700, marginTop:2 }}>{k.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+        {(['all','open','in_progress','resolved','closed'] as const).map(s => (
+          <button key={s} onClick={() => setFilter(s)}
+            style={{ background: filter===s ? (s==='all'?'#ffd70022':'`${STATUS_CLR[s] ?? \'#ffd700\'}22`') : '#161b22', border:`1px solid ${filter===s ? (STATUS_CLR[s]??'#ffd700') : '#30363d'}`, color: filter===s ? (STATUS_CLR[s]??'#ffd700') : '#8b949e', borderRadius:6, padding:'5px 12px', fontSize:'0.72rem', fontWeight:700, cursor:'pointer' }}>
+            {s==='all' ? `Todos (${counts.all})` : `${STATUS_LBL[s]} (${counts[s]})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Tabla */}
+      {filtered.length === 0 ? (
+        <div style={{ background:'#161b22', border:'1px solid #30363d', borderRadius:10, padding:40, textAlign:'center', color:'#8b949e' }}>Sin tickets en esta categoría ✓</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {filtered.map((t: any) => (
+            <a key={t.id} href={`/tickets/${t.id}`} target="_blank" rel="noreferrer" style={{ textDecoration:'none' }}>
+              <div style={{ background:'#161b22', border:'1px solid #30363d', borderRadius:10, padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, cursor:'pointer', transition:'0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#ffd70040'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#30363d'}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:'0.88rem', color:'#e6edf3', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{t.subject}</div>
+                  <div style={{ fontSize:'0.72rem', color:'#8b949e', marginTop:3 }}>
+                    <span style={{ color:'#e6edf3' }}>{t.username}</span>
+                    {' · '}{t.category}
+                    {t.matchId && <span style={{ color:'#00c3ff', marginLeft:6 }}>Sala #{t.matchId.slice(-8)}</span>}
+                    {t.createdAt && <span style={{ marginLeft:8 }}>{t.createdAt.toDate().toLocaleDateString('es-AR')}</span>}
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                  {t.unread_staff && <div style={{ width:8, height:8, borderRadius:'50%', background:'#ff4757' }} title="Sin leer" />}
+                  <span style={{ background:`${STATUS_CLR[t.status]??'#8b949e'}22`, color:STATUS_CLR[t.status]??'#8b949e', borderRadius:20, padding:'3px 10px', fontSize:'0.7rem', fontWeight:700 }}>
+                    {STATUS_LBL[t.status]??t.status}
+                  </span>
+                  <span style={{ color:'#8b949e', fontSize:'0.8rem' }}>→</span>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Tipos ──────────────────────────────────────────────── */
 interface Jugador {
   id: string; nombre?: string; email?: string; number?: number;
@@ -135,7 +225,7 @@ const td: React.CSSProperties = { padding: '10px 10px', borderBottom: '1px solid
 export default function CeoPage() {
   const router  = useRouter();
   const modal   = useRef<LfaModalHandle>(null);
-  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas'>('overview');
+  const [tab,   setTab]   = useState<'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas'|'soporte'>('overview');
   const [ready, setReady] = useState(false);
 
   /* ── Datos Firestore ────────────────────────────────────── */
@@ -850,13 +940,14 @@ export default function CeoPage() {
   );
 
   /* ═══ TABS ══════════════════════════════════════════════════ */
-  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas';
+  type TabId = 'overview'|'usuarios'|'torneos'|'finanzas'|'spawner'|'sistema'|'leads'|'disputas'|'vision'|'tienda'|'ligas'|'soporte';
   const TABS: { id: TabId; label: string; badge: number }[] = [
     { id:'overview',  label:'📊 Overview',  badge: 0 },
     { id:'usuarios',  label:'👥 Usuarios',  badge: jugadores.length },
     { id:'torneos',   label:'🏆 Torneos',   badge: openRooms },
     { id:'finanzas',  label:'💰 Finanzas',  badge: retPend + pagPend },
     { id:'disputas',  label:'⚖️ Disputas',  badge: disputasPend },
+    { id:'soporte',   label:'🎫 Soporte',   badge: 0 },
     { id:'spawner',   label:'🤖 Spawner',   badge: 0 },
     { id:'ligas',     label:'🏅 Ligas PRO', badge: 0 },
     { id:'sistema',   label:'⚙️ Sistema',   badge: 0 },
@@ -2545,6 +2636,9 @@ export default function CeoPage() {
               }
             </div>
           </>}
+
+          {/* ══ SOPORTE ══════════════════════════════════════════ */}
+          {tab === 'soporte' && <SoporteTab />}
 
       {/* ══ VISION AI LOG ═══════════════════════════════════════ */}
       {tab === 'tienda' && (() => {

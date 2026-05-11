@@ -150,7 +150,14 @@ function DashboardContent() {
       {tab === 'resultados'   && <ResultadosEnVivo />}
       {tab === 'organizador'  && <OrganizadorPanel />}
 
-
+      {/* Botón soporte flotante */}
+      <a href="/tickets"
+        style={{ position:'fixed', bottom:24, right:24, zIndex:50, background:'#00ff88', color:'#0b0e14', borderRadius:'50%', width:52, height:52, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem', boxShadow:'0 4px 20px rgba(0,255,136,0.4)', textDecoration:'none', transition:'0.2s' }}
+        title="Centro de Soporte"
+        onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.1)'}
+        onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)'}>
+        🎫
+      </a>
     </>
   );
 }
