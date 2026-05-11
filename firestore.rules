@@ -375,6 +375,54 @@ service cloud.firestore {
       allow read, write: if false; // solo el servidor vía Admin SDK
     }
 
+    // ── Sistema de Tickets de Soporte ────────────────────────────────
+    function esStaff() {
+      return authExists() && (
+        request.auth.uid == "2bOrFxTAcPgFPoHKJHQfYxoQJpw1" ||
+        obtenerRol() == "soporte" ||
+        obtenerRol() == "mod"
+      );
+    }
+
+    match /tickets/{ticketId} {
+      // Jugador ve sus propios tickets; staff ve todos
+      allow read: if authExists() && (
+        resource.data.userId == request.auth.uid || esStaff()
+      );
+      // Jugador puede crear su propio ticket
+      allow create: if authExists()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'OPEN'
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() >= 3
+        && request.resource.data.subject.size() <= 100;
+      // Staff puede actualizar status/prioridad/asignación; jugador puede solo actualizar unreadUser
+      allow update: if authExists() && (
+        esStaff() ||
+        (
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadUser', 'updated_at'])
+        )
+      );
+      allow delete: if esStaff();
+    }
+
+    match /ticket_chat/{msgId} {
+      // Participantes del ticket (dueño o staff) pueden leer
+      allow read: if authExists() && (
+        esStaff() ||
+        get(/databases/$(database)/documents/tickets/$(resource.data.ticketId)).data.userId == request.auth.uid
+      );
+      // Crear mensaje: el dueño del ticket o staff
+      allow create: if authExists() && (
+        esStaff() ||
+        get(/databases/$(database)/documents/tickets/$(request.resource.data.ticketId)).data.userId == request.auth.uid
+      ) && request.resource.data.uid == request.auth.uid
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() <= 500;
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

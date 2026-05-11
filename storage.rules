@@ -34,6 +34,24 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png)');
     }
 
+    // ── Imágenes de chat de sala (match_chat) ─────────────────────
+    // Ruta: chat/{tournamentId}/{matchId}/{filename}
+    match /chat/{tournamentId}/{matchId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+    }
+
+    // ── Imágenes de tickets de soporte ────────────────────────────
+    // Ruta: tickets/{ticketId}/{filename}
+    match /tickets/{ticketId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
     // ── Bloquear todo lo demás ───────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

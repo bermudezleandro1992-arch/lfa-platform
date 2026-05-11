@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "SomosLFA",
+    "slug": "lfa-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "somos-lfa",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0b0e14",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0e14"
+    },
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#00ff88",
+      "androidMode": "default"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b0e14"
+      },
+      "package": "com.somos.lfa",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "ios": {
+      "bundleIdentifier": "com.somos.lfa",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "LFA necesita acceso a tu cámara para subir capturas de partidos.",
+        "NSPhotoLibraryUsageDescription": "LFA necesita acceso a tu galería para subir screenshots."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "LFA necesita acceso a tu galería para screenshots.",
+          "cameraPermission": "LFA necesita tu cámara para capturar resultados."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00ff88",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "lfa-mobile-project-id"
+      },
+      "firebaseApiKey": "process.env.EXPO_PUBLIC_FIREBASE_API_KEY",
+      "firebaseProjectId": "lfaofficial"
+    }
+  }
+}
