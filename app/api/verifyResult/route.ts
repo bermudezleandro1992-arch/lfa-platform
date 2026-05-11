@@ -41,31 +41,72 @@ const FC26_KEYWORDS = [
 ];
 
 const EFOOTBALL_KEYWORDS = [
+  // Textos de UI eFootball generales
   'efootball', 'e-football', 'konami', 'pes',
+  'myclub', 'dream team', 'master league',
+  'konami id', 'konami id:', 'online match', 'match finished',
   'match result', 'resultado del partido', 'match end',
   'full time', 'penalty shootout', 'tiro penal',
-  'stamina', 'condition', 'form', 'myclub',
-  'konami id', 'dream team', 'master league',
-  'online match', 'match finished', 'partida encerrada',
+  'stamina', 'condition',
+  'partida encerrada', 'partida online',
+  // Pantalla "partidos" / historial de partidos (eFootball ES/PT)
+  'partidos',          // título de la sección historial
+  'jog@',             // término portugués eFootball
+  'joga bonito',
+  'crossplay',        // modo crossplay PS/Xbox/PC
+  'rank match',       // modo clasificatorio eFootball
+  'event match',
+  'divisions',
+  'rating match',
+  'skill check',
+  // Plataformas que aparecen en partidos crossplay
+  'ps5', 'ps4', 'playstation',
+  'xbox', 'xbox series',
+  'steam', 'windows',   // PC crossplay
+  // Términos del marcador/pantalla de resultado
+  'resultados', 'resultado',
+  'penalty', 'penalties',
+  // UI eFootball genérica
+  'live update', 'featured players',
+  'gp ', 'player growth',
 ];
 
 /* ─── Detectar juego + nivel de coincidencia ────────────── */
-function detectGame(text: string): {
+function detectGame(
+  text: string,
+  labels: string[] = [],
+): {
   game: 'FC26' | 'EFOOTBALL' | 'UNKNOWN';
   gameKeywordsFound: string[];
   gameConfidence: number;
+  crossplay: boolean;
 } {
   const t = text.toLowerCase();
-  const fc26Hits     = FC26_KEYWORDS.filter(k => t.includes(k));
-  const efbHits      = EFOOTBALL_KEYWORDS.filter(k => t.includes(k));
+  const fc26Hits = FC26_KEYWORDS.filter(k => t.includes(k));
+  const efbHits  = EFOOTBALL_KEYWORDS.filter(k => t.includes(k));
+
+  // Detectar crossplay: ambos íconos de plataforma distintos en la misma imagen
+  // Google Vision labels puede devolver: "Game controller", "Computer monitor", "Gadget"
+  // También detectamos por texto: PS5 + Steam/Windows presentes juntos
+  const labelsLower = labels.map(l => l.toLowerCase());
+  const hasControllerLabel = labelsLower.some(l => l.includes('controller') || l.includes('gamepad') || l.includes('joystick'));
+  const hasMonitorLabel    = labelsLower.some(l => l.includes('monitor') || l.includes('computer') || l.includes('display') || l.includes('screen'));
+  const hasPcText     = t.includes('steam') || t.includes('windows') || t.includes('pc');
+  const hasConsoleText = t.includes('ps5') || t.includes('ps4') || t.includes('xbox') || t.includes('playstation');
+  const crossplay = (hasControllerLabel && hasMonitorLabel) || (hasPcText && hasConsoleText) || t.includes('crossplay');
+
+  // Si hay crossplay de plataformas, es casi seguro eFootball (único juego con crossplay en LFA)
+  if (crossplay && efbHits.length === 0 && fc26Hits.length === 0) {
+    return { game: 'EFOOTBALL', gameKeywordsFound: ['[crossplay detectado]'], gameConfidence: 0.6, crossplay };
+  }
 
   if (fc26Hits.length >= efbHits.length && fc26Hits.length > 0) {
-    return { game: 'FC26', gameKeywordsFound: fc26Hits, gameConfidence: Math.min(1, fc26Hits.length / 3) };
+    return { game: 'FC26', gameKeywordsFound: fc26Hits, gameConfidence: Math.min(1, fc26Hits.length / 3), crossplay };
   }
   if (efbHits.length > 0) {
-    return { game: 'EFOOTBALL', gameKeywordsFound: efbHits, gameConfidence: Math.min(1, efbHits.length / 3) };
+    return { game: 'EFOOTBALL', gameKeywordsFound: efbHits, gameConfidence: Math.min(1, efbHits.length / 3), crossplay };
   }
-  return { game: 'UNKNOWN', gameKeywordsFound: [], gameConfidence: 0 };
+  return { game: 'UNKNOWN', gameKeywordsFound: [], gameConfidence: 0, crossplay };
 }
 
 /* ─── Detectar si es pantalla de resultado real ─────────── */
@@ -81,8 +122,12 @@ function isResultScreen(text: string, game: 'FC26' | 'EFOOTBALL' | 'UNKNOWN'): b
   if (looksLikeMenu) return false;
   // Para FC26: debe tener al menos "full time" o "match summary"
   if (game === 'FC26') return t.includes('full time') || t.includes('match summary') || t.includes('resumen');
-  // Para eFootball: debe tener "match result" o "full time"
-  if (game === 'EFOOTBALL') return t.includes('match result') || t.includes('resultado') || t.includes('full time');
+  // Para eFootball: acepta pantalla de resultado O pantalla de historial "partidos"
+  if (game === 'EFOOTBALL') {
+    const isResultView  = t.includes('match result') || t.includes('resultado') || t.includes('full time');
+    const isPartidosView = t.includes('partidos') || t.includes('rank match') || t.includes('jog@');
+    return isResultView || isPartidosView;
+  }
   return hasScore;
 }
 
@@ -231,7 +276,8 @@ export async function POST(req: NextRequest) {
     }
 
     /* ── Análisis completo ───────────────────────────────── */
-    const { game, gameKeywordsFound, gameConfidence } = detectGame(rawText);
+    const visionLabels = (response?.labelAnnotations ?? []).map((l: any) => l.description ?? '');
+    const { game, gameKeywordsFound, gameConfidence, crossplay } = detectGame(rawText, visionLabels);
     const scoreFound    = extractScore(rawText);
     const reportedScore = (match.score ?? '').replace(/\s/g, '');
 
@@ -334,7 +380,7 @@ export async function POST(req: NextRequest) {
     const idField = useKonamiId ? 'Konami ID' : 'EA ID';
     const details = [
       game !== 'UNKNOWN'
-        ? `Juego: ${game} (keywords: ${gameKeywordsFound.slice(0,4).join(', ')})`
+        ? `Juego: ${game} (keywords: ${gameKeywordsFound.slice(0,4).join(', ')})${crossplay ? ' · 🎮↔️🖥️ Crossplay detectado' : ''}`
         : '⚠️ Juego no identificado — ninguna keyword reconocida en la imagen.',
       resultScreen ? '✅ Pantalla de resultado detectada.' : '⚠️ No parece ser una pantalla de resultado.',
       scoreFound ? `Marcador detectado: ${scoreFound}` : '⚠️ Marcador no legible.',
